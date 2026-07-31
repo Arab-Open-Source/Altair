@@ -1,39 +1,81 @@
-# altair
+# <p align="center"><img src=".github/assets/logo.png" width="180" alt="Altair Logo"></p>
 
-TODO: Write a description here
+<h1 align="center">Altair</h1>
+
+<p align="center">
+  The batteries-included web framework for Crystal.
+</p>
+
+<p align="center">
+  <strong>Fast.</strong> •
+  <strong>Elegant.</strong> •
+  <strong>Productive.</strong>
+</p>
+
+---
+
+Altair is a modern, batteries-included web framework for Crystal, inspired by the philosophy of Ruby on Rails.
+
+Its goal is to provide an exceptional developer experience while taking advantage of Crystal's native performance, low memory usage, and single-binary deployment.
+
+> **Status:** 🚧 Early development (pre-alpha)
+
+---
+
+## Philosophy
+
+Altair is built around a few simple principles:
+
+* Convention over Configuration
+* Developer Happiness
+* Batteries Included
+* Performance by Default
+* Readable and Maintainable Code
+
+---
+
+## Features (Planned)
+
+* 🚀 High-performance HTTP server
+* 🛣️ Expressive routing
+* 🧩 MVC architecture
+* ⚙️ Middleware pipeline
+* 🎨 Template rendering
+* 📦 CLI generators
+* 🗄️ Database migrations
+* 🔒 Authentication
+* 📬 Background jobs
+* ⚡ Asset management
+* 🧪 Testing utilities
+
+---
 
 ## Installation
 
-1. Add the dependency to your `shard.yml`:
+> Installation instructions will be available with the first public release.
 
-   ```yaml
-   dependencies:
-     altair:
-       github: your-github-user/altair
-   ```
+---
 
-2. Run `shards install`
+## Documentation
 
-## Usage
+Documentation is currently under development.
 
-```crystal
-require "altair"
-```
+---
 
-TODO: Write usage instructions here
+## Roadmap
 
-## Development
+See [ROADMAP.md](ROADMAP.md).
 
-TODO: Write development instructions here
+---
 
 ## Contributing
 
-1. Fork it (<https://github.com/your-github-user/altair/fork>)
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create a new Pull Request
+Contributions are welcome.
 
-## Contributors
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening an issue or pull request.
 
-- [hmh](https://github.com/your-github-user) - creator and maintainer
+---
+
+## License
+
+Altair is licensed under the Apache License 2.0.
