@@ -1,0 +1,274 @@
+# AGENTS.md — Working with Altair
+
+This file gives human and AI contributors the context they need to work on
+Altair effectively: where the project stands, what to build next, how to
+write code that fits, and how to verify it. Read it before touching the
+codebase, and treat it as a contract for every change you make.
+
+---
+
+## What Altair is
+
+Altair is a **batteries-included web framework for Crystal**. Batteries
+included means it ships the full stack — routing, controllers, views,
+configuration, an ORM, generators, CLI — with sane defaults, so that
+building a web app with Crystal feels like the framework is working *for*
+you, not against you.
+
+The driving philosophy, from the roadmap:
+
+> Every phase ends with something working and visible — vertical slices,
+> not horizontal scaffolding. Each phase has a clear exit criterion.
+
+Nothing ships unless someone can look at it, click it, and see it work.
+
+## Non-negotiables
+
+- **Do not mention "Rails"** — not in code, comments, docs, or commit
+  messages. It is an old house rule; keep it that way. Performance and API
+  comparisons to other frameworks are fine in conversation, just never
+  "Rails" in the repo.
+- **Specs from day one.** Every phase ends with its specs passing.
+- **Never skip a phase's exit criterion.** Building the ORM before a
+  working demo exists is wasted effort.
+- **No emojis in code or docs.**
+- **No code comments that state the obvious.** Use short doc comments above
+  public classes and methods (Crystal doc style), matching the existing
+  code.
+
+## Current status
+
+- **Phases 0–2 done** (Foundation, Router, Controllers). Phase 3
+  (**Views**) is next.
+- 155 specs passing, formatter clean, Ameba silent.
+- Smart error pages (404 with route suggestions, 405 with `_method`
+  explanation, detailed 500 diagnostics) shipped early as a pre-Phase-3
+  gift — they live in the framework already.
+
+| Phase | Focus | Status |
+|---|---|---|
+| 0 | Foundation | Completed |
+| 1 | Router | Completed |
+| 2 | Controllers | Completed |
+| 3 | Views | **Next** |
+| 4 | CLI | Planned |
+| 5 | ORM (`Altair::Record`) | Planned |
+| 6 | Generators | Planned |
+| 7 | Hardening | Planned |
+| 8 | Post-release | Planned |
+
+## The phases
+
+Detailed phase-by-phase implementation plans live in
+[`docs/architecture/`](docs/architecture) and the authoritative status
+table in [`ROADMAP.md`](ROADMAP.md). The exit criteria — the contract for
+"done" — are:
+
+### Phase 3: Views (next)
+- Auto-escaping by default: `<%= %>` escapes, `<%== %>` raw — XSS-safe out
+  of the box.
+- Layouts + `yield`: pages share a header and footer.
+- Partials (`render "form"`): file reuse.
+- Helpers: `link_to`, `content_tag`, basic form builder — a live HTML demo
+  viewable in the browser.
+
+### Phase 4: CLI
+- `altair new blog` generates the standard layout (`app/`, `config/`, `db/`).
+- `altair server` runs a project with a single command.
+- `altair routes` prints the route table.
+
+### Phase 5: ORM — `Altair::Record` (the big one, ~40% of total effort)
+- Connection + config (SQLite first, PostgreSQL ready).
+- Migrations DSL + `db:migrate` / `db:rollback`.
+- `schema.cr` generation — a wrong column is a *compile* error.
+- CRUD + finders (`find_by_*`).
+- Validations: `valid?` + errors.
+- Associations: `belongs_to` / `has_many` / `has_one`.
+- Callbacks + transactions.
+
+### Phase 6: Generators
+- `altair g model/migration/controller` generates ready-to-edit files.
+- `altair g scaffold Post title:string body:text` — the full magic: model +
+  migration + controller + views.
+- Full blog demo works out of the box: new project + scaffold + server.
+
+### Phase 7: Hardening
+- Sessions + flash + CSRF — a simple login works.
+- `database.yml` / `.env` config — production-ready project.
+- Maintenance: Ameba + specs everywhere — real project quality.
+
+### Phase 8: Post-release
+- Background jobs, full authentication, asset pipeline, rich query DSL
+  (joins/preload/scopes), testing utilities, `has_many :through` +
+  polymorphic associations.
+
+Golden rules from the roadmap: specs from day one, never skip an exit
+criterion, every week something visible, and hold off the complex 20%
+(polymorphic associations, STI) until after the first release.
+
+---
+
+## Codebase layout
+
+The entry point is `src/altair.cr` — it requires every component **in
+dependency order**. Any new file must be added there in the correct
+position, or it will not be loaded.
+
+```
+src/altair/
+  core/          Application, request handling, error pages
+  http/          Request, Response, Params
+  routing/       Router, DSL, Route, RouteSet, Segment
+  controller/    Controller base
+  middleware/    Base, Logger, Static
+  config/        Config, Env, environments/
+  support/       Inflector and other utilities
+  exceptions/    The exception hierarchy
+  server/        HTTP server wiring
+  cli/           (planned — empty placeholder)
+  rendering/     (planned — empty placeholder)
+  view/          (planned — empty placeholder)
+  plugins/       (planned — empty placeholder)
+  concerns/      (planned — empty placeholder)
+  testing/       (planned — empty placeholder)
+spec/            Mirrors src/altair, plus controller/routing integration specs
+examples/        hello_world is the always-running demo app
+docs/architecture/  Phase-by-phase implementation plans
+```
+
+Modules nest under `Altair`: `Altair::Routing::Router`, `Altair::Controller`,
+etc.
+
+### Architecture principles to preserve
+
+1. **Compile-time safety first.** The framework leans on Crystal's type
+   system hard. Route helpers like `post_path(5)` are generated methods,
+   type-checked like any other code. A wrong method on a dispatch is a
+   compile error, not a runtime 500. Prefer constructs that fail at compile
+   time over runtime checks.
+2. **Segment-based routing, not regex.** The router parses URL segments
+   directly. Any new routing behavior should stay on that path.
+3. **Middleware factories, not class instantiation.** `Middleware.new(app)`
+   on a base class widens to every subclass — the pipeline uses factory
+   procs (`Proc(Application, Middleware)`) to keep each middleware concrete.
+4. **One application subclass.** `Altair::Application` is subclassed once
+   per project (the specs use `SpecApp`). The framework is built around
+   that single-instance reality.
+5. **Debug pages are for development.** Error pages with route suggestions,
+   request context and source previews render in debug mode only.
+   Production serves a plain, minimal message. Never leak request bodies or
+   headers.
+6. **Escape everything rendered by default.** HTML values shown to the user
+   are escaped unless explicitly marked raw. Sensitive headers
+   (Authorization, Cookie, ...) are never echoed into diagnostics.
+
+---
+
+## How to write code here
+
+Follow the official Crystal style — the formatter is the authority:
+
+```bash
+crystal tool format --check src spec examples
+```
+
+- Match the surrounding style of the file you are editing.
+- Short doc comment above each public class and method, as the existing
+  code does.
+- Keep the linter silent:
+
+```bash
+crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
+```
+
+### Workflow
+- Branches are named after the change or issue: `feat-named-routes`,
+  `issue-42-fix-405-header`, `fix-route-param-decoding`.
+- Commits follow Conventional Commits: `feat:`, `fix:`, `refactor:`,
+  `docs:`, `test:`, `chore:` — imperative mood, lowercase, under 72 chars.
+  Use the body for the "why".
+- Update `CHANGELOG.md` `[Unreleased]` for user-facing changes.
+- Real contributor guidance lives in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+---
+
+## Testing
+
+The suite is `crystal spec` (currently 155 examples). Run it before and
+after every change:
+
+```bash
+crystal spec
+```
+
+Rules:
+
+- Every behavior you add gets a spec. When fixing a bug, add the
+  reproducing spec **first**, watch it fail, then fix.
+- Specs live in `spec/` mirroring `src/altair/`. Look at `spec/routing/`
+  for the routing-layer patterns and `spec/controller/integration_spec.cr`
+  for real HTTP request/response coverage.
+- The suite pins `Altair.env = Altair::Env::Test` in
+  `spec/spec_helper.cr` and defines `SpecApp`, the single shared
+  application.
+- Routing-DSL specs use the compile-time `StubController` hierarchy from
+  `spec_helper.cr` — actions are registered but never invoked there; real
+  dispatch is covered by the controller specs.
+- Integration specs bind the server on an ephemeral port and wait until it
+  is ready before issuing `HTTP::Client` requests. Reset the shared
+  application instance in an `ensure` block so specs do not leak state.
+- **Acceptance bar for any PR:** formatter clean, Ameba silent,
+  `crystal spec` green, CHANGELOG updated.
+
+---
+
+## Hard-won gotchas (Crystal / this codebase)
+
+These cost real debugging time once — internalize them:
+
+- **`NamedTuple#select` does not exist.** To filter a `NamedTuple`, go
+  through `to_a.select(...)` or restructure.
+- **`Exception#cause=` is not public API.** Build the chain in the
+  constructor: `Exception.new(message, cause)`, not by assigning after the
+  fact.
+- **`Log::IOBackend` needs `require "log/io_backend"`.** In synchronous
+  specs, pass `dispatcher: Log::DispatchMode::Sync` — the default async
+  dispatcher races with assertions.
+- **Prefer `Time.instant` over `Time.monotonic`** (deprecated in newer
+  Crystal).
+- **`MIME.from_extension?` takes the leading dot** — `".css"`, not `"css"`.
+- **`HEAD` requests match `GET` routes** and the response body is dropped
+  automatically.
+- **`_method` override.** HTML forms can override the verb via a `_method`
+  field (PUT/PATCH/DELETE). 405 error hints must respect it, and a `HEAD`
+  request is reported as `GET`.
+- **`yield` + `ensure` interplay:** inside a method with `yield`, Crystal
+  widens return types to `| Nil` when you guard with `ensure`. Use
+  `.as(Path)` or restructure rather than fighting the compiler.
+- **The welcome page renders when there are no routes and the path is `/`.**
+- **`crystal tool format` is a check** in this workflow — never auto-format
+  *after* a build; it will fail CI. Format first, or use `--check`.
+- **Middleware type widening:** `klass.new(app)` where `klass` is the base
+  `Middleware` class widens the pipeline type to every subclass — this is
+  why factories exist. Keep the factory pattern.
+- **`pkill` does not work reliably from this environment's terminal.**
+  Kill dev servers by PID (`kill <pid>`).
+- **New files must be registered in `src/altair.cr`** in dependency order
+  or they silently never load.
+
+---
+
+## Running things
+
+```bash
+shards install          # fetch dev dependencies (ameba)
+crystal spec            # full test suite
+crystal run src/altair.cr  # boot the framework (see examples/)
+crystal tool format --check src spec examples
+crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
+```
+
+`examples/hello_world/` is a self-contained runnable app — the reference
+for what a real Altair project looks like (its README explains how to run
+it). Keep it running and demonstrable; it is the "every week, something
+visible" vehicle.
