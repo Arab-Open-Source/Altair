@@ -38,16 +38,38 @@ class Altair::Server
   # blocks until the server is closed — the main entry point used by
   # `Altair::Application#start`.
   def start : Nil
-    config = @app.config
-    config.logger.info { "Altair #{Altair::VERSION} starting in #{Altair.env} mode" }
     address = bound? ? bound_address : bind
-    config.logger.info { "Listening on #{address.address}:#{address.port}" }
     install_signal_handlers
     @http_server.listen
   end
 
+  # Renders the boot banner: a boxed summary of the environment, the
+  # listening address and the application's route and middleware counts.
+  # Printed once by `Altair::Application#start` on its own line, outside
+  # the log stream.
+  def banner : String
+    lines = [
+      "Altair #{Altair::VERSION} — #{Altair.env} mode",
+      "Listening on http://#{display_host}:#{port}",
+      "#{@app.config.name} · #{@app.class.route_set.routes.size} routes · #{@app.config.middleware.size} middlewares",
+    ]
+    width = lines.max_of(&.size) + 4
+    String.build do |io|
+      io << "╭" << "─" * width << "╮\n"
+      lines.each do |line|
+        padding = width - line.size
+        io << "│" << " " * (padding // 2 + 1) << line << " " * (padding - padding // 2 + 1) << "│\n"
+      end
+      io << "╰" << "─" * width << "╯"
+    end
+  end
+
   private def bound? : Bool
     !@http_server.addresses.empty?
+  end
+
+  private def display_host : String
+    @app.config.host == "0.0.0.0" ? "localhost" : @app.config.host
   end
 
   private def bound_address : Socket::IPAddress

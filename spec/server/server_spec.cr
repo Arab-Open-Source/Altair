@@ -44,6 +44,21 @@ describe Altair::Server do
     server.http_server.closed?.should be_true
   end
 
+  it "renders a boxed boot banner with the environment and address" do
+    app = SpecApp.instance
+    server = Altair::Server.new(app, Altair::Core::RequestHandler.new(app))
+    server.bind("127.0.0.1", 0)
+
+    banner = server.banner
+    banner.should contain("╭")
+    banner.should contain("╰")
+    banner.should contain("Altair #{Altair::VERSION} — #{Altair.env} mode")
+    banner.should contain("Listening on http://localhost:#{server.port}")
+    banner.should contain("#{app.config.name} ·")
+    banner.lines.first.ends_with?("╮").should be_true
+    banner.lines.last.ends_with?("╯").should be_true
+  end
+
   it "survives ten boot/shutdown cycles" do
     app = SpecApp.instance
     handler = Altair::Core::RequestHandler.new(app)

@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Boot banner**: `altair run` applications print a boxed summary at
+  startup — environment, listening URL (shown as `localhost` when bound to
+  `0.0.0.0`), and the application's route and middleware counts —
+  replacing the two plain log lines that used to precede the request log.
+
 - **Phase 3 — Views**: compile-time templates with safe defaults, layouts,
   partials and an optional htmx layer.
   - The `templates` macro: `.ecr` files are

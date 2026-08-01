@@ -90,10 +90,14 @@ abstract class Altair::Application
   end
 
   # Boots the HTTP server for this application instance and blocks until
-  # the server is closed.
+  # the server is closed. Prints the boot banner once, on its own line,
+  # before the server starts listening.
   def start : Nil
     handler = Altair::Core::RequestHandler.new(self)
-    Altair::Server.new(self, handler).start
+    server = Altair::Server.new(self, handler)
+    server.bind
+    puts server.banner
+    server.start
   end
 
   # Creates the application instance, wires up the configuration and
