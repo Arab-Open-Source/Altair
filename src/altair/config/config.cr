@@ -23,6 +23,16 @@ module Altair
     # errors. Applications may swap it for their own `Log` instance.
     property logger : Log = Log.for("altair")
 
+    # The middleware stack, run in order on every request before routing.
+    # Each entry is a factory proc that builds one middleware for the
+    # application, e.g. `->(app : Altair::Application) { MyMiddleware.new(app) }`.
+    # Defaults to request logging and static-file serving from `public/`;
+    # assign an empty array to disable both, or build your own stack.
+    property middleware : Array(Proc(Altair::Application, Altair::Middleware)) = [
+      ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::Logger.new(app) },
+      ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::Static.new(app) },
+    ]
+
     # Global debug flag, inherited from the active environment's settings.
     property? debug : Bool = false
 

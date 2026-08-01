@@ -15,39 +15,40 @@ class SpecApp < Altair::Application
 end
 
 # Compile-time stubs for the routing DSL specs. The DSL wires routes to
-# controller classes (`posts#index` calls `PostsController.index`); the
-# specs only inspect route registration and the generated helpers, so the
-# actions are defined but never invoked. Real controller dispatch arrives
-# in a later phase.
-abstract class StubController
-  def self.index(request : Altair::HTTP::Request, response : Altair::HTTP::Response) : Nil
+# controller classes (`posts#show` dispatches
+# `PostsController.new(request, response).show`); the specs only inspect
+# route registration and the generated helpers, so the actions are defined
+# but never invoked. Real controller dispatch is covered by the controller
+# specs.
+abstract class StubController < Altair::Controller
+  def index : Nil
   end
 
-  def self.show(request : Altair::HTTP::Request, response : Altair::HTTP::Response) : Nil
+  def show : Nil
   end
 
-  def self.new(request : Altair::HTTP::Request, response : Altair::HTTP::Response) : Nil
+  def new : Nil
   end
 
-  def self.create(request : Altair::HTTP::Request, response : Altair::HTTP::Response) : Nil
+  def create : Nil
   end
 
-  def self.edit(request : Altair::HTTP::Request, response : Altair::HTTP::Response) : Nil
+  def edit : Nil
   end
 
-  def self.update(request : Altair::HTTP::Request, response : Altair::HTTP::Response) : Nil
+  def update : Nil
   end
 
-  def self.destroy(request : Altair::HTTP::Request, response : Altair::HTTP::Response) : Nil
+  def destroy : Nil
   end
 
-  def self.hello(request : Altair::HTTP::Request, response : Altair::HTTP::Response) : Nil
+  def hello : Nil
   end
 
-  def self.about(request : Altair::HTTP::Request, response : Altair::HTTP::Response) : Nil
+  def about : Nil
   end
 
-  def self.dashboard(request : Altair::HTTP::Request, response : Altair::HTTP::Response) : Nil
+  def dashboard : Nil
   end
 end
 

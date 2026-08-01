@@ -109,4 +109,36 @@ describe Altair::Routing::Router do
       build_router([{"GET", "/posts"}]).empty?.should be_false
     end
   end
+
+  describe "#closest_to" do
+    it "suggests the closest pattern by edit distance" do
+      router = build_router([{"GET", "/posts"}, {"GET", "/posts/:id"}])
+      router.closest_to("/post").map(&.pattern).should eq(["/posts"])
+    end
+
+    it "ranks closer patterns before farther ones" do
+      router = build_router([{"GET", "/posts"}, {"GET", "/posts/:id"}])
+      router.closest_to("/posts/5").map(&.pattern).should eq(["/posts/:id"])
+    end
+
+    it "treats param segments as wildcards" do
+      router = build_router([{"GET", "/posts/:id/edit"}, {"GET", "/authors"}])
+      router.closest_to("/posts/7/edit").map(&.pattern).should eq(["/posts/:id/edit"])
+    end
+
+    it "ignores patterns that are too far from the path" do
+      router = build_router([{"GET", "/posts"}])
+      router.closest_to("/zzz").should be_empty
+    end
+
+    it "does not repeat patterns shared by several methods" do
+      router = build_router([{"GET", "/posts"}, {"POST", "/posts"}, {"GET", "/authors"}])
+      router.closest_to("/post").map(&.pattern).should eq(["/posts"])
+    end
+
+    it "respects the limit" do
+      router = build_router([{"GET", "/posts"}, {"GET", "/posters"}])
+      router.closest_to("/post", limit: 1).map(&.pattern).should eq(["/posts"])
+    end
+  end
 end

@@ -37,13 +37,22 @@ deployment.
   `delete`, `root`, `namespace` and `resources`; path parameters; named path
   helpers generated as real methods; and 404/405 responses served by the
   router.
+- **Controllers** — per-request instances of `Altair::Controller` with
+  `render` (html/text/json), `redirect_to`, `head` and a merged parameter
+  bag; generated path helpers available in controllers via the
+  `RouteHelpers` module.
+- **Middleware pipeline** — a `use`-based stack around the router, with
+  built-in request logging and static-file serving from `public/` (with
+  path-traversal protection).
+- **Smart error pages** — in development, 404s suggest nearby routes
+  ("Did you mean?"), 405s list the accepted methods, and 500s show the
+  exception with its backtrace; production stays plain text so the route
+  table never leaks.
 - **Example application** — `examples/hello_world`, a working demo with a
-  RESTful resource and verified behavior over real HTTP.
+  RESTful resource, static assets and verified behavior over real HTTP.
 
 ### Planned
 
-- Controller base class with rendering and redirect helpers
-- Middleware pipeline (logging, static files)
 - Template rendering with layouts and partials
 - Command-line generators
 - Database migrations
@@ -83,6 +92,27 @@ generates their path helpers (`posts_path`, `post_path(5)`,
 `edit_post_path(5)`). Because routes are compile-time, a typo in a controller
 reference fails at compile time, and the generated helpers are type-checked
 like any other method.
+
+Controllers are plain classes with per-request instances:
+
+```crystal
+class PostsController < Altair::Controller
+  include HelloWorld::RouteHelpers
+
+  def show : Nil
+    render html: "<h1>#{params["id"]}</h1>"
+  end
+
+  def create : Nil
+    redirect_to posts_path
+  end
+end
+```
+
+Every request dispatches to a fresh controller instance
+(`PostsController.new(request, response).show`), and the middleware pipeline
+— request logging and static files from `public/` by default — wraps the
+router.
 
 See [examples/hello_world/README.md](examples/hello_world/README.md) for a
 full walkthrough with curl and HTTP client examples.

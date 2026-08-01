@@ -1,28 +1,51 @@
 # Altair — the batteries-included web framework for Crystal.
 #
 # This file defines `Altair::Core::RequestHandler`, the entry point of every
-# HTTP request. Requests are dispatched through the application's router:
-# the matching route's handler answers, unknown paths become 404 and known
-# paths with the wrong method become 405 with an `Allow` header. When the
+# HTTP request. It wraps the raw stdlib context in the framework's request
+# and response objects, runs the application's middleware stack — the
+# configured pipeline, ending with the router itself — and owns the
+# framework's top-level error boundary: unexpected exceptions become 500
+# responses and are logged, keeping the server alive instead of crashing.
+#
+# Routing dispatches the matching route's handler: unknown paths become
+# 404 and known paths with the wrong method become 405 with an `Allow`
+# header. With debug enabled, the error responses are full pages — route
+# suggestions, the route table and backtraces — rendered by
+# `Altair::Core::ErrorPages`; otherwise they stay plain text. When the
 # application has no routes at all, `/` still answers with the welcome page
 # so a fresh project shows something useful before its first route is
-# written. The handler also owns the framework's top-level error boundary:
-# unexpected exceptions become 500 responses and are logged, keeping the
-# server alive instead of crashing.
+# written.
 class Altair::Core::RequestHandler
   include ::HTTP::Handler
 
+  @chain : Proc(Altair::HTTP::Request, Altair::HTTP::Response, Nil)
+
   def initialize(@app : Altair::Application)
     @router = Altair::Routing::Router.new(Altair::Routing.route_set_for(@app.class).routes)
+    @chain = build_chain
   end
 
   def call(context : ::HTTP::Server::Context) : Nil
     request = Altair::HTTP::Request.new(context.request)
     response = Altair::HTTP::Response.new(context.response)
     begin
-      dispatch(request, response)
+      @chain.call(request, response)
     rescue exception
-      handle_error(context, exception)
+      handle_error(context, request, exception)
+    end
+  end
+
+  # Composes the configured middleware stack around the router dispatch.
+  # The stack is wrapped inside out, so the first configured middleware
+  # runs first, and the final link is the router itself. Factories build
+  # each middleware once, when the handler is created.
+  private def build_chain : Proc(Altair::HTTP::Request, Altair::HTTP::Response, Nil)
+    final = ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) { dispatch(request, response) }
+    @app.config.middleware.reverse.reduce(final) do |inner, factory|
+      middleware = factory.call(@app)
+      ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
+        middleware.call(request, response, -> { inner.call(request, response) })
+      }
     end
   end
 
@@ -55,27 +78,37 @@ class Altair::Core::RequestHandler
     end
   end
 
-  private def handle_error(context : ::HTTP::Server::Context, exception : Exception) : Nil
+  private def handle_error(context : ::HTTP::Server::Context, request : Altair::HTTP::Request, exception : Exception) : Nil
     case exception
     when Altair::HTTP::NotFound
       context.response.status = ::HTTP::Status::NOT_FOUND
-      context.response.print("404 Not Found")
+      if @app.config.debug?
+        render_debug_error(context, Altair::Core::ErrorPages.new(@router, @app).not_found(request))
+      else
+        context.response.print("404 Not Found")
+      end
     when Altair::HTTP::MethodNotAllowed
       context.response.status = ::HTTP::Status::METHOD_NOT_ALLOWED
       context.response.headers["Allow"] = exception.allowed.join(", ")
-      context.response.print("405 Method Not Allowed")
+      if @app.config.debug?
+        render_debug_error(context, Altair::Core::ErrorPages.new(@router, @app).method_not_allowed(request, exception.allowed))
+      else
+        context.response.print("405 Method Not Allowed")
+      end
     else
       @app.config.logger.error { "Unhandled #{exception.class}: #{exception.message}" }
       context.response.status = ::HTTP::Status::INTERNAL_SERVER_ERROR
       if @app.config.debug?
-        context.response.print(exception.message.to_s)
-        exception.backtrace.each do |line|
-          context.response.print("\n  " + line)
-        end
+        render_debug_error(context, Altair::Core::ErrorPages.new(@router, @app).internal_server_error(request, exception))
       else
         context.response.print("500 Internal Server Error")
       end
     end
+  end
+
+  private def render_debug_error(context : ::HTTP::Server::Context, body : String) : Nil
+    context.response.headers["Content-Type"] = "text/html; charset=utf-8"
+    context.response.print(body)
   end
 
   private def welcome_page : String

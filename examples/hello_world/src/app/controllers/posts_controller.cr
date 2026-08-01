@@ -1,9 +1,12 @@
 # Hello World — the posts controller.
 #
-# A simple in-memory resource: posts live in an array (no database before
-# Phase 5) and the seven RESTful actions from `resources :posts` are
-# implemented as class methods.
-class PostsController
+# A complete in-memory resource: posts live in an array (no database before
+# the ORM phase) and the seven RESTful actions from `resources :posts` are
+# implemented as instance methods on `Altair::Controller`. Note the use of
+# the generated helpers — `posts_path`, `new_post_path`, `post_path(5)`,
+# `edit_post_path(5)` — and of `render`, `redirect_to` and `head` instead
+# of touching the response object directly.
+class PostsController < ApplicationController
   class Post
     property id : Int32
     property title : String
@@ -15,60 +18,111 @@ class PostsController
   @@posts = Array(Post).new
   @@next_id = 1
 
-  def self.index(request : Altair::HTTP::Request, response : Altair::HTTP::Response) : Nil
-    body = @@posts.map { |post| "<li>#{post.id}: #{post.title}</li>" }.join
-    response.html("<h1>Posts</h1><ul>#{body}</ul>")
+  def index : Nil
+    rows = @@posts.map do |post|
+      <<-HTML
+        <li>
+          <a href="#{post_path(post.id)}">#{post.title}</a>
+          <a href="#{edit_post_path(post.id)}">edit</a>
+          <form action="#{post_path(post.id)}" method="post">
+            <input type="hidden" name="_method" value="DELETE">
+            <button>delete</button>
+          </form>
+        </li>
+      HTML
+    end.join
+    render html: <<-HTML
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <link rel="stylesheet" href="/css/app.css">
+          <title>Posts</title>
+        </head>
+        <body>
+          <h1>Posts</h1>
+          <ul>#{rows}</ul>
+          <p><a href="#{new_post_path}">New post</a> · <a href="/">Home</a></p>
+        </body>
+      </html>
+      HTML
   end
 
-  def self.new(request : Altair::HTTP::Request, response : Altair::HTTP::Response) : Nil
-    response.html("<h1>New Post</h1><form method=\"post\" action=\"/posts\"><input name=\"title\"><button>Create</button></form>")
+  def new : Nil
+    render html: page_html("<h1>New post</h1>#{form_html("/posts")}")
   end
 
-  def self.create(request : Altair::HTTP::Request, response : Altair::HTTP::Response) : Nil
-    @@posts << Post.new(@@next_id, request.params["title"])
+  def create : Nil
+    @@posts << Post.new(@@next_id, params["title"])
     @@next_id += 1
-    response.redirect("/posts")
+    redirect_to posts_path
   end
 
-  def self.show(request : Altair::HTTP::Request, response : Altair::HTTP::Response) : Nil
-    if post = find(request.params["id"].to_i)
-      response.html("<h1>#{post.title}</h1><p>Post ##{post.id}</p>")
+  def show : Nil
+    if post = find(params["id"].to_i)
+      render html: page_html(<<-HTML)
+        <h1>#{post.title}</h1>
+        <p>Post ##{post.id} — <a href="#{edit_post_path(post.id)}">edit</a></p>
+      HTML
     else
-      response.status = ::HTTP::Status::NOT_FOUND
-      response.print("404 Not Found")
+      render text: "Post not found", status: ::HTTP::Status::NOT_FOUND
     end
   end
 
-  def self.edit(request : Altair::HTTP::Request, response : Altair::HTTP::Response) : Nil
-    if post = find(request.params["id"].to_i)
-      response.html("<h1>Edit #{post.title}</h1>")
+  def edit : Nil
+    if post = find(params["id"].to_i)
+      render html: page_html("<h1>Edit post</h1>#{form_html(post_path(post.id), title: post.title, method: "PUT")}")
     else
-      response.status = ::HTTP::Status::NOT_FOUND
-      response.print("404 Not Found")
+      render text: "Post not found", status: ::HTTP::Status::NOT_FOUND
     end
   end
 
-  def self.update(request : Altair::HTTP::Request, response : Altair::HTTP::Response) : Nil
-    if post = find(request.params["id"].to_i)
-      post.title = request.params["title"]
-      response.redirect("/posts/#{post.id}")
+  def update : Nil
+    if post = find(params["id"].to_i)
+      post.title = params["title"]
+      redirect_to post_path(post.id)
     else
-      response.status = ::HTTP::Status::NOT_FOUND
-      response.print("404 Not Found")
+      render text: "Post not found", status: ::HTTP::Status::NOT_FOUND
     end
   end
 
-  def self.destroy(request : Altair::HTTP::Request, response : Altair::HTTP::Response) : Nil
-    if post = find(request.params["id"].to_i)
+  def destroy : Nil
+    if post = find(params["id"].to_i)
       @@posts.delete(post)
-      response.redirect("/posts")
+      redirect_to posts_path
     else
-      response.status = ::HTTP::Status::NOT_FOUND
-      response.print("404 Not Found")
+      render text: "Post not found", status: ::HTTP::Status::NOT_FOUND
     end
   end
 
-  private def self.find(id : Int32) : Post?
+  private def find(id : Int32) : Post?
     @@posts.find { |post| post.id == id }
+  end
+
+  private def page_html(body : String) : String
+    <<-HTML
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <link rel="stylesheet" href="/css/app.css">
+          <title>Posts</title>
+        </head>
+        <body>
+          #{body}
+          <p><a href="#{posts_path}">Back to posts</a></p>
+        </body>
+      </html>
+      HTML
+  end
+
+  private def form_html(action : String, title : String = "", method : String = "POST") : String
+    <<-HTML
+      <form action="#{action}" method="post">
+        <input type="hidden" name="_method" value="#{method}">
+        <label>Title <input name="title" value="#{title}"></label>
+        <button>Save</button>
+      </form>
+    HTML
   end
 end

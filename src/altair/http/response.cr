@@ -8,8 +8,12 @@
 module Altair
   module HTTP
     class Response
-      # The response status, `200 OK` by default.
-      getter status : ::HTTP::Status
+      # The response status, `200 OK` by default. Reads the live status
+      # from the underlying stdlib response, so it reflects every change —
+      # including ones made through the stdlib object directly.
+      def status : ::HTTP::Status
+        @response.status
+      end
 
       # The response headers.
       getter headers : ::HTTP::Headers
@@ -17,12 +21,10 @@ module Altair
       # Sets the response status, e.g. `response.status = 404` to signal a
       # missing resource.
       def status=(status : ::HTTP::Status) : ::HTTP::Status
-        @status = status
         @response.status = status
       end
 
       def initialize(@response : ::HTTP::Server::Response)
-        @status = @response.status
         @headers = @response.headers
       end
 
@@ -37,6 +39,13 @@ module Altair
       # to `text/html`.
       def html(data : String) : Nil
         @headers["Content-Type"] = "text/html; charset=utf-8"
+        @response.print(data)
+      end
+
+      # Sends `data` as a plain-text response, setting the `Content-Type`
+      # header to `text/plain`.
+      def text(data : String) : Nil
+        @headers["Content-Type"] = "text/plain; charset=utf-8"
         @response.print(data)
       end
 

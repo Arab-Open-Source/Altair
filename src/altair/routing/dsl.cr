@@ -11,6 +11,22 @@
 # * the route table is fully built while the application class is loaded,
 #   before the first request ever arrives.
 #
+# `to:` routes dispatch to instance controllers: `"posts#show"` expands to
+# `PostsController.new(request, response).show`, so actions are plain
+# instance methods on a controller that subclasses `Altair::Controller`.
+# Generated path helpers are gathered in the application's `RouteHelpers`
+# module, which controllers include to call them bare:
+#
+# ```
+# class PostsController < Altair::Controller
+#   include Blog::RouteHelpers
+#
+#   def index : Nil
+#     redirect_to new_post_path
+#   end
+# end
+# ```
+#
 # ```
 # class Blog < Altair::Application
 #   routes do
@@ -73,7 +89,7 @@ abstract class Altair::Application
         action: {{ns + to}},
         name: {{ route_name }},
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-          {{ cconst.id }}.{{ to.split("#")[1].id }}(request, response)
+          {{ cconst.id }}.new(request, response).{{ to.split("#")[1].id }}
         }
       )
     {% end %}
@@ -92,13 +108,21 @@ abstract class Altair::Application
       {% end %}
       {% helper_name = "#{nsf.id}#{named.id}_path" %}
       {% if helper_params.size > 0 %}
-        def self.{{helper_name.id}}({{helper_params.join(", ").id}} : Int32 | Int64 | String)
-          {{helper_expr.join(" + ").id}}
+        module RouteHelpers
+          def {{helper_name.id}}({{helper_params.join(", ").id}} : Int32 | Int64 | String) : String
+            {{helper_expr.join(" + ").id}}
+          end
         end
+        include RouteHelpers
+        extend RouteHelpers
       {% else %}
-        def self.{{helper_name.id}}
-          {{ full_path }}
+        module RouteHelpers
+          def {{helper_name.id}} : String
+            {{ full_path }}
+          end
         end
+        include RouteHelpers
+        extend RouteHelpers
       {% end %}
     {% end %}
   end
@@ -141,7 +165,7 @@ abstract class Altair::Application
         action: {{ns + to}},
         name: {{ route_name }},
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-          {{ cconst.id }}.{{ to.split("#")[1].id }}(request, response)
+          {{ cconst.id }}.new(request, response).{{ to.split("#")[1].id }}
         }
       )
     {% end %}
@@ -160,13 +184,21 @@ abstract class Altair::Application
       {% end %}
       {% helper_name = "#{nsf.id}#{named.id}_path" %}
       {% if helper_params.size > 0 %}
-        def self.{{helper_name.id}}({{helper_params.join(", ").id}} : Int32 | Int64 | String)
-          {{helper_expr.join(" + ").id}}
+        module RouteHelpers
+          def {{helper_name.id}}({{helper_params.join(", ").id}} : Int32 | Int64 | String) : String
+            {{helper_expr.join(" + ").id}}
+          end
         end
+        include RouteHelpers
+        extend RouteHelpers
       {% else %}
-        def self.{{helper_name.id}}
-          {{ full_path }}
+        module RouteHelpers
+          def {{helper_name.id}} : String
+            {{ full_path }}
+          end
         end
+        include RouteHelpers
+        extend RouteHelpers
       {% end %}
     {% end %}
   end
@@ -209,7 +241,7 @@ abstract class Altair::Application
         action: {{ns + to}},
         name: {{ route_name }},
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-          {{ cconst.id }}.{{ to.split("#")[1].id }}(request, response)
+          {{ cconst.id }}.new(request, response).{{ to.split("#")[1].id }}
         }
       )
     {% end %}
@@ -228,13 +260,21 @@ abstract class Altair::Application
       {% end %}
       {% helper_name = "#{nsf.id}#{named.id}_path" %}
       {% if helper_params.size > 0 %}
-        def self.{{helper_name.id}}({{helper_params.join(", ").id}} : Int32 | Int64 | String)
-          {{helper_expr.join(" + ").id}}
+        module RouteHelpers
+          def {{helper_name.id}}({{helper_params.join(", ").id}} : Int32 | Int64 | String) : String
+            {{helper_expr.join(" + ").id}}
+          end
         end
+        include RouteHelpers
+        extend RouteHelpers
       {% else %}
-        def self.{{helper_name.id}}
-          {{ full_path }}
+        module RouteHelpers
+          def {{helper_name.id}} : String
+            {{ full_path }}
+          end
         end
+        include RouteHelpers
+        extend RouteHelpers
       {% end %}
     {% end %}
   end
@@ -277,7 +317,7 @@ abstract class Altair::Application
         action: {{ns + to}},
         name: {{ route_name }},
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-          {{ cconst.id }}.{{ to.split("#")[1].id }}(request, response)
+          {{ cconst.id }}.new(request, response).{{ to.split("#")[1].id }}
         }
       )
     {% end %}
@@ -296,13 +336,21 @@ abstract class Altair::Application
       {% end %}
       {% helper_name = "#{nsf.id}#{named.id}_path" %}
       {% if helper_params.size > 0 %}
-        def self.{{helper_name.id}}({{helper_params.join(", ").id}} : Int32 | Int64 | String)
-          {{helper_expr.join(" + ").id}}
+        module RouteHelpers
+          def {{helper_name.id}}({{helper_params.join(", ").id}} : Int32 | Int64 | String) : String
+            {{helper_expr.join(" + ").id}}
+          end
         end
+        include RouteHelpers
+        extend RouteHelpers
       {% else %}
-        def self.{{helper_name.id}}
-          {{ full_path }}
+        module RouteHelpers
+          def {{helper_name.id}} : String
+            {{ full_path }}
+          end
         end
+        include RouteHelpers
+        extend RouteHelpers
       {% end %}
     {% end %}
   end
@@ -345,7 +393,7 @@ abstract class Altair::Application
         action: {{ns + to}},
         name: {{ route_name }},
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-          {{ cconst.id }}.{{ to.split("#")[1].id }}(request, response)
+          {{ cconst.id }}.new(request, response).{{ to.split("#")[1].id }}
         }
       )
     {% end %}
@@ -364,13 +412,21 @@ abstract class Altair::Application
       {% end %}
       {% helper_name = "#{nsf.id}#{named.id}_path" %}
       {% if helper_params.size > 0 %}
-        def self.{{helper_name.id}}({{helper_params.join(", ").id}} : Int32 | Int64 | String)
-          {{helper_expr.join(" + ").id}}
+        module RouteHelpers
+          def {{helper_name.id}}({{helper_params.join(", ").id}} : Int32 | Int64 | String) : String
+            {{helper_expr.join(" + ").id}}
+          end
         end
+        include RouteHelpers
+        extend RouteHelpers
       {% else %}
-        def self.{{helper_name.id}}
-          {{ full_path }}
+        module RouteHelpers
+          def {{helper_name.id}} : String
+            {{ full_path }}
+          end
         end
+        include RouteHelpers
+        extend RouteHelpers
       {% end %}
     {% end %}
   end
@@ -412,14 +468,18 @@ abstract class Altair::Application
         action: {{ns + to}},
         name: {{ route_name }},
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-          {{ cconst.id }}.{{ to.split("#")[1].id }}(request, response)
+          {{ cconst.id }}.new(request, response).{{ to.split("#")[1].id }}
         }
       )
     {% end %}
     {% helper_name = "#{nsf.id}#{route_name.id}_path" %}
-    def self.{{helper_name.id}}
-      {{ ns == "" ? "/" : "/" + ns[0..-2] }}
+    module RouteHelpers
+      def {{helper_name.id}} : String
+        {{ ns == "" ? "/" : "/" + ns[0..-2] }}
+      end
     end
+    include RouteHelpers
+    extend RouteHelpers
   end
 
   # Generates the seven RESTful routes for a resource. Supports the
@@ -516,7 +576,7 @@ abstract class Altair::Application
           action: {{ cpath + "#index" }},
           name: {{ name_plural }},
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.index(request, response)
+            {{ cconst.id }}.new(request, response).index
           }
         )
       {% elsif action.id.stringify == "new" %}
@@ -526,7 +586,7 @@ abstract class Altair::Application
           action: {{ cpath + "#new" }},
           name: {{ name_new }},
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.new(request, response)
+            {{ cconst.id }}.new(request, response).new
           }
         )
       {% elsif action.id.stringify == "create" %}
@@ -536,7 +596,7 @@ abstract class Altair::Application
           action: {{ cpath + "#create" }},
           name: {{ name_plural }},
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.create(request, response)
+            {{ cconst.id }}.new(request, response).create
           }
         )
       {% elsif action.id.stringify == "show" %}
@@ -546,7 +606,7 @@ abstract class Altair::Application
           action: {{ cpath + "#show" }},
           name: {{ name_member }},
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.show(request, response)
+            {{ cconst.id }}.new(request, response).show
           }
         )
       {% elsif action.id.stringify == "edit" %}
@@ -556,7 +616,7 @@ abstract class Altair::Application
           action: {{ cpath + "#edit" }},
           name: {{ name_edit }},
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.edit(request, response)
+            {{ cconst.id }}.new(request, response).edit
           }
         )
       {% elsif action.id.stringify == "update" %}
@@ -566,7 +626,7 @@ abstract class Altair::Application
           action: {{ cpath + "#update" }},
           name: {{ name_member }},
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.update(request, response)
+            {{ cconst.id }}.new(request, response).update
           }
         )
         Altair::Routing.route_set_for({{@type}}).register(
@@ -575,7 +635,7 @@ abstract class Altair::Application
           action: {{ cpath + "#update" }},
           name: {{ name_member }},
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.update(request, response)
+            {{ cconst.id }}.new(request, response).update
           }
         )
       {% elsif action.id.stringify == "destroy" %}
@@ -585,7 +645,7 @@ abstract class Altair::Application
           action: {{ cpath + "#destroy" }},
           name: {{ name_member }},
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.destroy(request, response)
+            {{ cconst.id }}.new(request, response).destroy
           }
         )
       {% end %}
@@ -606,13 +666,21 @@ abstract class Altair::Application
       {% end %}
       {% helper_name = name_plural %}
       {% if helper_params.size > 0 %}
-        def self.{{helper_name.id}}({{helper_params.join(", ").id}} : Int32 | Int64 | String)
-          {{helper_expr.join(" + ").id}}
+        module RouteHelpers
+          def {{helper_name.id}}({{helper_params.join(", ").id}} : Int32 | Int64 | String) : String
+            {{helper_expr.join(" + ").id}}
+          end
         end
+        include RouteHelpers
+        extend RouteHelpers
       {% else %}
-        def self.{{helper_name.id}}
-          {{ full_path }}
+        module RouteHelpers
+          def {{helper_name.id}} : String
+            {{ full_path }}
+          end
         end
+        include RouteHelpers
+        extend RouteHelpers
       {% end %}
     {% end %}
     {% if actions.map(&.id.stringify).includes?("new") %}
@@ -631,13 +699,21 @@ abstract class Altair::Application
       {% end %}
       {% helper_name = name_new %}
       {% if helper_params.size > 0 %}
-        def self.{{helper_name.id}}({{helper_params.join(", ").id}} : Int32 | Int64 | String)
-          {{helper_expr.join(" + ").id}}
+        module RouteHelpers
+          def {{helper_name.id}}({{helper_params.join(", ").id}} : Int32 | Int64 | String) : String
+            {{helper_expr.join(" + ").id}}
+          end
         end
+        include RouteHelpers
+        extend RouteHelpers
       {% else %}
-        def self.{{helper_name.id}}
-          {{ full_path }}
+        module RouteHelpers
+          def {{helper_name.id}} : String
+            {{ full_path }}
+          end
         end
+        include RouteHelpers
+        extend RouteHelpers
       {% end %}
     {% end %}
     {% if actions.map(&.id.stringify).includes?("show") || actions.map(&.id.stringify).includes?("update") || actions.map(&.id.stringify).includes?("destroy") %}
@@ -656,13 +732,21 @@ abstract class Altair::Application
       {% end %}
       {% helper_name = name_member %}
       {% if helper_params.size > 0 %}
-        def self.{{helper_name.id}}({{helper_params.join(", ").id}} : Int32 | Int64 | String)
-          {{helper_expr.join(" + ").id}}
+        module RouteHelpers
+          def {{helper_name.id}}({{helper_params.join(", ").id}} : Int32 | Int64 | String) : String
+            {{helper_expr.join(" + ").id}}
+          end
         end
+        include RouteHelpers
+        extend RouteHelpers
       {% else %}
-        def self.{{helper_name.id}}
-          {{ full_path }}
+        module RouteHelpers
+          def {{helper_name.id}} : String
+            {{ full_path }}
+          end
         end
+        include RouteHelpers
+        extend RouteHelpers
       {% end %}
     {% end %}
     {% if actions.map(&.id.stringify).includes?("edit") %}
@@ -681,13 +765,21 @@ abstract class Altair::Application
       {% end %}
       {% helper_name = name_edit %}
       {% if helper_params.size > 0 %}
-        def self.{{helper_name.id}}({{helper_params.join(", ").id}} : Int32 | Int64 | String)
-          {{helper_expr.join(" + ").id}}
+        module RouteHelpers
+          def {{helper_name.id}}({{helper_params.join(", ").id}} : Int32 | Int64 | String) : String
+            {{helper_expr.join(" + ").id}}
+          end
         end
+        include RouteHelpers
+        extend RouteHelpers
       {% else %}
-        def self.{{helper_name.id}}
-          {{ full_path }}
+        module RouteHelpers
+          def {{helper_name.id}} : String
+            {{ full_path }}
+          end
         end
+        include RouteHelpers
+        extend RouteHelpers
       {% end %}
     {% end %}
   end

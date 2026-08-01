@@ -67,6 +67,22 @@ abstract class Altair::Application
     Altair::Routing.route_set_for(self)
   end
 
+  # Adds a middleware to the end of the application's middleware stack,
+  # from the class body:
+  #
+  # ```
+  # class Blog < Altair::Application
+  #   use Altair::Middleware::Logger
+  #   use Altair::Middleware::Static
+  # end
+  # ```
+  #
+  # The middleware class is expanded at compile time into a factory proc,
+  # so middleware may keep any constructor they like.
+  macro use(middleware_class)
+    config.middleware << ->(app : Altair::Application) { {{ middleware_class }}.new(app) }
+  end
+
   # Boots the application: builds the server and blocks until it shuts
   # down.
   def self.run! : Nil

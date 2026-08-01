@@ -4,9 +4,9 @@
 # top of the standard library's `HTTP::Server` and manages the full server
 # lifecycle: binding the configured host and port, installing graceful
 # shutdown handlers for `SIGINT` and `SIGTERM`, and blocking until the server
-# is closed. The server speaks only to the handler it was given — in Phase 0
-# that is `Altair::Core::RequestHandler`; middleware will be layered in later
-# phases.
+# is closed. The server speaks only to the handler it was given —
+# `Altair::Core::RequestHandler`, which runs the application's middleware
+# pipeline (logging, static files) around the router.
 class Altair::Server
   # The application this server serves.
   getter app : Altair::Application

@@ -1,7 +1,7 @@
 # Altair — the batteries-included web framework for Crystal.
 #
 # Specs for the `resources` macro: one line expanding to the seven
-# RESTful routes in Rails order, plus the `only:` and `except:` filters
+# RESTful routes in conventional order, plus the `only:` and `except:` filters
 # and the generated helpers.
 require "../spec_helper"
 
@@ -15,7 +15,7 @@ class ResourcesApp < Altair::Application
 end
 
 describe "resources" do
-  it "expands to the seven RESTful routes in Rails order" do
+  it "expands to the seven RESTful routes in conventional order" do
     ResourcesApp.route_set.routes.select(&.pattern.starts_with?("/posts")).map { |route| "#{route.method} #{route.pattern} -> #{route.action}" }.should eq([
       "GET /posts -> posts#index",
       "GET /posts/new -> posts#new",

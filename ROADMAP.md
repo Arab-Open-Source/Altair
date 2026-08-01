@@ -10,8 +10,8 @@
 |---|---|---|
 | 0 | Foundation | Completed |
 | 1 | Router | Completed |
-| 2 | Controllers | Next |
-| 3 | Views | Planned |
+| 2 | Controllers | Completed |
+| 3 | Views | Next |
 | 4 | CLI | Planned |
 | 5 | ORM | Planned |
 | 6 | Generators | Planned |
@@ -38,7 +38,7 @@
 | `resources` macro | One line generates seven REST routes |
 | 404 / 405 handling | Wrong path and wrong method return proper responses |
 
-## Phase 2: Controllers
+## Phase 2: Controllers (completed)
 
 | Task | Exit criterion |
 |---|---|
@@ -87,9 +87,12 @@
 | Task | Exit criterion |
 |---|---|
 | Sessions + flash + CSRF | Simple login works |
-| Beautiful error pages in development | Fast debugging experience |
 | `database.yml` / `.env` config | Production-ready project |
 | Maintenance: Ameba (linter) + specs everywhere | Real project quality |
+
+> Note: "Beautiful error pages in development" shipped early as a small
+> pre-Phase-3 gift — the debug-mode 404/405/500 pages with route
+> suggestions and the route table live in the framework already.
 
 ## Phase 8: Post-release
 

@@ -1,0 +1,32 @@
+/* Hello World — shared stylesheet, served by the static-files middleware. */
+body {
+  font-family: system-ui, sans-serif;
+  background: #f6f8fa;
+  color: #24292f;
+  margin: 0;
+}
+
+body > h1, body > p, body > ul {
+  margin-left: 24px;
+}
+
+h1 {
+  color: #0b6bcb;
+}
+
+a {
+  color: #0b6bcb;
+}
+
+li {
+  margin: 8px 0;
+}
+
+form {
+  display: inline;
+}
+
+input, button {
+  font-size: 0.95em;
+  padding: 4px 8px;
+}
