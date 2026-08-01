@@ -3,8 +3,10 @@
 # This file defines `Altair::HTTP::Request`, the framework's request object.
 # It wraps the raw `HTTP::Request` from the standard library and exposes a
 # stable, framework-owned API: method, path, headers, body and an
-# `Altair::HTTP::Params` bag. Controllers and views in later phases will only
-# ever see this wrapper, never the underlying stdlib object, which keeps the
+# `Altair::HTTP::Params` bag holding query-string parameters merged with
+# form-body parameters (and, once the router has matched, route
+# parameters). Controllers and views in later phases will only ever see
+# this wrapper, never the underlying stdlib object, which keeps the
 # framework free to evolve its request model without breaking applications.
 module Altair
   module HTTP
@@ -28,7 +30,7 @@ module Altair
       getter query_params : URI::Params
 
       # The unified parameter bag: query parameters merged with form-body
-      # parameters (and, later, route parameters).
+      # parameters and, after routing, route parameters.
       getter params : Altair::HTTP::Params
 
       def initialize(@request : ::HTTP::Request)
@@ -38,7 +40,18 @@ module Altair
         @headers = @request.headers
         @body = @request.body.try(&.gets_to_end)
         @query_params = @request.query_params
-        @params = Altair::HTTP::Params.new(@query_params)
+        @params = Altair::HTTP::Params.new(@query_params, form_params)
+      end
+
+      # Parses the body as form parameters when the request is a
+      # `application/x-www-form-urlencoded` submission.
+      private def form_params : URI::Params
+        return URI::Params.new unless body = @body
+        content_type = @headers["Content-Type"]?
+        return URI::Params.new unless content_type.try(&.starts_with?("application/x-www-form-urlencoded"))
+        URI::Params.parse(body)
+      rescue URI::Error
+        URI::Params.new
       end
     end
   end

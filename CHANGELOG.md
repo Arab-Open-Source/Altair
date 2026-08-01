@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phase 1 — Router**: a Rails-style routing layer built with compile-time
+  macros.
+  - `routes do ... end` DSL with `get` / `post` / `put` / `patch` / `delete`,
+    `root`, `namespace` and `resources`, plus `to:` actions, inline handler
+    blocks and `named:` routes.
+  - `resources :posts` expands to the seven RESTful routes (Rails order)
+    with `only:` / `except:` filters and generated helpers
+    (`posts_path`, `new_post_path`, `post_path(5)`, `edit_post_path(5)`).
+  - `namespace :admin` prefixes paths, controllers and helper names
+    (`admin_posts_path`), with full nesting (`api/v1` → `api_v1_users_path`).
+  - Compile-time path helpers: `user_path(5)` → `/users/5`, generated as
+    class methods on the application subclass.
+  - `Altair::Routing` — `Segment` / `Route` / `RouteSet` / `Router` matching
+    engine: segment-wise static/parameter matching, definition-order
+    priority, HEAD-requests-GET, URI-decoded params and 405 detection.
+  - Dispatch in `Altair::Core::RequestHandler` through the router with
+    404 for unknown paths and 405 + `Allow` header for wrong methods;
+    the welcome page now only appears while the route set is empty.
+  - `Altair::HTTP::MethodNotAllowed` exception with the allowed methods.
+  - `_method` form override for `PUT` / `PATCH` / `DELETE` submissions.
+  - `Altair::HTTP::Request#form_params` for
+    `application/x-www-form-urlencoded` bodies.
+  - `examples/hello_world` routes and controllers: a live pages + posts
+    demo verified over real HTTP (params, redirects, 404/405).
+  - 52 new routing specs: route set, router matching, DSL, resources,
+    namespaces, named routes and end-to-end HTTP integration.
+
 - **Phase 0 — Foundation**: the application core and HTTP layer.
   - `Altair::Application` — conventional application subclass with a `config`
     accessor, singleton `instance`, automatic root detection and `run!`.

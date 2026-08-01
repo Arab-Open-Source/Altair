@@ -1,16 +1,19 @@
 # Altair — the batteries-included web framework for Crystal.
 #
 # This file defines `Altair::Core::RequestHandler`, the entry point of every
-# HTTP request. In Phase 0 the application has no routes yet, so the handler
-# answers `/` with a welcome page and everything else with 404. In a later
-# phase the router replaces the welcome page with real dispatch. The handler
-# also owns the framework's top-level error boundary: unexpected exceptions
-# become 500 responses and are logged, keeping the server alive instead of
-# crashing.
+# HTTP request. Requests are dispatched through the application's router:
+# the matching route's handler answers, unknown paths become 404 and known
+# paths with the wrong method become 405 with an `Allow` header. When the
+# application has no routes at all, `/` still answers with the welcome page
+# so a fresh project shows something useful before its first route is
+# written. The handler also owns the framework's top-level error boundary:
+# unexpected exceptions become 500 responses and are logged, keeping the
+# server alive instead of crashing.
 class Altair::Core::RequestHandler
   include ::HTTP::Handler
 
   def initialize(@app : Altair::Application)
+    @router = Altair::Routing::Router.new(Altair::Routing.route_set_for(@app.class).routes)
   end
 
   def call(context : ::HTTP::Server::Context) : Nil
@@ -24,10 +27,18 @@ class Altair::Core::RequestHandler
   end
 
   private def dispatch(request : Altair::HTTP::Request, response : Altair::HTTP::Response) : Nil
-    if request.path == "/"
+    if @router.empty? && request.path == "/"
       render_welcome(response)
     else
-      render_not_found(response)
+      match = @router.find(effective_method(request), request.path)
+      if match.nil?
+        if allowed = @router.allowed_for(request.path)
+          raise Altair::HTTP::MethodNotAllowed.new(allowed)
+        end
+        raise Altair::HTTP::NotFound.new
+      end
+      request.params.merge_route(match.params)
+      match.route.handler.call(request, response)
     end
   end
 
@@ -35,21 +46,35 @@ class Altair::Core::RequestHandler
     response.html(welcome_page)
   end
 
-  private def render_not_found(response : Altair::HTTP::Response) : Nil
-    response.status = ::HTTP::Status::NOT_FOUND
-    response.print("404 Not Found")
+  private def effective_method(request : Altair::HTTP::Request) : String
+    case request.params["_method"]?.try(&.upcase)
+    when "PUT", "PATCH", "DELETE"
+      request.params["_method"].upcase
+    else
+      request.method
+    end
   end
 
   private def handle_error(context : ::HTTP::Server::Context, exception : Exception) : Nil
-    @app.config.logger.error { "Unhandled #{exception.class}: #{exception.message}" }
-    context.response.status = ::HTTP::Status::INTERNAL_SERVER_ERROR
-    if @app.config.debug?
-      context.response.print(exception.message.to_s)
-      exception.backtrace.each do |line|
-        context.response.print("\n  " + line)
-      end
+    case exception
+    when Altair::HTTP::NotFound
+      context.response.status = ::HTTP::Status::NOT_FOUND
+      context.response.print("404 Not Found")
+    when Altair::HTTP::MethodNotAllowed
+      context.response.status = ::HTTP::Status::METHOD_NOT_ALLOWED
+      context.response.headers["Allow"] = exception.allowed.join(", ")
+      context.response.print("405 Method Not Allowed")
     else
-      context.response.print("500 Internal Server Error")
+      @app.config.logger.error { "Unhandled #{exception.class}: #{exception.message}" }
+      context.response.status = ::HTTP::Status::INTERNAL_SERVER_ERROR
+      if @app.config.debug?
+        context.response.print(exception.message.to_s)
+        exception.backtrace.each do |line|
+          context.response.print("\n  " + line)
+        end
+      else
+        context.response.print("500 Internal Server Error")
+      end
     end
   end
 

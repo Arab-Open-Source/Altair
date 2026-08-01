@@ -25,7 +25,7 @@ module Altair
     @@application_instance
   end
 
-  def self.application_instance=(instance : Altair::Application) : Altair::Application
+  def self.application_instance=(instance : Altair::Application?) : Altair::Application?
     @@application_instance = instance
   end
 end
@@ -57,6 +57,14 @@ abstract class Altair::Application
   # (`config.name = "Blog"`) and from anywhere in the application.
   def self.config : Altair::Config
     instance.config
+  end
+
+  # The application's registered routes, in definition order. Routes are
+  # declared with the `routes` DSL and are fully built when the application
+  # class is loaded. The method is named `route_set` so it never clashes
+  # with the `routes` DSL macro.
+  def self.route_set : Altair::Routing::RouteSet
+    Altair::Routing.route_set_for(self)
   end
 
   # Boots the application: builds the server and blocks until it shuts
