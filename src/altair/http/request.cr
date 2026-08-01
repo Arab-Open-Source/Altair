@@ -33,6 +33,11 @@ module Altair
       # parameters and, after routing, route parameters.
       getter params : Altair::HTTP::Params
 
+      # The route that matched this request, assigned by the router just
+      # before the route's handler runs; `nil` until then. The debug error
+      # pages use it to report which route was handling a failing request.
+      property route : Altair::Routing::Route?
+
       def initialize(@request : ::HTTP::Request)
         @method = @request.method.to_s
         @path = @request.uri.path

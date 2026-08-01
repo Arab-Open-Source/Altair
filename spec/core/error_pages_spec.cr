@@ -14,6 +14,7 @@ class ErrorPagesApp < Altair::Application
     get "/posts/:id", to: "error_pages#show"
     post "/posts", to: "error_pages#create"
     get "/crashes", to: "crashes#boom"
+    get "/chained", to: "crashes#chained"
   end
 end
 
@@ -31,6 +32,15 @@ end
 class CrashesController < Altair::Controller
   def boom : Nil
     raise "boom went off"
+  end
+
+  def chained : Nil
+    inner = begin
+      raise "inner root cause"
+    rescue e
+      e
+    end
+    raise Exception.new("outer failure", inner)
   end
 end
 
@@ -93,12 +103,39 @@ describe "error pages" do
       end
     end
 
+    it "links clickable suggestions to the suggested path" do
+      with_error_pages_server(true) do |port|
+        response = HTTP::Client.get("http://127.0.0.1:#{port}/post")
+        response.status_code.should eq(404)
+        response.body.should contain(%(<a href="/posts"><code>/posts</code></a>))
+      end
+    end
+
+    it "shows the route line that would make the path work" do
+      with_error_pages_server(true) do |port|
+        response = HTTP::Client.get("http://127.0.0.1:#{port}/post")
+        response.status_code.should eq(404)
+        response.body.should contain(%(get "/post", to: "error_pages#index"))
+      end
+    end
+
+    it "keeps parameter patterns unlinked but suggested as code" do
+      with_error_pages_server(true) do |port|
+        response = HTTP::Client.get("http://127.0.0.1:#{port}/postx/5")
+        response.status_code.should eq(404)
+        body = response.body
+        body.should contain("<code>/posts/:id</code>")
+        body.should_not contain("<a href")
+      end
+    end
+
     it "escapes the requested path" do
       with_error_pages_server(true) do |port|
         response = HTTP::Client.get("http://127.0.0.1:#{port}/zzz/<script>")
         response.status_code.should eq(404)
-        response.body.should contain("&lt;script&gt;")
-        response.body.should_not contain("<script>")
+        body = response.body
+        body.should contain("&lt;script&gt;")
+        body.should_not contain("/zzz/<script>")
       end
     end
 
@@ -111,6 +148,7 @@ describe "error pages" do
         body.should contain("is not accepted for")
         body.should contain("This path accepts")
         body.should contain("_method")
+        body.should contain("How to send the right method")
       end
     end
 
@@ -122,6 +160,67 @@ describe "error pages" do
         body.should contain("boom went off")
         body.should contain("Backtrace")
         body.should contain("error_pages_spec.cr")
+      end
+    end
+
+    it "reports the route that was handling the request" do
+      with_error_pages_server(true) do |port|
+        response = HTTP::Client.get("http://127.0.0.1:#{port}/crashes")
+        response.status_code.should eq(500)
+        response.body.should contain("crashes#boom")
+      end
+    end
+
+    it "shows the request parameters in the context" do
+      with_error_pages_server(true) do |port|
+        response = HTTP::Client.get("http://127.0.0.1:#{port}/crashes?from=spec")
+        response.status_code.should eq(500)
+        body = response.body
+        body.should contain("from")
+        body.should contain("spec")
+      end
+    end
+
+    it "never shows sensitive headers" do
+      with_error_pages_server(true) do |port|
+        response = HTTP::Client.get(
+          "http://127.0.0.1:#{port}/crashes",
+          headers: HTTP::Headers{"Authorization" => "Bearer secret"}
+        )
+        response.status_code.should eq(500)
+        response.body.should_not contain("Bearer secret")
+      end
+    end
+
+    it "highlights the failing line in a source preview" do
+      with_error_pages_server(true) do |port|
+        response = HTTP::Client.get("http://127.0.0.1:#{port}/crashes")
+        response.status_code.should eq(500)
+        body = response.body
+        body.should contain("class=\"source\"")
+        body.should contain(%(raise &quot;boom went off&quot;))
+        body.should contain("error_pages_spec.cr:34")
+      end
+    end
+
+    it "walks the exception chain down to the root cause" do
+      with_error_pages_server(true) do |port|
+        response = HTTP::Client.get("http://127.0.0.1:#{port}/chained")
+        response.status_code.should eq(500)
+        body = response.body
+        body.should contain("Exception chain")
+        body.should contain("outer failure")
+        body.should contain("inner root cause")
+      end
+    end
+
+    it "shows the environment strip with route and middleware counts" do
+      with_error_pages_server(true) do |port|
+        response = HTTP::Client.get("http://127.0.0.1:#{port}/post")
+        response.status_code.should eq(404)
+        body = response.body
+        body.should contain("5 routes")
+        body.should contain("2 middleware")
       end
     end
   end

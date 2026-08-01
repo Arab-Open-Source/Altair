@@ -61,6 +61,7 @@ class Altair::Core::RequestHandler
         raise Altair::HTTP::NotFound.new
       end
       request.params.merge_route(match.params)
+      request.route = match.route
       match.route.handler.call(request, response)
     end
   end

@@ -44,9 +44,12 @@ deployment.
 - **Middleware pipeline** — a `use`-based stack around the router, with
   built-in request logging and static-file serving from `public/` (with
   path-traversal protection).
-- **Smart error pages** — in development, 404s suggest nearby routes
-  ("Did you mean?"), 405s list the accepted methods, and 500s show the
-  exception with its backtrace; production stays plain text so the route
+- **Smart error pages** — in development, 404s link the routes closest to
+  the requested path and show the exact route line to add (copyable with
+  one click), 405s list the accepted methods and how to send them from a
+  form, and 500s render a full diagnostic: request context, the route
+  that was handling it, the exception chain and a highlighted source
+  preview of the failing line. Production stays plain text so the route
   table never leaks.
 - **Example application** — `examples/hello_world`, a working demo with a
   RESTful resource, static assets and verified behavior over real HTTP.

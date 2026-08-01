@@ -14,16 +14,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `Altair::Core::ErrorPages` — debug-mode pages for 404, 405 and 500 in
     the welcome page's visual family.
   - A 404 suggests nearby routes ("Did you mean?") ranked by edit
-    distance, with param segments counting as wildcards, and prints the
-    full route table.
-  - A 405 lists the methods the path accepts, with a hint about the
-    `_method` override.
-  - A 500 renders the exception and its backtrace; every echoed value is
+    distance, with param segments counting as wildcards; clickable routes
+    link to the suggested path, and every suggestion shows the exact
+    route line to add (`get "/post", to: "posts#index"`) with a copy
+    button.
+  - A 405 lists the methods the path accepts and shows the hidden
+    `_method` field that sends the rejected method from a form.
+  - A 500 renders a full diagnostic: the request context (method, path,
+    parameters, safe headers — `Authorization` and `Cookie` are never
+    shown), the route that was handling the request, the exception chain
+    down to the root cause, a source preview highlighting the failing
+    line, and the complete backtrace.
+  - Every page carries an environment strip (application, version, env,
+    route and middleware counts), and every echoed value is
     HTML-escaped.
   - `Altair::Routing::Router#closest_to` — the route-suggestion engine.
   - Outside debug mode responses stay plain text with the standard
     `Allow` header: the route table never leaks in production.
-  - 14 new specs: the suggestion engine and end-to-end error pages in
+  - 23 new specs: the suggestion engine and end-to-end error pages in
     both debug and production modes.
 
 - **Phase 2 — Controllers**: instance controllers with rendering, redirects
