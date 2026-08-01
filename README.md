@@ -33,14 +33,14 @@ What is already in place:
 
 | Area | What is implemented |
 |------|---------------------|
-| Application | subclassed per project, typed config, per-env settings, singleton instance |
-| HTTP | request/response wrappers, merged param bag (route > query > body), JSON/HTML/redirect helpers |
-| Routing | compile-time DSL, path params, named helpers as real methods, 404/405 from the router |
+| Application | subclassed per project, typed config, per-env settings, singleton instance, `rescue_from` exception mapping |
+| HTTP | request/response wrappers, merged param bag (route > query > body), typed param fetching (`fetch`/`require`/`permit`), file streaming with `send_file`, JSON/HTML/redirect helpers |
+| Routing | compile-time DSL, typed references to controller actions, path params, named helpers as real methods, 404/405 from the router |
 | Controllers | per-request instances, `render`/`redirect_to`/`head`, `_method` override |
-| Views | compile-time `.ecr` templates, layouts, partials, helpers, form builder, auto-escaping |
-| htmx | `hx_*` attributes, `hx_request?`, `hx_trigger`, fragment rendering |
+| Views | compile-time `.ecr` templates with typed locals, layouts, partials, helpers (incl. block components), form builder, auto-escaping |
+| htmx | `hx_*` attributes, `hx_request?`, trigger/redirect/retarget response headers, fragment rendering |
 | Middleware | `use`-based pipeline, request logging, static files with traversal protection |
-| Errors | smart debug pages (404 suggestions, 405 methods, 500 diagnostics), plain in production |
+| Errors | `rescue_from`, smart debug pages (404 suggestions, 405 methods, 500 diagnostics), plain in production |
 | Hardening | 2 MB request-body limit, `413` before the body is read |
 
 What is still missing (in rough order): the CLI, the ORM with migrations,
@@ -54,24 +54,33 @@ background jobs and an asset pipeline.
 ### Implemented
 
 - **Application core** — a conventional application subclass with typed
-  configuration, per-environment settings and a singleton application
-  instance.
+  configuration, per-environment settings, a singleton application
+  instance, and `rescue_from`, which maps exception classes to status
+  codes or handler methods instead of a bare 500.
 - **HTTP layer** — framework-owned request and response wrappers, a unified
-  parameter bag (route, query and body precedence), and JSON, HTML and
-  redirect helpers.
+  parameter bag (route, query and body precedence), typed parameter
+  fetching — `params.fetch("id", Int32)` returns an `Int32` or raises a
+  422, `params.require("title")`/`params.permit("title", "body")` for the
+  strong-params pattern, `params.fetch_all("tags")` for repeated
+  parameters — and `send_file`/`stream` for file downloads. JSON, HTML and
+  redirect helpers included.
 - **Routing** — a compile-time route DSL with `get`, `post`, `put`, `patch`,
   `delete`, `root`, `namespace` and `resources`; path parameters; named path
-  helpers generated as real methods; and 404/405 responses served by the
-  router.
+  helpers generated as real methods; 404/405 responses served by the
+  router; and typed references to actions — `to: PagesController.index` —
+  so renaming an action breaks the build instead of the page.
 - **Controllers** — per-request instances of `Altair::Controller` with
   `render` (html/text/json), `redirect_to`, `head` and a merged parameter
   bag; generated path helpers available in controllers via the
   `RouteHelpers` module.
 - **Views** — compile-time templates (`.ecr`) transpiled into typed
-  `render_*` methods with auto-escaping (`<%= %>` escapes, `<%== %>` is
-  raw), layouts with `yield`, partials, and an optional htmx layer
-  (`hx_*` attributes, `request.hx_request?`, `hx_trigger`, fragment
-  rendering).
+  `render_*` methods — locals are declared with their types, so a wrong
+  local is a compile error — with auto-escaping (`<%= %>` escapes,
+  `<%== %>` is raw), layouts with `yield`, partials, helpers including
+  block components (`content_tag(:article, class: "card") { ... }`), and
+  an optional htmx layer (`hx_*` attributes, `request.hx_request?`, the
+  full set of response headers — `hx_trigger` variants, `hx_retarget`,
+  `hx_stop_polling`, ... — and fragment rendering).
 - **Middleware pipeline** — a `use`-based stack around the router, with
   built-in request logging and static-file serving from `public/` (with
   path-traversal protection).
@@ -121,35 +130,43 @@ class HelloWorld < Altair::Application
   config.name = "Hello World"
   config.port = 3000
 
+  rescue_from KeyError, to: 404
+
   routes do
-    root to: "pages#index"
-    get "/hello/:name", to: "pages#hello", named: :greeting
+    root to: PagesController.index
+    get "/hello/:name", to: PagesController.hello, named: :greeting
     resources :posts
   end
 end
 ```
 
-The `resources :posts` line alone expands to seven RESTful routes and
+Routes point at controller actions with **typed references** —
+`to: PagesController.index` — so a typo or a renamed action fails at
+compile time instead of answering 404 at request time. The
+`resources :posts` line alone expands to seven RESTful routes and
 generates their path helpers (`posts_path`, `post_path(5)`,
-`edit_post_path(5)`). Because routes are compile-time, a typo in a controller
-reference fails at compile time, and the generated helpers are type-checked
-like any other method.
+`edit_post_path(5)`), type-checked like any other method.
 
-Controllers are plain classes with per-request instances:
+Controllers are plain classes with per-request instances, and params come
+in typed when you ask for them that way:
 
 ```crystal
 class PostsController < Altair::Controller
   include HelloWorld::RouteHelpers
 
   def show : Nil
-    render html: "<h1>#{params["id"]}</h1>"
+    render html: "<h1>#{params.fetch("id", Int32)}</h1>"
   end
 
   def create : Nil
+    params.require("title")
     redirect_to posts_path
   end
 end
 ```
+
+A missing or malformed `id` is a `422 Unprocessable Entity` — never a 500 —
+and `require` raises before the action can do anything with missing data.
 
 Every request dispatches to a fresh controller instance
 (`PostsController.new(request, response).show`), and the middleware pipeline

@@ -100,7 +100,11 @@ class Altair::Core::RequestHandler
       else
         context.response.print("405 Method Not Allowed")
       end
+    when Altair::HTTP::Error
+      context.response.status = exception.status
+      context.response.print(exception.message || "Error")
     else
+      return if handle_rescued(exception, request, context)
       @app.config.logger.error { "Unhandled #{exception.class}: #{exception.message}" }
       context.response.status = ::HTTP::Status::INTERNAL_SERVER_ERROR
       if @app.config.debug? && request
@@ -109,6 +113,25 @@ class Altair::Core::RequestHandler
         context.response.print("500 Internal Server Error")
       end
     end
+  end
+
+  # Consults the application's `rescue_from` registrations. Returns `true`
+  # when a registration matched and answered the request; the response is
+  # written through the registration's status or handler. Registrations
+  # are checked in declaration order.
+  private def handle_rescued(exception : Exception, request : Altair::HTTP::Request?, context : ::HTTP::Server::Context) : Bool
+    Altair::Core::ErrorHandlers.registrations.each do |registration|
+      klass = registration.exception_class
+      next unless exception.class <= klass
+      if status = registration.status
+        context.response.status = status
+        context.response.print(exception.message || "Error")
+      elsif handler = registration.handler
+        handler.call(@app, exception, request, Altair::HTTP::Response.new(context.response))
+      end
+      return true
+    end
+    false
   end
 
   private def render_debug_error(context : ::HTTP::Server::Context, body : String) : Nil

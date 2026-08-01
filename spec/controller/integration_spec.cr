@@ -12,6 +12,8 @@ class BooksApp < Altair::Application
     resources :books
     get "/health", to: "books#health"
     get "/ping", to: "books#ping"
+    get "/file", to: "books#file"
+    get "/stream", to: "books#stream"
   end
 end
 
@@ -64,6 +66,17 @@ class BooksController < Altair::Controller
 
   def ping : Nil
     head ::HTTP::Status::NO_CONTENT
+  end
+
+  def file : Nil
+    response.send_file(Path.new("spec/controller/fixtures/download.css"))
+  end
+
+  def stream : Nil
+    io = response.stream
+    io << "chunk one, "
+    io << "chunk two"
+    io.close
   end
 end
 
@@ -133,6 +146,24 @@ describe "controller integration" do
       response = HTTP::Client.get("http://127.0.0.1:#{port}/ping")
       response.status_code.should eq(204)
       response.body.should eq("")
+    end
+  end
+
+  it "streams a file with its mime type and length" do
+    with_books_server do |port|
+      response = HTTP::Client.get("http://127.0.0.1:#{port}/file")
+      response.status_code.should eq(200)
+      response.headers["Content-Type"].should start_with("text/css")
+      response.headers["Content-Length"].should eq("17")
+      response.body.should eq("altair file body\n")
+    end
+  end
+
+  it "streams chunked output" do
+    with_books_server do |port|
+      response = HTTP::Client.get("http://127.0.0.1:#{port}/stream")
+      response.status_code.should eq(200)
+      response.body.should eq("chunk one, chunk two")
     end
   end
 

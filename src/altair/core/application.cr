@@ -83,6 +83,58 @@ abstract class Altair::Application
     config.middleware << ->(app : Altair::Application) { {{ middleware_class }}.new(app) }
   end
 
+  # Registers an application-level exception handler: when an exception of
+  # the given class (or a subclass) reaches the request boundary, it is
+  # answered with the mapped response instead of a 500. Three forms:
+  #
+  # ```
+  # class Blog < Altair::Application
+  #   rescue_from KeyError, to: 422                        # fixed status
+  #   rescue_from Post::NotFound, handler: :post_not_found # method on the app
+  #   rescue_from Altair::Error do |exception, request, response|
+  #     response.status = ::HTTP::Status::BAD_REQUEST
+  #     response.text("framework error")
+  #   end
+  # end
+  # ```
+  #
+  # `handler:` methods and blocks receive `(exception, request, response)`
+  # and write to the response themselves. Registrations are checked in
+  # declaration order, so list the most specific exceptions first.
+  macro rescue_from(exception_class, to = nil, handler = nil, &block)
+    {% if block %}
+      {% if to || handler %}
+        {% raise "rescue_from: a block cannot be combined with `to:` or `handler:`" %}
+      {% end %}
+      {% if block.args.size != 3 %}
+        {% raise "rescue_from: block handlers must declare exactly three parameters — |exception, request, response|" %}
+      {% end %}
+      Altair::Core::ErrorHandlers.register(
+        {{ exception_class.id }},
+        nil,
+        ->(app : Altair::Application, {{ block.args[0].id }} : Exception, {{ block.args[1].id }} : Altair::HTTP::Request?, {{ block.args[2].id }} : Altair::HTTP::Response) {
+          {{ block.body }}
+        }
+      )
+    {% else %}
+      {% if to && handler %}
+        {% raise "rescue_from: give either `to:` or `handler:`, not both" %}
+      {% elsif to %}
+        Altair::Core::ErrorHandlers.register({{ exception_class.id }}, ::HTTP::Status.new({{ to }}), nil)
+      {% elsif handler %}
+        Altair::Core::ErrorHandlers.register(
+          {{ exception_class.id }},
+          nil,
+          ->(app : Altair::Application, exception : Exception, request : Altair::HTTP::Request?, response : Altair::HTTP::Response) {
+            app.as({{ @type }}).{{ handler.id }}(exception, request, response)
+          }
+        )
+      {% else %}
+        {% raise "rescue_from: give `to:`, `handler:` or a block" %}
+      {% end %}
+    {% end %}
+  end
+
   # Boots the application: builds the server and blocks until it shuts
   # down.
   def self.run! : Nil

@@ -25,20 +25,22 @@ the server with `Ctrl+C`.
 
 ## Routes
 
-The routes are declared in `src/config/application.cr`:
+The routes are declared in `src/config/application.cr`, each pointing at a
+controller action with a typed reference — `to: PagesController.index` — so
+renaming an action fails the build:
 
 | Method | Path | Action | Description |
 |--------|------|--------|-------------|
-| `GET` | `/` | `pages#index` | Welcome page linking to the posts index |
-| `GET` | `/hello/:name` | `pages#hello` | Personalised greeting from the URL parameter |
-| `GET` | `/posts` | `posts#index` | List all posts, each with edit and delete links |
-| `GET` | `/posts/new` | `posts#new` | New-post form posting to `/posts` |
-| `POST` | `/posts` | `posts#create` | Create a post, then redirect to `/posts` |
-| `GET` | `/posts/:id` | `posts#show` | Show one post, or `404` if it does not exist |
-| `GET` | `/posts/:id/edit` | `posts#edit` | Edit form, or `404` if it does not exist |
-| `PUT` | `/posts/:id` | `posts#update` | Update a post, then redirect to it |
-| `PATCH` | `/posts/:id` | `posts#update` | Same as `PUT` |
-| `DELETE` | `/posts/:id` | `posts#destroy` | Delete a post, then redirect to `/posts` |
+| `GET` | `/` | `PagesController.index` | Welcome page linking to the posts index |
+| `GET` | `/hello/:name` | `PagesController.hello` | Personalised greeting from the URL parameter |
+| `GET` | `/posts` | `PostsController.index` | List all posts, each with edit and delete links |
+| `GET` | `/posts/new` | `PostsController.new` | New-post form posting to `/posts` |
+| `POST` | `/posts` | `PostsController.create` | Create a post, then redirect to `/posts` |
+| `GET` | `/posts/:id` | `PostsController.show` | Show one post, or `404` if it does not exist |
+| `GET` | `/posts/:id/edit` | `PostsController.edit` | Edit form, or `404` if it does not exist |
+| `PUT` | `/posts/:id` | `PostsController.update` | Update a post, then redirect to it |
+| `PATCH` | `/posts/:id` | `PostsController.update` | Same as `PUT` |
+| `DELETE` | `/posts/:id` | `PostsController.destroy` | Delete a post, then redirect to `/posts` |
 
 The `resources :posts` line alone expands to the seven RESTful routes above
 and generates the matching path helpers (`posts_path`, `new_post_path`,
@@ -76,7 +78,7 @@ def create : Nil
 end
 
 def show : Nil
-  if post = find(params["id"].to_i)
+  if post = find(params.fetch("id", Int32))
     render html: page_html("<h1>#{post.title}</h1>")
   else
     render text: "Post not found", status: ::HTTP::Status::NOT_FOUND
@@ -87,6 +89,18 @@ end
 Nothing touches the response object directly — `render` and `redirect_to`
 cover the rendering side, and forms use the conventional `_method` override
 for `PUT` and `DELETE` (`input type="hidden" name="_method"`).
+
+**Params fail loudly, not fatally.** `params.fetch("id", Int32)` returns a
+real `Int32` and raises `Altair::HTTP::ParamsError` — a `422`, never a 500 —
+when the value is missing or not a whole number. The application also maps
+`KeyError` to `404` in `config/application.cr`:
+
+```crystal
+rescue_from KeyError, to: 404
+```
+
+so an action raising `KeyError` (a missing post id, say) answers `404`
+instead of a debug 500.
 
 ## Middleware
 
@@ -146,6 +160,9 @@ curl -i -X POST http://localhost:3000/posts/1
 # Unknown path (404)
 curl http://localhost:3000/nope
 ```
+
+The `boom` action (`/boom`) raises on purpose — a debugging playground for
+the 500 page in development.
 
 For a GUI client such as Postman or Insomnia, create a request for each row
 above; for the form-bearing requests (`POST`, and the `PUT`/`DELETE` via

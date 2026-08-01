@@ -42,6 +42,24 @@ module Altair
         end
       end
 
+      # Renders an element whose content is built by a block — the building
+      # block of small components. The block's output is embedded as-is
+      # (build it from other helpers, which escape their own values);
+      # attributes are escaped like the string form:
+      #
+      # ```
+      # <%== content_tag(:article, class: "card") { link_to("More", "/more") } %>
+      # ```
+      def content_tag(name : Symbol, **attrs, &block : -> String) : String
+        String.build do |io|
+          io << '<' << name
+          attrs.each do |key, value|
+            io << ' ' << attribute_name(key) << "=\"" << Altair::View.escape(value.to_s) << '"'
+          end
+          io << '>' << block.call << "</" << name << '>'
+        end
+      end
+
       # Renders a form button that submits to `path`. Non-GET verbs are
       # sent through the `_method` override, so a `DELETE` works from a
       # plain form. htmx attributes can be passed straight through:

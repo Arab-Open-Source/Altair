@@ -40,6 +40,85 @@ describe Altair::HTTP::Params do
     params = Altair::HTTP::Params.new(URI::Params.parse("a=1")).merge_route({"b" => "2"})
     params.to_h.should eq({"a" => "1", "b" => "2"})
   end
+
+  describe "#fetch" do
+    it "fetches strings" do
+      params = Altair::HTTP::Params.new(URI::Params.parse("title=Altair"))
+      params.fetch("title", String).should eq("Altair")
+    end
+
+    it "fetches integers" do
+      params = Altair::HTTP::Params.new(URI::Params.parse("count=42"))
+      params.fetch("count", Int32).should eq(42)
+    end
+
+    it "fetches int64 and floats" do
+      params = Altair::HTTP::Params.new(URI::Params.parse("big=9000000000&ratio=1.5"))
+      params.fetch("big", Int64).should eq(9_000_000_000_i64)
+      params.fetch("ratio", Float64).should eq(1.5)
+    end
+
+    it "fetches booleans" do
+      params = Altair::HTTP::Params.new(URI::Params.parse("flag=on&off=0"))
+      params.fetch("flag", Bool).should be_true
+      params.fetch("off", Bool).should be_false
+    end
+
+    it "raises ParamsError for missing parameters" do
+      params = Altair::HTTP::Params.new(URI::Params.new)
+      expect_raises(Altair::HTTP::ParamsError, "Missing parameter: count") do
+        params.fetch("count", Int32)
+      end
+    end
+
+    it "raises ParamsError for malformed values" do
+      params = Altair::HTTP::Params.new(URI::Params.parse("count=abc"))
+      expect_raises(Altair::HTTP::ParamsError, /Expected Int32/) do
+        params.fetch("count", Int32)
+      end
+    end
+
+    it "returns nil through the nilable overloads" do
+      params = Altair::HTTP::Params.new(URI::Params.parse("count=42&bad=abc"))
+      params.fetch?("count", Int32).should eq(42)
+      params.fetch?("count", String).should eq("42")
+      params.fetch?("missing", Int32).should be_nil
+      params.fetch?("bad", Int32).should be_nil
+    end
+  end
+
+  it "collects repeated values with fetch_all" do
+    params = Altair::HTTP::Params.new(URI::Params.parse("tags=a&tags=b"))
+    params.fetch_all("tags").should eq(["a", "b"])
+  end
+
+  describe "#require / #permit" do
+    it "passes through require when the key exists" do
+      params = Altair::HTTP::Params.new(URI::Params.parse("title=Altair"))
+      params.require("title").should be(params)
+    end
+
+    it "raises KeyError from require when the key is missing" do
+      params = Altair::HTTP::Params.new(URI::Params.new)
+      expect_raises(KeyError) { params.require("title") }
+    end
+
+    it "filters the bag with permit" do
+      params = Altair::HTTP::Params.new(URI::Params.parse("title=Altair&body=Hello&admin=1"))
+      params.permit("title", "body").should eq({"title" => "Altair", "body" => "Hello"})
+    end
+
+    it "raises KeyError from permit for missing keys" do
+      params = Altair::HTTP::Params.new(URI::Params.parse("title=Altair"))
+      expect_raises(KeyError) { params.permit("title", "nope") }
+    end
+
+    it "chains require with permit for the strong params pattern" do
+      params = Altair::HTTP::Params.new(URI::Params.parse("post[title]=Altair&post[body]=Hi&admin=1"))
+      filtered = params.require("post[title]").permit("post[title]", "post[body]")
+      filtered.should eq({"post[title]" => "Altair", "post[body]" => "Hi"})
+    end
+  end
 end
 
 describe Altair::HTTP::Request do

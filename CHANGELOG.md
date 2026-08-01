@@ -9,6 +9,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`rescue_from`**: map exceptions to responses instead of a bare 500.
+  `rescue_from KeyError, to: 404` answers the given status;
+  `rescue_from MyError, handler: :my_handler` calls an instance method on
+  the application (with the exception, request and response); a block form
+  takes `|exception, request, response|`. Registrations are checked in
+  declaration order with subclass matching, so a 404-style catch-all can
+  coexist with specific handlers. `Altair::HTTP::ParamsError` (422) and the
+  other HTTP errors always win over `rescue_from`.
+
+- **Typed parameter fetching** (`Altair::HTTP::Params`): `fetch("id",
+  Int32)` returns a real `Int32` — missing or malformed values raise
+  `Altair::HTTP::ParamsError` (422 Unprocessable Entity, never a 500).
+  Overloads cover String, Int32, Int64, Float64 and Bool (true/1/yes/on,
+  false/0/no/off); `fetch?` returns `nil` instead of raising;
+  `fetch_all("tags")` returns repeated parameters in order; `require`
+  + `permit` implement the strong-params pattern with `KeyError` on
+  missing keys.
+
+- **`send_file` and `stream`** on `Altair::HTTP::Response`: `send_file`
+  streams a file with its MIME type, `Content-Length` and an inline
+  `Content-Disposition`; `stream` hands over the response body for custom
+  writing.
+
+- **Typed route references**: the route DSL accepts `to:
+  PagesController.index` — a typed, rename-safe reference to a controller
+  action — alongside the classic `"pages#index"` strings. A renamed or
+  mistyped action fails at compile time. `get`, `post`, `put`, `patch`,
+  `delete` and `root` all accept both forms.
+
+- **Typed render methods**: `templates`-generated `render_*` methods now
+  take their locals as typed parameters (`render_index(posts :
+  Array(Post))`) instead of an untyped bag — passing a wrong local is a
+  compile error. The `render :index, locals: {...}` dispatch validates
+  the bag at runtime for full-page renders.
+
+- **Block components**: `content_tag` gained a block form —
+  `content_tag(:article, class: "card") { ... }` — for composing small
+  view components from other helpers.
+
+- **htmx response headers, complete set**: `hx_trigger_after_settle`,
+  `hx_trigger_after_swap`, `hx_retarget`, `hx_reselect` and
+  `hx_stop_polling` join `hx_trigger`, `hx_redirect`, `hx_location`,
+  `hx_refresh` and `hx_push_url` in `Altair::Htmx::Headers`.
+
 - **Request body size limit**: requests are rejected with `413 Payload
   Too Large` when their body exceeds the configured limit. The default is
   2 MB; raise or lower it with `config.max_body_size`, or set it per

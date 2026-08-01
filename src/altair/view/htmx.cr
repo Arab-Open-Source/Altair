@@ -35,6 +35,35 @@ module Altair
         response.headers["HX-Trigger"] = events.map(&.to_s).join(",")
       end
 
+      # Triggers one or more events after the new content settles, e.g.
+      # `hx_trigger_after_settle(:list_updated)`.
+      def hx_trigger_after_settle(*events : Symbol) : Nil
+        response.headers["HX-Trigger-After-Settle"] = events.map(&.to_s).join(",")
+      end
+
+      # Triggers one or more events after the new content swaps in, e.g.
+      # `hx_trigger_after_swap(:list_updated)`.
+      def hx_trigger_after_swap(*events : Symbol) : Nil
+        response.headers["HX-Trigger-After-Swap"] = events.map(&.to_s).join(",")
+      end
+
+      # Targets a different element than the `hx-target` default, e.g.
+      # `hx_retarget("#sidebar")`.
+      def hx_retarget(selector : String) : Nil
+        response.headers["HX-Retarget"] = selector
+      end
+
+      # Re-selects the swapped content with a different CSS selector, e.g.
+      # `hx_reselect("#task-list li")`.
+      def hx_reselect(selector : String) : Nil
+        response.headers["HX-Reselect"] = selector
+      end
+
+      # Tells an `hx-trigger="every 5s"` poll to stop.
+      def hx_stop_polling : Nil
+        response.headers["HX-Stop-Polling"] = "true"
+      end
+
       # Redirects the browser to `path` when the response completes.
       def hx_redirect(path : String) : Nil
         response.headers["HX-Redirect"] = path

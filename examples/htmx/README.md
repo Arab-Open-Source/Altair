@@ -31,8 +31,8 @@ and the layout listens for it with `hx-on:task-changed`).
 
 | File | Shows |
 |------|-------|
-| `src/config/application.cr` | Routes — plain REST, no special htmx routes |
-| `src/app/controllers/tasks_controller.cr` | One `templates` call, typed locals, `hx_trigger`, fragment vs full page |
+| `src/config/application.cr` | Routes as typed action references, `rescue_from KeyError, to: 404` |
+| `src/app/controllers/tasks_controller.cr` | One `templates` call, typed locals, typed param fetching (`fetch("id", Int32)`), `hx_trigger_after_swap`, fragment vs full page |
 | `src/app/views/layouts/application.ecr` | Layout with `yield` + `javascript_include_tag :htmx` |
 | `src/app/views/tasks/index.ecr` | The list fragment: `link_to` / `button_to` with `hx_*` attributes, `form_for` with `hx_post` |
 | `src/app/views/tasks/edit.ecr` | Inline editing — the edit form swaps in place of the `<li>` |
@@ -50,9 +50,13 @@ and the layout listens for it with `hx-on:task-changed`).
   `form_for` translate `hx_post:` to `hx-post="..."` — htmx is a
   convention, not a framework dependency. The "delete" button still works
   without JavaScript via the `_method` override.
-- **`HX-Trigger` drives the UI.** `hx_trigger(:task_changed)` sets the
-  response header; the layout's toast element listens with
-  `hx-on:task-changed`.
+- **The response drives the UI.** `hx_trigger_after_swap(:task_changed)`
+  sets `HX-Trigger-After-Swap`; the layout's toast listens with
+  `hx-on:task-changed` and shows itself once the list has swapped in.
+- **Failures are first-class.** Params are fetched with types —
+  `params.fetch("id", Int32)` turns a malformed id into a `422` — and
+  `rescue_from KeyError, to: 404` turns a missing task into a `404`.
+  Try `GET /tasks/abc/edit` (422) and `GET /tasks/999/edit` (404).
 - **Views are compile-time.** A typo in a local name fails the build; a
   missing template file fails the build; `<%= %>` escapes by default.
 
@@ -60,11 +64,11 @@ and the layout listens for it with `hx-on:task-changed`).
 
 | Method | Path | Action | Fragment |
 |--------|------|--------|----------|
-| `GET` | `/` | `tasks#index` | — |
-| `POST` | `/tasks` | `tasks#create` | the list |
-| `GET` | `/tasks/:id/edit` | `tasks#edit` | the `<li>` being edited |
-| `POST` | `/tasks/:id` | `tasks#update` | the list |
-| `DELETE` | `/tasks/:id` | `tasks#destroy` | the list |
+| `GET` | `/` | `TasksController.index` | — |
+| `POST` | `/tasks` | `TasksController.create` | the list |
+| `GET` | `/tasks/:id/edit` | `TasksController.edit` | the `<li>` being edited |
+| `POST` | `/tasks/:id` | `TasksController.update` | the list |
+| `DELETE` | `/tasks/:id` | `TasksController.destroy` | the list |
 
 ## Project structure
 

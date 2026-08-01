@@ -5,6 +5,11 @@
 # is a compile error. Every action renders a bare fragment when the request
 # comes from htmx (`HX-Request`) and a full page otherwise — the same
 # action serves both worlds.
+#
+# Params are fetched with types (`params.fetch("id", Int32)` — malformed
+# ids become 422, never a 500), and missing tasks raise `KeyError`, which
+# the app turns into a 404 via `rescue_from` — try deleting a task that
+# is already gone.
 class Task
   getter id : Int32
   property title : String
@@ -28,9 +33,9 @@ class TasksController < ApplicationController
   end
 
   def create : Nil
-    @@tasks << Task.new(@@next_id, params["title"])
+    @@tasks << Task.new(@@next_id, params.fetch("title", String))
     @@next_id += 1
-    hx_trigger(:task_changed)
+    hx_trigger_after_swap(:task_changed)
     render :index, layout: false, locals: {tasks: @@tasks}
   end
 
@@ -40,18 +45,20 @@ class TasksController < ApplicationController
 
   def update : Nil
     task = find_task
-    task.title = params["title"]
-    hx_trigger(:task_changed)
+    task.title = params.fetch("title", String)
+    hx_trigger_after_settle(:task_changed)
     render :index, layout: false, locals: {tasks: @@tasks}
   end
 
   def destroy : Nil
-    @@tasks.reject!(&.id.==(params["id"].to_i))
+    index = @@tasks.index(&.id.==(params.fetch("id", Int32)))
+    raise KeyError.new("Task #{params["id"]} not found") unless index
+    @@tasks.delete_at(index)
     hx_trigger(:task_changed)
     render :index, layout: false, locals: {tasks: @@tasks}
   end
 
   private def find_task : Task
-    @@tasks.find(&.id.==(params["id"].to_i)) || raise Altair::Error.new("Task not found")
+    @@tasks.find(&.id.==(params.fetch("id", Int32))) || raise KeyError.new("Task not found")
   end
 end

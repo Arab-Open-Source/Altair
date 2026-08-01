@@ -52,12 +52,12 @@ macro templates(dir, root = nil, layout = nil, **views)
 
   {% for name, locals in views %}
     {% path = views_root + "/" + dir + "/" + name.id.stringify + ".ecr" %}
-    private def render_{{ name.id }}(locals : NamedTuple) : String
-      {% if locals.is_a?(NamedTupleLiteral) %}
-        {% for local, type in locals %}
-          {{ local.id }} = locals[{{ local.symbolize }}]?.as?({{ type }}) || raise Altair::Error.new("Missing local :{{ local.id }} for template {{ name.id }}")
-        {% end %}
-      {% end %}
+    {% if locals.is_a?(NamedTupleLiteral) %}
+      {% local_params = locals.keys.map { |local| local.stringify + " : " + locals[local].stringify }.join(", ") %}
+      private def render_{{ name.id }}({{ local_params.id }}) : String
+    {% else %}
+      private def render_{{ name.id }} : String
+    {% end %}
       String.build do |__io__|
         {% raw = read_file(path) %}
         {% segments = raw.split("<%") %}
@@ -120,7 +120,14 @@ macro templates(dir, root = nil, layout = nil, **views)
   private def render_template(action : Symbol | String, locals : NamedTuple) : String
     case action
     {% for name, locals in views %}
-    when {{ name.symbolize }}, {{ name.id.stringify }} then render_{{ name.id }}(locals)
+    when {{ name.symbolize }}, {{ name.id.stringify }}
+      {% if locals.is_a?(NamedTupleLiteral) %}
+        {% full_type = locals.stringify.gsub(/^\{/, "NamedTuple(").gsub(/\}$/, ")") %}
+        {% call_args = locals.keys.map { |local| local.stringify + ": (locals.as?(" + full_type + ") || raise Altair::Error.new(\"Missing local :" + local.stringify + " for template " + name.id.stringify + "\"))[" + local.symbolize.stringify + "].as(" + locals[local].stringify + ")" }.join(", ") %}
+        render_{{ name.id }}({{ call_args.id }})
+      {% else %}
+        render_{{ name.id }}
+      {% end %}
     {% end %}
     else
       raise Altair::Error.new("No template for #{action}")

@@ -6,16 +6,23 @@
 # `to: "pages#hom"` fails to compile, and the generated path helpers are
 # real methods.
 #
+# Routes point at controller actions with typed references
+# (`to: PagesController.index`) — rename-safe and compiler-checked — or
+# with the classic `"pages#index"` strings. `rescue_from` maps exceptions
+# to responses instead of a bare 500.
+#
 # The default middleware stack (request logging + static files from
 # `public/`) is on by default; see the README to customize it.
 class HelloWorld < Altair::Application
   config.name = "Hello World"
   config.port = 3000
 
+  rescue_from KeyError, to: 404
+
   routes do
-    root to: "pages#index"
-    get "/hello/:name", to: "pages#hello", named: :greeting
-    get "/boom", to: "pages#boom"
+    root to: PagesController.index
+    get "/hello/:name", to: PagesController.hello, named: :greeting
+    get "/boom", to: PagesController.boom
     resources :posts
   end
 end

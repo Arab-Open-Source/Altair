@@ -81,15 +81,23 @@ abstract class Altair::Application
       {% if to == nil %}
         {% raise "a route must declare an action with `to:` or a handler block: #{path}" %}
       {% end %}
-      {% cparts = (ns + to.split("#")[0]).split("/") %}
-      {% cconst = cparts.map(&.camelcase).join("::") + "Controller" %}
+      {% if to.is_a?(Call) %}
+        {% cconst = to.receiver %}
+        {% action_ref = to.name %}
+        {% action_label = cconst.id.stringify + "#" + action_ref.id.stringify %}
+      {% else %}
+        {% cparts = (ns + to.split("#")[0]).split("/") %}
+        {% cconst = cparts.map(&.camelcase).join("::") + "Controller" %}
+        {% action_ref = to.split("#")[1] %}
+        {% action_label = ns + to %}
+      {% end %}
       Altair::Routing.route_set_for({{@type}}).register(
         method: "GET",
         pattern: {{full_path}},
-        action: {{ns + to}},
+        action: {{ action_label }},
         name: {{ route_name }},
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-          {{ cconst.id }}.new(request, response).{{ to.split("#")[1].id }}
+          {{ cconst.id }}.new(request, response).{{ action_ref.id }}
         }
       )
     {% end %}
@@ -157,15 +165,23 @@ abstract class Altair::Application
       {% if to == nil %}
         {% raise "a route must declare an action with `to:` or a handler block: #{path}" %}
       {% end %}
-      {% cparts = (ns + to.split("#")[0]).split("/") %}
-      {% cconst = cparts.map(&.camelcase).join("::") + "Controller" %}
+      {% if to.is_a?(Call) %}
+        {% cconst = to.receiver %}
+        {% action_ref = to.name %}
+        {% action_label = cconst.id.stringify + "#" + action_ref.id.stringify %}
+      {% else %}
+        {% cparts = (ns + to.split("#")[0]).split("/") %}
+        {% cconst = cparts.map(&.camelcase).join("::") + "Controller" %}
+        {% action_ref = to.split("#")[1] %}
+        {% action_label = ns + to %}
+      {% end %}
       Altair::Routing.route_set_for({{@type}}).register(
         method: "POST",
         pattern: {{full_path}},
-        action: {{ns + to}},
+        action: {{ action_label }},
         name: {{ route_name }},
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-          {{ cconst.id }}.new(request, response).{{ to.split("#")[1].id }}
+          {{ cconst.id }}.new(request, response).{{ action_ref.id }}
         }
       )
     {% end %}
@@ -233,15 +249,23 @@ abstract class Altair::Application
       {% if to == nil %}
         {% raise "a route must declare an action with `to:` or a handler block: #{path}" %}
       {% end %}
-      {% cparts = (ns + to.split("#")[0]).split("/") %}
-      {% cconst = cparts.map(&.camelcase).join("::") + "Controller" %}
+      {% if to.is_a?(Call) %}
+        {% cconst = to.receiver %}
+        {% action_ref = to.name %}
+        {% action_label = cconst.id.stringify + "#" + action_ref.id.stringify %}
+      {% else %}
+        {% cparts = (ns + to.split("#")[0]).split("/") %}
+        {% cconst = cparts.map(&.camelcase).join("::") + "Controller" %}
+        {% action_ref = to.split("#")[1] %}
+        {% action_label = ns + to %}
+      {% end %}
       Altair::Routing.route_set_for({{@type}}).register(
         method: "PUT",
         pattern: {{full_path}},
-        action: {{ns + to}},
+        action: {{ action_label }},
         name: {{ route_name }},
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-          {{ cconst.id }}.new(request, response).{{ to.split("#")[1].id }}
+          {{ cconst.id }}.new(request, response).{{ action_ref.id }}
         }
       )
     {% end %}
@@ -309,15 +333,23 @@ abstract class Altair::Application
       {% if to == nil %}
         {% raise "a route must declare an action with `to:` or a handler block: #{path}" %}
       {% end %}
-      {% cparts = (ns + to.split("#")[0]).split("/") %}
-      {% cconst = cparts.map(&.camelcase).join("::") + "Controller" %}
+      {% if to.is_a?(Call) %}
+        {% cconst = to.receiver %}
+        {% action_ref = to.name %}
+        {% action_label = cconst.id.stringify + "#" + action_ref.id.stringify %}
+      {% else %}
+        {% cparts = (ns + to.split("#")[0]).split("/") %}
+        {% cconst = cparts.map(&.camelcase).join("::") + "Controller" %}
+        {% action_ref = to.split("#")[1] %}
+        {% action_label = ns + to %}
+      {% end %}
       Altair::Routing.route_set_for({{@type}}).register(
         method: "PATCH",
         pattern: {{full_path}},
-        action: {{ns + to}},
+        action: {{ action_label }},
         name: {{ route_name }},
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-          {{ cconst.id }}.new(request, response).{{ to.split("#")[1].id }}
+          {{ cconst.id }}.new(request, response).{{ action_ref.id }}
         }
       )
     {% end %}
@@ -385,15 +417,23 @@ abstract class Altair::Application
       {% if to == nil %}
         {% raise "a route must declare an action with `to:` or a handler block: #{path}" %}
       {% end %}
-      {% cparts = (ns + to.split("#")[0]).split("/") %}
-      {% cconst = cparts.map(&.camelcase).join("::") + "Controller" %}
+      {% if to.is_a?(Call) %}
+        {% cconst = to.receiver %}
+        {% action_ref = to.name %}
+        {% action_label = cconst.id.stringify + "#" + action_ref.id.stringify %}
+      {% else %}
+        {% cparts = (ns + to.split("#")[0]).split("/") %}
+        {% cconst = cparts.map(&.camelcase).join("::") + "Controller" %}
+        {% action_ref = to.split("#")[1] %}
+        {% action_label = ns + to %}
+      {% end %}
       Altair::Routing.route_set_for({{@type}}).register(
         method: "DELETE",
         pattern: {{full_path}},
-        action: {{ns + to}},
+        action: {{ action_label }},
         name: {{ route_name }},
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-          {{ cconst.id }}.new(request, response).{{ to.split("#")[1].id }}
+          {{ cconst.id }}.new(request, response).{{ action_ref.id }}
         }
       )
     {% end %}
@@ -460,15 +500,23 @@ abstract class Altair::Application
       {% if to == nil %}
         {% raise "a route must declare an action with `to:` or a handler block" %}
       {% end %}
-      {% cparts = (ns + to.split("#")[0]).split("/") %}
-      {% cconst = cparts.map(&.camelcase).join("::") + "Controller" %}
+      {% if to.is_a?(Call) %}
+        {% cconst = to.receiver %}
+        {% action_ref = to.name %}
+        {% action_label = cconst.id.stringify + "#" + action_ref.id.stringify %}
+      {% else %}
+        {% cparts = (ns + to.split("#")[0]).split("/") %}
+        {% cconst = cparts.map(&.camelcase).join("::") + "Controller" %}
+        {% action_ref = to.split("#")[1] %}
+        {% action_label = ns + to %}
+      {% end %}
       Altair::Routing.route_set_for({{@type}}).register(
         method: "GET",
         pattern: {{ ns == "" ? "/" : "/" + ns[0..-2] }},
-        action: {{ns + to}},
+        action: {{ action_label }},
         name: {{ route_name }},
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-          {{ cconst.id }}.new(request, response).{{ to.split("#")[1].id }}
+          {{ cconst.id }}.new(request, response).{{ action_ref.id }}
         }
       )
     {% end %}

@@ -55,6 +55,27 @@ module Altair
         @response.redirect(to, status)
       end
 
+      # Streams a file as the response body. The `Content-Type` is guessed
+      # from the file extension and `Content-Length` is set from the file
+      # size; the bytes are copied in chunks, so large files are never read
+      # whole into memory. With `inline: false` the file is offered as a
+      # download through the `Content-Disposition` header.
+      def send_file(path : Path, *, inline : Bool = true) : Nil
+        @headers["Content-Length"] = File.size(path).to_s
+        @headers["Content-Type"] = MIME.from_extension?(path.extension) || "application/octet-stream"
+        @headers["Content-Disposition"] = inline ? "inline" : %(attachment; filename="#{path.basename}")
+        File.open(path, "rb") do |file|
+          IO.copy(file, @response.output)
+        end
+      end
+
+      # Opens the response for streaming. Writing to the returned `IO`
+      # sends chunks as they are produced — the building block of large
+      # responses and server-sent events. Close the stream when done.
+      def stream : IO
+        @response.output
+      end
+
       # Writes raw data to the response body.
       def print(*objects) : Nil
         @response.print(*objects)
