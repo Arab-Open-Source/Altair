@@ -1,0 +1,26 @@
+# CI pipeline for Altair: format check, static analysis with Ameba and the
+# full spec suite on the latest stable Crystal release.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Crystal
+        uses: crystal-lang/install-crystal@v1
+      - name: Install shards
+        run: shards install
+      - name: Format check
+        run: crystal tool format --check src spec examples
+      - name: Lint
+        run: crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
+      - name: Specs
+        run: crystal spec
+      - name: Example builds
+        run: crystal build examples/hello_world/src/hello_world.cr --no-codegen

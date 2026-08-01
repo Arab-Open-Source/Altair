@@ -1,0 +1,89 @@
+# Altair — the batteries-included web framework for Crystal.
+#
+# This file defines `Altair::Application`, the heart of every Altair
+# application. An application subclasses it in `config/application.cr`,
+# configures itself through the `config` accessor and boots with `run!`:
+#
+# ```
+# class Blog < Altair::Application
+#   config.name = "Blog"
+#   config.port = 3000
+# end
+#
+# Blog.run!
+# ```
+#
+# The class behaves like a conventional application object: `instance`
+# returns the single application instance (creating it lazily on first
+# access), `config` exposes the configuration and `run!` boots the HTTP
+# server. Defining a second application subclass raises
+# `Altair::ConfigurationError` — one process runs exactly one application.
+module Altair
+  @@application_instance : Altair::Application?
+
+  def self.application_instance : Altair::Application?
+    @@application_instance
+  end
+
+  def self.application_instance=(instance : Altair::Application) : Altair::Application
+    @@application_instance = instance
+  end
+end
+
+abstract class Altair::Application
+  # The application configuration object.
+  getter config : Altair::Config
+
+  # The application root directory, detected from the current working
+  # directory at boot time. Override it when the application runs from a
+  # different location.
+  property root : Path
+
+  # Returns the single application instance, creating it on first access.
+  # Subsequent calls return the same object, and calling it through a
+  # different application subclass raises `Altair::ConfigurationError`.
+  def self.instance : self
+    if existing = Altair.application_instance
+      unless existing.is_a?(self)
+        raise Altair::ConfigurationError.new("an Altair::Application instance has already been created")
+      end
+      existing
+    else
+      Altair.application_instance = new
+    end
+  end
+
+  # The application configuration, accessible from the subclass body
+  # (`config.name = "Blog"`) and from anywhere in the application.
+  def self.config : Altair::Config
+    instance.config
+  end
+
+  # Boots the application: builds the server and blocks until it shuts
+  # down.
+  def self.run! : Nil
+    instance.start
+  end
+
+  # Boots the HTTP server for this application instance and blocks until
+  # the server is closed.
+  def start : Nil
+    handler = Altair::Core::RequestHandler.new(self)
+    Altair::Server.new(self, handler).start
+  end
+
+  # Creates the application instance, wires up the configuration and
+  # resolves the root directory. Raises `Altair::ConfigurationError` when
+  # an application instance already exists.
+  def initialize
+    raise Altair::ConfigurationError.new("an Altair::Application instance has already been created") if Altair.application_instance
+    @config = Altair::Config.new
+    @root = Path.new(Dir.current)
+    apply_environment_config
+  end
+
+  private def apply_environment_config
+    settings = @config.environment(Altair.env)
+    @config.debug = settings.debug?
+  end
+end

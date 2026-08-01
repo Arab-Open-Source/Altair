@@ -14,7 +14,7 @@
 
 ---
 
-Altair is a modern, batteries-included web framework for Crystal, inspired by the philosophy of Ruby on Rails.
+Altair is a modern, batteries-included web framework for Crystal, built around the principles of convention over configuration and developer happiness.
 
 Its goal is to provide an exceptional developer experience while taking advantage of Crystal's native performance, low memory usage, and single-binary deployment.
 

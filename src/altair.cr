@@ -1,6 +1,28 @@
-# TODO: Write documentation for `Altair`
+# Altair — the batteries-included web framework for Crystal.
+#
+# This is the framework's entry point. Requiring `altair` loads every
+# component of the framework in dependency order: the exception hierarchy,
+# the configuration system, the support utilities, the HTTP abstractions, the
+# application core and finally the server. Applications never require
+# individual files — they require this single entry point and the compiler
+# resolves the rest.
 module Altair
-  VERSION = "0.1.0"
-
-  # TODO: Put your code here
 end
+
+require "http/server"
+require "uri"
+
+require "./altair/core/version"
+require "./altair/exceptions/error"
+require "./altair/exceptions/configuration_error"
+require "./altair/exceptions/http_error"
+require "./altair/support/inflector"
+require "./altair/config/env"
+require "./altair/config/environments/base"
+require "./altair/config/config"
+require "./altair/http/params"
+require "./altair/http/request"
+require "./altair/http/response"
+require "./altair/core/request_handler"
+require "./altair/core/application"
+require "./altair/server/server"
