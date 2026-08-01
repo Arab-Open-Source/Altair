@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Altair + htmx</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <%= javascript_include_tag :htmx %>
+</head>
+<body>
+  <header>
+    <h1><a href="/">Altair + htmx</a></h1>
+    <p>Add, edit and delete tasks — the page never reloads.</p>
+  </header>
+  <main>
+<% yield %>
+  </main>
+  <div id="toast" hx-on:task-changed="this.classList.add('visible'); setTimeout(() => this.classList.remove('visible'), 1500)">Saved</div>
+</body>
+</html>

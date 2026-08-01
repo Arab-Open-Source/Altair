@@ -38,6 +38,19 @@ module Altair
       # pages use it to report which route was handling a failing request.
       property route : Altair::Routing::Route?
 
+      # True when the request was issued by htmx (the `HX-Request` header
+      # is present), letting actions answer with a fragment instead of a
+      # full page:
+      #
+      # ```
+      # def index : Nil
+      #   render :index, layout: !request.hx_request?
+      # end
+      # ```
+      def hx_request? : Bool
+        @headers["HX-Request"]? == "true"
+      end
+
       def initialize(@request : ::HTTP::Request)
         @method = @request.method.to_s
         @path = @request.uri.path

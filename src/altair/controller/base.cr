@@ -25,6 +25,9 @@
 # ```
 module Altair
   abstract class Controller
+    include Altair::View::Helpers
+    include Altair::Htmx::Headers
+
     # The framework's request wrapper for this request.
     getter request : Altair::HTTP::Request
 
@@ -65,6 +68,66 @@ module Altair
       when :json
         @response.json(json.not_nil!)
       end
+    end
+
+    # Renders a view by action name, wrapped in the controller's layout by
+    # default. `layout: false` renders a bare fragment — the building block
+    # of htmx flows. Locals must match the template's declared locals:
+    #
+    # ```
+    # render :index
+    # render :index, locals: {posts: posts}
+    # render :index, layout: false
+    # ```
+    def render(action : Symbol, *, layout : Bool = true, locals : NamedTuple = NamedTuple.new) : Nil
+      body = render_template(action, locals)
+      body = render_layout(body) if layout
+      @response.html(body)
+    end
+
+    # Renders a partial and returns its markup as a String, for composition
+    # inside templates:
+    #
+    # ```
+    # <%= render "form", locals: {post: post} %>
+    # ```
+    def render(partial : String, *, locals : NamedTuple = NamedTuple.new) : String
+      render_template(partial, locals)
+    end
+
+    # The default template dispatcher; the `templates` macro overrides it
+    # in the controller.
+    private def render_template(action : Symbol | String, locals : NamedTuple) : String
+      raise Altair::Error.new("No templates declared on #{self.class}")
+    end
+
+    # The default layout renderer; the `templates` macro overrides it when
+    # a layout is declared. Passes the body through unchanged.
+    private def render_layout(content : String) : String
+      content
+    end
+
+    # Opens a `<form>` and appends its closing tag around the block. The
+    # template transpiler passes the current output buffer automatically,
+    # so it is used directly inside templates:
+    #
+    # ```
+    # <% form_for("/posts", hx_post: "/posts") do |f| %>
+    #   <%= f.text_field("title") %>
+    #   <%= f.submit("Save") %>
+    # <% end %>
+    # ```
+    def form_for(io : IO, action : String, method : Symbol = :post, **attrs, &block : Altair::View::FormBuilder -> Nil) : Nil
+      io << "<form action=\"" << action << "\" method=\"post\""
+      attrs.each do |key, value|
+        io << ' ' << attribute_name(key) << "=\"" << Altair::View.escape(value.to_s) << '"'
+      end
+      io << '>'
+      unless method.in?(:get, :post)
+        io << "<input type=\"hidden\" name=\"_method\" value=\"" << method.to_s.upcase << "\">"
+      end
+      yield Altair::View::FormBuilder.new(method)
+      io << "</form>"
     end
 
     # Redirects to `path`, defaulting to status 302 (Found). The `Location`

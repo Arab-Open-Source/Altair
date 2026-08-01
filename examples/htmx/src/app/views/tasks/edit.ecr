@@ -1,0 +1,6 @@
+<li id="task-<%= task.id %>">
+  <% form_for("/tasks/#{task.id}", hx_post: "/tasks/#{task.id}", hx_target: "#task-list", hx_swap: "outerHTML") do |f| %>
+    <%= f.text_field("title", value: task.title) %>
+    <%= f.submit("Save") %>
+  <% end %>
+</li>

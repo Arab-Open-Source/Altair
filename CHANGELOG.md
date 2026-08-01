@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phase 3 — Views**: compile-time templates with safe defaults, layouts,
+  partials and an optional htmx layer.
+  - The `templates` macro: `.ecr` files are
+    transpiled at compile time into typed `render_*` methods. `<%= %>`
+    escapes HTML by default, `<%== %>` is raw and `<%%` writes a literal
+    `<%`. Locals are declared per template (`index: {posts: Array(Post)}`),
+    and a missing file or a wrong local raises a clear error.
+  - `render :index` renders a full page inside the layout; `render :index,
+    layout: false` renders a bare fragment — the building block of htmx
+    flows; `render "form", locals: {...}` renders a partial returning a
+    String. The same actions serve both worlds.
+  - Layouts with `yield` (`layouts/application.ecr`), declared per
+    controller in the `templates` call.
+  - Helpers (`Altair::View::Helpers`): `link_to`, `content_tag`,
+    `button_to` (with the `_method` override for non-GET verbs) and
+    `javascript_include_tag :htmx`.
+  - Form builder: `form_for` in templates (the transpiler passes the
+    output buffer automatically) with `label`, `text_field`,
+    `email_field`, `password_field`, `hidden_field` and `submit` — every
+    helper escapes its values.
+  - htmx is a convention, not a dependency: any `hx_*` attribute becomes
+    `hx-*` in the helpers, `request.hx_request?` detects `HX-Request`,
+    `hx_trigger(:event)` sets the `HX-Trigger` response header, and
+    `javascript_include_tag :htmx` resolves the script source from the
+    `from:` argument, `config.htmx_src`, `config.htmx_version` or the
+    pinned default CDN (`Altair::Htmx::VERSION = "2.0.10"`).
+  - `examples/htmx` — a no-reload tasks demo: add, inline-edit and delete
+    tasks with fragment swaps and a toast driven by `HX-Trigger`.
+  - 7 new end-to-end view specs (full page, fragments, escaping, partials,
+    htmx create) — 162 total.
+
 - **Smart error pages**: development-mode responses that help when things
   break, before the Phase 3 developer-experience push.
   - `Altair::Core::ErrorPages` — debug-mode pages for 404, 405 and 500 in

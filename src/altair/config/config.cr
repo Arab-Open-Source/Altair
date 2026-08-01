@@ -23,6 +23,14 @@ module Altair
     # errors. Applications may swap it for their own `Log` instance.
     property logger : Log = Log.for("altair")
 
+    # The htmx version served by `javascript_include_tag :htmx`. `nil`
+    # falls back to the framework's pinned default.
+    property htmx_version : String? = nil
+
+    # A custom htmx source URL — a different CDN or a local file under
+    # `public/`. Takes precedence over `htmx_version`.
+    property htmx_src : String? = nil
+
     # The middleware stack, run in order on every request before routing.
     # Each entry is a factory proc that builds one middleware for the
     # application, e.g. `->(app : Altair::Application) { MyMiddleware.new(app) }`.

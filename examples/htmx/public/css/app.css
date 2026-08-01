@@ -1,0 +1,112 @@
+:root {
+  --bg: #f6f8fa;
+  --panel: #ffffff;
+  --text: #24292f;
+  --muted: #57606a;
+  --accent: #0969da;
+  --border: #d0d7de;
+  --danger: #d1242f;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+header {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 24px 0;
+}
+
+header h1, header p, main {
+  width: min(640px, calc(100% - 32px));
+  margin-left: auto;
+  margin-right: auto;
+}
+
+header h1 { margin-top: 0; margin-bottom: 4px; font-size: 24px; }
+header h1 a { color: var(--text); text-decoration: none; }
+header p { margin-top: 0; color: var(--muted); font-size: 14px; }
+
+main { margin-top: 24px; margin-bottom: 64px; }
+
+#task-list {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+h2 { margin: 0 0 12px; font-size: 16px; }
+
+ul { list-style: none; padding: 0; margin: 0 0 16px; }
+
+li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--bg);
+}
+
+li span { flex: 1; }
+
+li a, li button {
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: none;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+li form { margin: 0; }
+li button:hover { background: var(--bg); }
+
+.empty { color: var(--muted); font-size: 14px; }
+
+.new-task { margin-top: 8px; }
+
+form { display: flex; gap: 8px; }
+
+input[type="text"] {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+input[type="submit"] {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(24px);
+  background: #1f883d;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 6px;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  pointer-events: none;
+}
+
+#toast.visible { opacity: 1; transform: translateX(-50%); }

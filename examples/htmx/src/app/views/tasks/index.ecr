@@ -1,0 +1,22 @@
+<section id="task-list">
+  <h2>Tasks</h2>
+  <% if tasks.empty? %>
+    <p class="empty">No tasks yet — add one below.</p>
+  <% else %>
+    <ul>
+    <% tasks.each do |task| %>
+      <li id="task-<%= task.id %>">
+        <span><%= task.title %></span>
+        <%= link_to "edit", "/tasks/#{task.id}/edit", hx_get: "/tasks/#{task.id}/edit", hx_target: "#task-#{task.id}", hx_swap: "outerHTML" %>
+        <%= button_to "delete", "/tasks/#{task.id}", method: :delete, hx_delete: "/tasks/#{task.id}", hx_target: "#task-list", hx_swap: "outerHTML" %>
+      </li>
+    <% end %>
+    </ul>
+  <% end %>
+  <div class="new-task">
+    <% form_for("/tasks", hx_post: "/tasks", hx_target: "#task-list", hx_swap: "outerHTML") do |f| %>
+      <%= f.text_field("title", placeholder: "What needs doing?") %>
+      <%= f.submit("Add") %>
+    <% end %>
+  </div>
+</section>

@@ -11,8 +11,8 @@
 | 0 | Foundation | Completed |
 | 1 | Router | Completed |
 | 2 | Controllers | Completed |
-| 3 | Views | Next |
-| 4 | CLI | Planned |
+| 3 | Views | Completed |
+| 4 | CLI | Next |
 | 5 | ORM | Planned |
 | 6 | Generators | Planned |
 | 7 | Hardening | Planned |
@@ -45,7 +45,7 @@
 | Controller base: render, redirect, params | A full controller works end to end |
 | Middleware pipeline | Logger + static files |
 
-## Phase 3: Views
+## Phase 3: Views (completed)
 
 | Task | Exit criterion |
 |---|---|
@@ -53,6 +53,15 @@
 | Layouts + `yield` | Pages share a header and footer |
 | Partials (`render "form"`) | File reuse |
 | Helpers: `link_to`, `content_tag`, basic form builder | Live HTML demo viewable in the browser |
+
+Bonus on top of the phase's exit criteria, all verified in specs and in
+`examples/htmx`:
+
+| Task | Exit criterion |
+|---|---|
+| Compile-time `templates` macro with typed locals | Wrong local or missing file is a compile error |
+| htmx layer: `HX-Request` detection, fragment rendering, `hx_*` attributes, `HX-Trigger` | No-reload flows work; everything also works without JS |
+| `examples/htmx` demo | Add/edit/delete tasks without a page reload |
 
 ## Phase 4: CLI
 
