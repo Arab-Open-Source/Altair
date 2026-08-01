@@ -51,14 +51,27 @@ module Altair
         @headers["HX-Request"]? == "true"
       end
 
-      def initialize(@request : ::HTTP::Request)
+      def initialize(@request : ::HTTP::Request, max_body_size : Int64? = nil)
         @method = @request.method.to_s
         @path = @request.uri.path
         @full_path = @request.resource
         @headers = @request.headers
-        @body = @request.body.try(&.gets_to_end)
+        @body = read_body(@request.body, max_body_size)
         @query_params = @request.query_params
         @params = Altair::HTTP::Params.new(@query_params, form_params)
+      end
+
+      # Reads the request body up to `limit` bytes, raising
+      # `Altair::HTTP::PayloadTooLarge` when the body exceeds it. A `nil`
+      # limit reads the body without any bound. The check applies to
+      # chunked requests too — the body is read through a `IO::Sized`
+      # wrapper, never trusting the `Content-Length` header.
+      private def read_body(io : IO?, limit : Int64?) : String?
+        return nil unless io
+        return io.gets_to_end unless limit
+        body = IO::Sized.new(io, limit + 1).gets_to_end
+        raise Altair::HTTP::PayloadTooLarge.new if body.size > limit
+        body
       end
 
       # Parses the body as form parameters when the request is a

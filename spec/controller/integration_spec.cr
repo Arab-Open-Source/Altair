@@ -154,4 +154,22 @@ describe "controller integration" do
       HTTP::Client.get("http://127.0.0.1:#{port}/nope").status_code.should eq(404)
     end
   end
+
+  it "rejects a request body over the configured limit with 413" do
+    with_books_server do |port|
+      app = BooksApp.instance
+      original = app.config.max_body_size
+      app.config.max_body_size = 100_i64
+      begin
+        response = HTTP::Client.post(
+          "http://127.0.0.1:#{port}/books",
+          form: "title=" + "x" * 200,
+          headers: HTTP::Headers{"Content-Type" => "application/x-www-form-urlencoded"}
+        )
+        response.status_code.should eq(413)
+      ensure
+        app.config.max_body_size = original
+      end
+    end
+  end
 end

@@ -18,7 +18,15 @@ module Altair
       # load-order bugs early.
       property? eager_load : Bool
 
-      def initialize(@debug = false, @eager_load = false)
+      # The maximum request body size for this environment, overriding
+      # `Config#max_body_size`. `nil` keeps the application-wide default:
+      #
+      # ```
+      # config.environments.production.max_body_size = 100.megabytes
+      # ```
+      property max_body_size : Int64?
+
+      def initialize(@debug = false, @eager_load = false, @max_body_size : Int64? = nil)
       end
     end
   end

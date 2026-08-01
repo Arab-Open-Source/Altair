@@ -113,5 +113,8 @@ abstract class Altair::Application
   private def apply_environment_config
     settings = @config.environment(Altair.env)
     @config.debug = settings.debug?
+    if limit = settings.max_body_size
+      @config.max_body_size = limit
+    end
   end
 end

@@ -21,6 +21,32 @@ deployment.
 
 > **Status:** early development (pre-alpha)
 
+## Under development
+
+Altair is built in phases, each ending with something working and visible.
+Phases 0–3 are complete: the application core, router, controllers and the
+view stack all ship with passing specs. The next milestone is the CLI
+(`altair new`, `altair server`, `altair routes`), followed by the ORM —
+the biggest phase still ahead.
+
+What is already in place:
+
+| Area | What is implemented |
+|------|---------------------|
+| Application | subclassed per project, typed config, per-env settings, singleton instance |
+| HTTP | request/response wrappers, merged param bag (route > query > body), JSON/HTML/redirect helpers |
+| Routing | compile-time DSL, path params, named helpers as real methods, 404/405 from the router |
+| Controllers | per-request instances, `render`/`redirect_to`/`head`, `_method` override |
+| Views | compile-time `.ecr` templates, layouts, partials, helpers, form builder, auto-escaping |
+| htmx | `hx_*` attributes, `hx_request?`, `hx_trigger`, fragment rendering |
+| Middleware | `use`-based pipeline, request logging, static files with traversal protection |
+| Errors | smart debug pages (404 suggestions, 405 methods, 500 diagnostics), plain in production |
+| Hardening | 2 MB request-body limit, `413` before the body is read |
+
+What is still missing (in rough order): the CLI, the ORM with migrations,
+generators, sessions/flash/CSRF, multipart parsing, `.env` support,
+background jobs and an asset pipeline.
+
 ---
 
 ## Features
@@ -41,6 +67,11 @@ deployment.
   `render` (html/text/json), `redirect_to`, `head` and a merged parameter
   bag; generated path helpers available in controllers via the
   `RouteHelpers` module.
+- **Views** — compile-time templates (`.ecr`) transpiled into typed
+  `render_*` methods with auto-escaping (`<%= %>` escapes, `<%== %>` is
+  raw), layouts with `yield`, partials, and an optional htmx layer
+  (`hx_*` attributes, `request.hx_request?`, `hx_trigger`, fragment
+  rendering).
 - **Middleware pipeline** — a `use`-based stack around the router, with
   built-in request logging and static-file serving from `public/` (with
   path-traversal protection).
@@ -51,18 +82,26 @@ deployment.
   that was handling it, the exception chain and a highlighted source
   preview of the failing line. Production stays plain text so the route
   table never leaks.
-- **Example application** — `examples/hello_world`, a working demo with a
-  RESTful resource, static assets and verified behavior over real HTTP.
+- **Request hardening** — a 2 MB request-body limit out of the box
+  (configurable, and disablable per environment), so oversized payloads
+  get a `413 Payload Too Large` before they are ever read, and the
+  response never echoes the rejected body.
+- **Example applications** — `examples/hello_world`, a working demo with a
+  RESTful resource, static assets and verified behavior over real HTTP,
+  and `examples/htmx`, showing the view stack and the htmx layer in the
+  browser.
 
 ### Planned
 
-- Template rendering with layouts and partials
-- Command-line generators
-- Database migrations
-- Authentication
-- Background jobs
-- Asset management
-- Testing utilities
+- CLI: `altair new`, `altair server`, `altair routes`
+- ORM (`Altair::Record`): migrations, `schema.cr`, CRUD, validations,
+  associations, callbacks
+- Generators and scaffolding
+- Sessions, flash and CSRF protection
+- Multipart form parsing
+- `.env` / `database.yml` configuration
+- Background jobs, authentication, asset pipeline, rich query DSL,
+  testing utilities
 
 ---
 

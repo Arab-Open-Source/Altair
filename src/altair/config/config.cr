@@ -23,6 +23,17 @@ module Altair
     # errors. Applications may swap it for their own `Log` instance.
     property logger : Log = Log.for("altair")
 
+    # The maximum request body size in bytes, applied while reading the
+    # body before any parsing — a request that exceeds it answers 413
+    # Payload Too Large. Raise it (or set it to `nil` to disable the
+    # limit) when the application accepts large uploads:
+    #
+    # ```
+    # config.max_body_size = 100.megabytes
+    # config.environments.production.max_body_size = 100.megabytes
+    # ```
+    property max_body_size : Int64? = 2_000_000
+
     # The htmx version served by `javascript_include_tag :htmx`. `nil`
     # falls back to the framework's pinned default.
     property htmx_version : String? = nil

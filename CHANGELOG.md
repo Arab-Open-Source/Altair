@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Request body size limit**: requests are rejected with `413 Payload
+  Too Large` when their body exceeds the configured limit. The default is
+  2 MB; raise or lower it with `config.max_body_size`, or set it per
+  environment (`config.environments.<env>.max_body_size`) — a `nil` limit
+  disables the protection entirely. The body is read through a
+  `IO::Sized` wrapper, so the limit applies to chunked requests too and
+  never trusts the `Content-Length` header. The 413 response is plain
+  text and never echoes the rejected body.
+
 - **Boot banner**: `altair run` applications print a boxed summary at
   startup — environment, listening URL (shown as `localhost` when bound to
   `0.0.0.0`), and the application's route and middleware counts —

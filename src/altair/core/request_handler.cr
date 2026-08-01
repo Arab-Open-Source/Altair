@@ -26,9 +26,10 @@ class Altair::Core::RequestHandler
   end
 
   def call(context : ::HTTP::Server::Context) : Nil
-    request = Altair::HTTP::Request.new(context.request)
-    response = Altair::HTTP::Response.new(context.response)
+    request = nil
     begin
+      request = Altair::HTTP::Request.new(context.request, max_body_size: @app.config.max_body_size)
+      response = Altair::HTTP::Response.new(context.response)
       @chain.call(request, response)
     rescue exception
       handle_error(context, request, exception)
@@ -79,19 +80,22 @@ class Altair::Core::RequestHandler
     end
   end
 
-  private def handle_error(context : ::HTTP::Server::Context, request : Altair::HTTP::Request, exception : Exception) : Nil
+  private def handle_error(context : ::HTTP::Server::Context, request : Altair::HTTP::Request?, exception : Exception) : Nil
     case exception
     when Altair::HTTP::NotFound
       context.response.status = ::HTTP::Status::NOT_FOUND
-      if @app.config.debug?
+      if @app.config.debug? && request
         render_debug_error(context, Altair::Core::ErrorPages.new(@router, @app).not_found(request))
       else
         context.response.print("404 Not Found")
       end
+    when Altair::HTTP::PayloadTooLarge
+      context.response.status = ::HTTP::Status::PAYLOAD_TOO_LARGE
+      context.response.print("413 Payload Too Large")
     when Altair::HTTP::MethodNotAllowed
       context.response.status = ::HTTP::Status::METHOD_NOT_ALLOWED
       context.response.headers["Allow"] = exception.allowed.join(", ")
-      if @app.config.debug?
+      if @app.config.debug? && request
         render_debug_error(context, Altair::Core::ErrorPages.new(@router, @app).method_not_allowed(request, exception.allowed))
       else
         context.response.print("405 Method Not Allowed")
@@ -99,7 +103,7 @@ class Altair::Core::RequestHandler
     else
       @app.config.logger.error { "Unhandled #{exception.class}: #{exception.message}" }
       context.response.status = ::HTTP::Status::INTERNAL_SERVER_ERROR
-      if @app.config.debug?
+      if @app.config.debug? && request
         render_debug_error(context, Altair::Core::ErrorPages.new(@router, @app).internal_server_error(request, exception))
       else
         context.response.print("500 Internal Server Error")

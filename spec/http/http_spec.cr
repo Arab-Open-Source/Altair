@@ -68,6 +68,35 @@ describe Altair::HTTP::Request do
     request = Altair::HTTP::Request.new(HTTP::Request.new("GET", "/"))
     request.body.should be_nil
   end
+
+  it "reads the body up to the configured limit" do
+    raw = HTTP::Request.new("POST", "/posts")
+    raw.body = "x" * 100
+    request = Altair::HTTP::Request.new(raw, max_body_size: 200_i64)
+    request.body.should eq("x" * 100)
+  end
+
+  it "accepts a body exactly at the limit" do
+    raw = HTTP::Request.new("POST", "/posts")
+    raw.body = "x" * 200
+    request = Altair::HTTP::Request.new(raw, max_body_size: 200_i64)
+    request.body.should eq("x" * 200)
+  end
+
+  it "raises PayloadTooLarge when the body exceeds the limit" do
+    raw = HTTP::Request.new("POST", "/posts")
+    raw.body = "x" * 300
+    expect_raises(Altair::HTTP::PayloadTooLarge) do
+      Altair::HTTP::Request.new(raw, max_body_size: 200_i64)
+    end
+  end
+
+  it "reads the body without bound when the limit is nil" do
+    raw = HTTP::Request.new("POST", "/posts")
+    raw.body = "x" * 5000
+    request = Altair::HTTP::Request.new(raw, max_body_size: nil)
+    request.body.not_nil!.size.should eq(5000)
+  end
 end
 
 describe Altair::HTTP::Response do
