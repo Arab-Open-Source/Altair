@@ -119,6 +119,18 @@ describe "error pages" do
       end
     end
 
+    it "respects a _method override in the fix suggestion" do
+      with_error_pages_server(true) do |port|
+        response = HTTP::Client.post(
+          "http://127.0.0.1:#{port}/post",
+          form: "_method=PUT",
+          headers: HTTP::Headers{"Content-Type" => "application/x-www-form-urlencoded"}
+        )
+        response.status_code.should eq(404)
+        response.body.should contain(%(put "/post", to: "error_pages#index"))
+      end
+    end
+
     it "keeps parameter patterns unlinked but suggested as code" do
       with_error_pages_server(true) do |port|
         response = HTTP::Client.get("http://127.0.0.1:#{port}/postx/5")
@@ -149,6 +161,7 @@ describe "error pages" do
         body.should contain("This path accepts")
         body.should contain("_method")
         body.should contain("How to send the right method")
+        body.should contain(%(value="delete"))
       end
     end
 

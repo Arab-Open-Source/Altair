@@ -84,7 +84,7 @@ class Altair::Core::ErrorPages
       io << "</ul>\n"
       io << "<h2>How to send the right method</h2>\n"
       io << "<p class=\"hint\">Forms only know <code>GET</code> and <code>POST</code>. Add a hidden <code>_method</code> field to send any method:</p>\n"
-      io << "<div class=\"fix\"><code>&lt;input type=\"hidden\" name=\"_method\" value=\"#{escape(request.method.downcase)}\"&gt;</code><button class=\"copy\" onclick=\"copyFix(this)\">Copy</button></div>\n"
+      io << "<div class=\"fix\"><code>&lt;input type=\"hidden\" name=\"_method\" value=\"#{escape(requested_method(request))}\"&gt;</code><button class=\"copy\" onclick=\"copyFix(this)\">Copy</button></div>\n"
     end
     page("405 — Method Not Allowed", body)
   end
@@ -134,7 +134,7 @@ class Altair::Core::ErrorPages
   # method (GET for HEAD) with the closest route's action. Shown on the
   # 404 page under each suggestion, copyable with one click.
   private def fix_suggestion(route : Altair::Routing::Route, request : Altair::HTTP::Request) : String
-    method = request.method == "HEAD" ? "get" : request.method.downcase
+    method = requested_method(request)
     action = route.action || "pages#index"
     String.build do |io|
       io << "<div class=\"fix\">\n"
@@ -142,6 +142,14 @@ class Altair::Core::ErrorPages
       io << "  <button class=\"copy\" onclick=\"copyFix(this)\">Copy</button>\n"
       io << "</div>\n"
     end
+  end
+
+  # The method the request was actually made with, lowercased for route
+  # syntax. `HEAD` always maps to `get`, and a `_method` override wins
+  # over the verb the form was submitted with.
+  private def requested_method(request : Altair::HTTP::Request) : String
+    return "get" if request.method == "HEAD"
+    request.params["_method"]?.try(&.downcase) || request.method.downcase
   end
 
   # Routes whose pattern contains a parameter (`/posts/:id`) cannot be

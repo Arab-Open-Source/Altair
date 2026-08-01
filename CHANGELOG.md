@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `Altair::Routing::Router#closest_to` — the route-suggestion engine.
   - Outside debug mode responses stay plain text with the standard
     `Allow` header: the route table never leaks in production.
-  - 23 new specs: the suggestion engine and end-to-end error pages in
+  - 25 new specs: the suggestion engine and end-to-end error pages in
     both debug and production modes.
 
 - **Phase 2 — Controllers**: instance controllers with rendering, redirects
