@@ -224,4 +224,4 @@ Be respectful, constructive and inclusive. Harassment and offensive behavior
 of any kind are not tolerated. We are all here to build something good
 together.
 
-## Use Zed Or Cscode or Nvim
+## Use Zed Or vscode or Nvim
