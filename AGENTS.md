@@ -38,13 +38,10 @@ Nothing ships unless someone can look at it, click it, and see it work.
 
 ## Current status
 
-- **Phases 0–3 done** (Foundation, Router, Controllers, Views). Phase 4
-  (**Record — the ORM**) is in progress: waves 1–3 are in the tree
-  (adapter/connection/migrations/schema, CRUD + finders + validations +
-  timestamps + callbacks, associations with eager loading), and
+- **Phases 0–4 done** (Foundation, Router, Controllers, Views, Record/ORM).
   `examples/blog` is the always-running persistence demo — its posts and
   comments survive restarts.
-- 314 specs passing, formatter clean, Ameba silent.
+- 340 specs passing, formatter clean, Ameba silent.
 - Smart error pages (404 with route suggestions, 405 with `_method`
   explanation, detailed 500 diagnostics) shipped early as a pre-Phase-3
   gift — they live in the framework already.
@@ -55,7 +52,7 @@ Nothing ships unless someone can look at it, click it, and see it work.
 | 1 | Router | Completed |
 | 2 | Controllers | Completed |
 | 3 | Views | Completed |
-| 4 | Record (ORM) | **In progress** |
+| 4 | Record (ORM) | Completed |
 | 5 | Generators | Planned |
 | 6 | Hardening | Planned |
 | 7 | CLI | Planned |
