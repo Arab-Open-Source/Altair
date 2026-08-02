@@ -5,7 +5,7 @@
 require "../spec_helper"
 
 private def noop_handler : Altair::Routing::Route::Handler
-  ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) { }
+  ->(_request : Altair::HTTP::Request, _response : Altair::HTTP::Response) { }
 end
 
 describe Altair::Routing::Segment do

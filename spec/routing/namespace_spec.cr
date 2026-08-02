@@ -43,7 +43,7 @@ describe "namespace" do
   end
 
   it "namespaces named routes inside the namespace" do
-    NamespaceApp.route_set.routes.find(&.pattern.==("/admin/stats")).not_nil!.name.should eq("stats")
+    NamespaceApp.route_set.routes.find!(&.pattern.==("/admin/stats")).name.should eq("stats")
   end
 
   it "supports nested namespaces" do

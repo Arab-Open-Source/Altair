@@ -29,7 +29,7 @@ describe "resources" do
   end
 
   it "honours `only:`" do
-    ResourcesApp.route_set.routes.map { |route| route.pattern }.select(&.starts_with?("/articles")).should eq([
+    ResourcesApp.route_set.routes.map(&.pattern).select(&.starts_with?("/articles")).should eq([
       "/articles",
       "/articles/:id",
     ])

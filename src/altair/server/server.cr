@@ -38,7 +38,7 @@ class Altair::Server
   # blocks until the server is closed — the main entry point used by
   # `Altair::Application#start`.
   def start : Nil
-    address = bound? ? bound_address : bind
+    bind unless bound?
     install_signal_handlers
     @http_server.listen
   end

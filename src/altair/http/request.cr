@@ -67,7 +67,7 @@ module Altair
       # chunked requests too — the body is read through a `IO::Sized`
       # wrapper, never trusting the `Content-Length` header.
       private def read_body(io : IO?, limit : Int64?) : String?
-        return nil unless io
+        return unless io
         return io.gets_to_end unless limit
         body = IO::Sized.new(io, limit + 1).gets_to_end
         raise Altair::HTTP::PayloadTooLarge.new if body.size > limit

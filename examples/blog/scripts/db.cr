@@ -8,11 +8,14 @@
 # crystal run scripts/db.cr rollback
 # ```
 require "altair"
+require "../db/schema"
 require "../src/config/application"
 require "../src/app/controllers/application_controller"
+require "../src/app/models/post"
 require "../src/app/controllers/posts_controller"
 require "../db/migrations/20260802000001_create_posts"
 require "../db/migrations/20260802000002_add_comments"
+require "../db/migrations/20260802000003_add_timestamps_to_posts"
 
 conn = Altair::Record::Connection.for(Blog.instance)
 runner = Altair::Record::Migrations::Runner.new(

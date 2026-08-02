@@ -107,7 +107,7 @@ module Altair
       # Fetches the parameter for the given key as a `Bool`, or returns
       # `nil` when the parameter is missing or not a boolean value.
       def fetch?(key : String, type : Bool.class) : Bool?
-        return nil unless value = self[key]?
+        return unless value = self[key]?
         case value.downcase
         when "true", "1", "yes", "on"  then true
         when "false", "0", "no", "off" then false

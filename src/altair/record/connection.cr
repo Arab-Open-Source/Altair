@@ -31,6 +31,9 @@ module Altair
       # The checked-out transaction connection, while a transaction runs.
       @active_connection : DB::Connection?
 
+      # Savepoint counter for nested transactions.
+      @savepoint_counter : Int32 = 0
+
       def initialize(@adapter : Adapter, url : String, pool_options : DB::Pool::Options, @query_timeout : Time::Span)
         @database = @adapter.connect(url, pool_options)
         @active_connection = nil
@@ -52,7 +55,7 @@ module Altair
       end
 
       # Runs a query with bound parameters, yielding each row to the block.
-      def query(sql : String, *args, &block : DB::ResultSet ->) : Nil
+      def query(sql : String, *args, & : DB::ResultSet ->) : Nil
         start = Time.instant
         if conn = @active_connection
           conn.fetch_or_build_prepared_statement(sql).query(*args) do |rs|
@@ -67,7 +70,7 @@ module Altair
       end
 
       # Runs a query expecting a single row, yielded to the block.
-      def query_one(sql : String, *args, &block : DB::ResultSet -> U) : U forall U
+      def query_one(sql : String, *args, & : DB::ResultSet -> U) : U forall U
         start = Time.instant
         result = if conn = @active_connection
                    conn.fetch_or_build_prepared_statement(sql).query(*args) do |rs|
@@ -89,17 +92,44 @@ module Altair
       # Runs the block inside a transaction; the transaction rolls back
       # when the block raises, and the raise propagates. Statements inside
       # the block reuse the transaction's connection, so the pool is never
-      # double-checked-out.
+      # double-checked-out. A nested call runs on a savepoint of the
+      # current transaction instead of checking out another connection.
       def transaction(&block : Proc(Nil)) : Nil
-        @database.transaction do |tx|
-          previous = @active_connection
-          @active_connection = tx.connection
-          begin
-            block.call
-          ensure
-            @active_connection = previous
+        if conn = @active_connection
+          savepoint_transaction(conn) { block.call }
+        else
+          @database.transaction do |tx|
+            previous = @active_connection
+            @active_connection = tx.connection
+            begin
+              block.call
+            ensure
+              @active_connection = previous
+            end
           end
         end
+      end
+
+      # Runs the block on a savepoint of the active transaction. A raise
+      # rolls back to the savepoint and propagates; `DB::Rollback` rolls
+      # back to the savepoint only, discarding its work without aborting
+      # the outer transaction.
+      private def savepoint_transaction(conn : DB::Connection, &block : Proc(Nil)) : Nil
+        name = "altair_sp_#{@savepoint_counter}"
+        @savepoint_counter += 1
+        exec("SAVEPOINT #{@adapter.quote_identifier(name)}")
+        begin
+          block.call
+        rescue DB::Rollback
+          exec("ROLLBACK TO #{@adapter.quote_identifier(name)}")
+          exec("RELEASE #{@adapter.quote_identifier(name)}")
+          return
+        rescue ex
+          exec("ROLLBACK TO #{@adapter.quote_identifier(name)}")
+          exec("RELEASE #{@adapter.quote_identifier(name)}")
+          raise ex
+        end
+        exec("RELEASE #{@adapter.quote_identifier(name)}")
       end
 
       # Closes the pool. Tests call this to release file handles.

@@ -90,4 +90,33 @@ describe Altair::Inflector do
       Altair::Inflector.uncountable?("user").should be_false
     end
   end
+
+  describe ".tableize" do
+    it "converts a model name to its table name" do
+      Altair::Inflector.tableize("User").should eq("users")
+      Altair::Inflector.tableize("BlogPost").should eq("blog_posts")
+      Altair::Inflector.tableize("Category").should eq("categories")
+    end
+  end
+
+  describe ".foreign_key" do
+    it "derives the foreign key from a model name" do
+      Altair::Inflector.foreign_key("Comment").should eq("comment_id")
+      Altair::Inflector.foreign_key("BlogPost").should eq("blog_post_id")
+    end
+  end
+
+  describe ".irregular" do
+    it "registers an irregular mapping for pluralize and singularize" do
+      Altair::Inflector.irregular("person", "people")
+      Altair::Inflector.irregular("datum", "data")
+      Altair::Inflector.pluralize("datum").should eq("data")
+      Altair::Inflector.singularize("data").should eq("datum")
+    end
+
+    it "overrides the default pluralization" do
+      Altair::Inflector.irregular("criterion", "criteria")
+      Altair::Inflector.pluralize("criterion").should eq("criteria")
+    end
+  end
 end

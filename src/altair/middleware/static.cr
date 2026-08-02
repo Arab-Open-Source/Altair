@@ -29,9 +29,9 @@ class Altair::Middleware::Static < Altair::Middleware
   # `nil` when the path cannot name a file there. Requests with parent
   # segments (`..`) or absolute paths are rejected outright.
   private def resolve(path : String) : Path?
-    return nil unless path.starts_with?("/")
-    return nil if path.includes?('\0')
-    return nil if path.split('/').any? { |segment| segment == ".." }
+    return unless path.starts_with?("/")
+    return if path.includes?('\0')
+    return if path.split('/').any? { |segment| segment == ".." }
     Path.new((@app.root / "public").to_s + path)
   end
 

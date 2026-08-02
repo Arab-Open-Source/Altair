@@ -12,7 +12,7 @@ class DslApp < Altair::Application
     root to: "pages#index"
     get "/hello/:name", to: "pages#hello", named: :greeting
     get "/about", to: "pages#about"
-    get "/status" do |request, response|
+    get "/status" do |_request, response|
       response.print("ok")
     end
     post "/posts", to: "posts#create"

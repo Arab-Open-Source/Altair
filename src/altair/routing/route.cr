@@ -41,12 +41,12 @@ module Altair
       # path parts, extracting the parameter values into the returned
       # hash. Returns `nil` when the path does not match.
       def match(parts : PathParts) : Hash(String, String)?
-        return nil unless parts.size == @segments.size
+        return unless parts.size == @segments.size
         params = {} of String => String
         @segments.each_with_index do |segment, index|
           case segment.kind
           when Segment::Kind::Static
-            return nil unless segment.value == parts[index]
+            return unless segment.value == parts[index]
           when Segment::Kind::Param
             params[segment.value] = URI.decode(parts[index])
           end

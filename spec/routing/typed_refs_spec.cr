@@ -15,7 +15,7 @@ class TypedRefsApp < Altair::Application
     put "/typed/:id", to: PostsController.update
     patch "/typed/:id", to: PostsController.update
     delete "/typed/:id", to: PostsController.destroy
-    get "/typed/block" do |request, response|
+    get "/typed/block" do |_request, response|
       response.text("block")
     end
   end
@@ -23,18 +23,18 @@ end
 
 describe "typed route references" do
   it "registers a root route from a typed reference" do
-    route = TypedRefsApp.route_set.routes.find(&.pattern.==("/")).not_nil!
+    route = TypedRefsApp.route_set.routes.find!(&.pattern.==("/"))
     route.action.should eq("PagesController#index")
   end
 
   it "registers a verb route from a typed reference" do
-    route = TypedRefsApp.route_set.routes.find(&.pattern.==("/typed")).not_nil!
+    route = TypedRefsApp.route_set.routes.find!(&.pattern.==("/typed"))
     route.method.should eq("GET")
     route.action.should eq("PagesController#hello")
   end
 
   it "generates the named helper for a typed reference" do
-    route = TypedRefsApp.route_set.routes.find(&.name.==("typed_hello")).not_nil!
+    route = TypedRefsApp.route_set.routes.find!(&.name.==("typed_hello"))
     route.handler.should_not be_nil
   end
 

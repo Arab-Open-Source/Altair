@@ -12,6 +12,6 @@ class Blog < Altair::Application
 
   routes do
     root to: PostsController.index
-    post "/posts", to: PostsController.create
+    resources :posts
   end
 end

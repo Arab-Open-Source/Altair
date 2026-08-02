@@ -60,7 +60,7 @@ describe Altair::Middleware do
       ->(app : Altair::Application) { TraceMiddleware.new(app, "first", trace) },
       ->(app : Altair::Application) { TraceMiddleware.new(app, "second", trace) },
     ]
-    final = ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) { trace << "final" }
+    final = ->(_request : Altair::HTTP::Request, _response : Altair::HTTP::Response) { trace << "final" }
 
     chain = stack.reverse.reduce(final) do |inner, factory|
       middleware = factory.call(SpecApp.instance)

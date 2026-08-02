@@ -29,7 +29,7 @@ class PostsController < ApplicationController
             <button>delete</button>
           </form>
         </li>
-      HTML
+        HTML
     end.join
     render html: <<-HTML
       <!DOCTYPE html>
@@ -63,7 +63,7 @@ class PostsController < ApplicationController
       render html: page_html(<<-HTML)
         <h1>#{post.title}</h1>
         <p>Post ##{post.id} — <a href="#{edit_post_path(post.id)}">edit</a></p>
-      HTML
+        HTML
     else
       render text: "Post not found", status: ::HTTP::Status::NOT_FOUND
     end
@@ -123,6 +123,6 @@ class PostsController < ApplicationController
         <label>Title <input name="title" value="#{title}"></label>
         <button>Save</button>
       </form>
-    HTML
+      HTML
   end
 end

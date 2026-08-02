@@ -1,0 +1,26 @@
+# Ameba configuration — Altair lints clean under these settings.
+#
+# The exclusions keep vendored dependencies (the examples' own `lib/`
+# trees) and ECR templates (not Crystal source) out of the run. The two
+# disabled rules and the complexity ceiling document deliberate codebase
+# choices: compact `{{ }}` macro expressions (the formatter leaves them
+# as written), `not_nil!` where the compiler cannot narrow (route helpers,
+# persisted record ids), and the router's large compile-time macros.
+Excluded:
+  - "examples/*/lib/**/*.cr"
+  - "examples/*/lib/**/*.ecr"
+  - "**/*.ecr"
+
+Lint/WhitespaceAroundMacroExpression:
+  Enabled: false
+
+Lint/NotNil:
+  Enabled: false
+
+Metrics/CyclomaticComplexity:
+  MaxComplexity: 15
+
+# `rs` (a DB result set, the shard's own convention) and `t` (the schema
+# DSL's table builder) are the codebase's short block parameters.
+Naming/BlockParameterName:
+  AllowedNames: [a, b, e, i, j, k, v, x, y, k1, k2, v1, v2, db, ex, id, io, ip, op, tx, wg, ws, rs, t]

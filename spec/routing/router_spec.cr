@@ -6,7 +6,7 @@
 require "../spec_helper"
 
 private def noop_handler : Altair::Routing::Route::Handler
-  ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) { }
+  ->(_request : Altair::HTTP::Request, _response : Altair::HTTP::Response) { }
 end
 
 private def build_router(routes : Array(Tuple(String, String)))

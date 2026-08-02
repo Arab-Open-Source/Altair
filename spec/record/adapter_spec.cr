@@ -15,8 +15,8 @@ describe Altair::Record::Adapters::SQLite3 do
     dir = Path.new(Dir.tempdir, "altair_wal_#{Random.rand(1_000_000)}")
     FileUtils.mkdir_p(dir)
     db = adapter.connect("sqlite3://#{dir.join("w.db")}", DB::Pool::Options.new)
-    db.query_one("PRAGMA journal_mode") { |rs| rs.read(String) }.should eq("wal")
-    db.query_one("PRAGMA busy_timeout") { |rs| rs.read(Int64) }.should eq(5000)
+    db.query_one("PRAGMA journal_mode", &.read(String)).should eq("wal")
+    db.query_one("PRAGMA busy_timeout", &.read(Int64)).should eq(5000)
     db.close
     FileUtils.rm_rf(dir)
   end
@@ -125,8 +125,8 @@ end
 
 describe Altair::Record::Adapter do
   it "runs the schema DSL against any adapter shape" do
-    schema = Altair::Record::Schema.define(adapter: FakeAdapter.new) do |s|
-      s.table(:posts) do |t|
+    schema = Altair::Record::Schema.define(adapter: FakeAdapter.new) do |schema|
+      schema.table(:posts) do |t|
         t.string :title
         t.integer :views, null: false
       end
@@ -140,13 +140,12 @@ describe Altair::Record::Adapter do
 
   it "builds create-table SQL with the adapter's quoting and types" do
     adapter = FakeAdapter.new
-    schema = Altair::Record::Schema.define(adapter: adapter) do |s|
-      s.create_table(:posts) do |t|
+    schema = Altair::Record::Schema.define(adapter: adapter) do |schema|
+      schema.create_table(:posts) do |t|
         t.string :title
         t.boolean :published, null: false
       end
     end
-    sql = schema.tables.first.as(Altair::Record::Schema::Table)
     # The SQL is executed against the fake connection; here we only assert
     # the state shape carries the adapter-independent decisions.
     posts = schema.table("posts").not_nil!

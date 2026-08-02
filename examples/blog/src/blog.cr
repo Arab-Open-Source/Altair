@@ -6,8 +6,8 @@
 # Run it from this directory:
 #
 # ```
-# crystal run scripts/db.cr migrate # create the schema
-# crystal run src/blog.cr           # serve on http://localhost:4000
+# crystal run scripts/db.cr -- migrate # create the schema
+# crystal run src/blog.cr             # serve on http://localhost:4000
 # ```
 #
 # then:
@@ -20,8 +20,10 @@
 # Restart the server: the posts are still listed, because they live in
 # `db/blog.db`, not in memory.
 require "altair"
+require "../db/schema"
 require "./config/application"
 require "./app/controllers/application_controller"
+require "./app/models/post"
 require "./app/controllers/posts_controller"
 
 Blog.run!

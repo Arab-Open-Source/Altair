@@ -1,43 +1,115 @@
 # Blog — the posts controller.
 #
-# The same REST actions as hello_world, but backed by SQLite through
-# `Altair::Record.connection` instead of an in-memory array. Every value
-# travels as a bind parameter — the SQL strings are constant.
+# The same REST actions as hello_world, but backed by SQLite through the
+# `Post` model. Every value travels as a bind parameter — the SQL strings
+# are constant — and validation failures are reported inline.
 class PostsController < ApplicationController
   def index : Nil
-    posts = [] of NamedTuple(id: Int64, title: String)
-    Altair::Record.connection.query("SELECT id, title FROM posts ORDER BY id DESC") do |rs|
-      rs.each do
-        posts << {id: rs.read(Int64), title: rs.read(String)}
-      end
-    end
-    rows = posts.map do |post|
-      "<li>#{post[:id]}: #{post[:title]}</li>"
+    rows = Post.all.sort_by { |post| -post.id.not_nil! }.map do |post|
+      <<-HTML
+        <li>
+          <a href="#{post_path(post.id.not_nil!)}">#{post.title}</a>
+          <a href="#{edit_post_path(post.id.not_nil!)}">edit</a>
+          <form action="#{post_path(post.id.not_nil!)}" method="post">
+            <input type="hidden" name="_method" value="DELETE">
+            <button>delete</button>
+          </form>
+        </li>
+        HTML
     end.join
-    render html: <<-HTML
+    render html: page_html(<<-HTML)
+      <h1>Posts</h1>
+      <ul>#{rows}</ul>
+      <p><a href="#{new_post_path}">New post</a> · <a href="/">Home</a></p>
+      HTML
+  end
+
+  def new : Nil
+    render html: page_html("<h1>New post</h1>#{form_html("/posts")}")
+  end
+
+  def create : Nil
+    post = Post.new(title: params["title"]?)
+    if post.save
+      redirect_to post_path(post.id.not_nil!)
+    else
+      render html: page_html("<h1>New post</h1>#{form_html("/posts", post)}"), status: ::HTTP::Status::UNPROCESSABLE_ENTITY
+    end
+  end
+
+  def show : Nil
+    if post = find_post
+      render html: page_html(<<-HTML)
+        <h1>#{post.title}</h1>
+        <p>Post ##{post.id} — <a href="#{edit_post_path(post.id.not_nil!)}">edit</a></p>
+        HTML
+    else
+      render text: "Post not found", status: ::HTTP::Status::NOT_FOUND
+    end
+  end
+
+  def edit : Nil
+    if post = find_post
+      render html: page_html("<h1>Edit post</h1>#{form_html(post_path(post.id.not_nil!), post, method: "PUT")}")
+    else
+      render text: "Post not found", status: ::HTTP::Status::NOT_FOUND
+    end
+  end
+
+  def update : Nil
+    if post = find_post
+      post.title = params["title"]?
+      if post.save
+        redirect_to post_path(post.id.not_nil!)
+      else
+        render html: page_html("<h1>Edit post</h1>#{form_html(post_path(post.id.not_nil!), post, method: "PUT")}"), status: ::HTTP::Status::UNPROCESSABLE_ENTITY
+      end
+    else
+      render text: "Post not found", status: ::HTTP::Status::NOT_FOUND
+    end
+  end
+
+  def destroy : Nil
+    if post = find_post
+      post.delete
+      redirect_to posts_path
+    else
+      render text: "Post not found", status: ::HTTP::Status::NOT_FOUND
+    end
+  end
+
+  private def find_post : Post?
+    if id = params["id"]?.try(&.to_i?)
+      Post.find(id)
+    end
+  end
+
+  private def page_html(body : String) : String
+    <<-HTML
       <!DOCTYPE html>
       <html>
         <head>
           <meta charset="utf-8">
-          <title>Blog</title>
+          <link rel="stylesheet" href="/css/app.css">
+          <title>Posts</title>
         </head>
         <body>
-          <h1>Blog</h1>
-          <form action="/posts" method="post">
-            <input name="title" placeholder="Title">
-            <button>Add post</button>
-          </form>
-          <ul>#{rows}</ul>
+          #{body}
+          <p><a href="#{posts_path}">Back to posts</a></p>
         </body>
       </html>
       HTML
   end
 
-  def create : Nil
-    title = params["title"]?.to_s.strip
-    unless title.empty?
-      Altair::Record.connection.exec("INSERT INTO posts (title) VALUES (?)", title)
-    end
-    redirect_to "/"
+  private def form_html(action : String, post : Post = Post.new, method : String = "POST") : String
+    error = post.errors[:title].first? ? "<p class=\"error\">#{post.errors[:title].first}</p>" : ""
+    <<-HTML
+      <form action="#{action}" method="post">
+        <input type="hidden" name="_method" value="#{method}">
+        <label>Title <input name="title" value="#{post.title}"></label>
+        <button>Save</button>
+      </form>
+      #{error}
+      HTML
   end
 end

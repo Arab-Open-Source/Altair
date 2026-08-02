@@ -46,6 +46,10 @@ module Altair
       "deer", "species", "series", "news",
     }
 
+    # User-registered irregular singular/plural pairs, checked before the
+    # built-in table.
+    @@irregulars : Hash(String, String) = {} of String => String
+
     PLURAL_RULES = [
       {/(quiz)$/, "\\1zes"},
       {/^(ox)$/, "\\1en"},
@@ -93,6 +97,36 @@ module Altair
       {/s$/, ""},
     ]
 
+    # Registers an irregular singular/plural pair, consulted before the
+    # built-in rules:
+    #
+    # ```
+    # Altair::Inflector.irregular("octopus", "octopi")
+    # ```
+    def self.irregular(singular : String, plural : String) : Nil
+      @@irregulars[singular] = plural
+    end
+
+    # Converts a model name to its table name:
+    #
+    # ```
+    # Altair::Inflector.tableize("Post")     # => "posts"
+    # Altair::Inflector.tableize("BlogPost") # => "blog_posts"
+    # ```
+    def self.tableize(model_name : String) : String
+      pluralize(underscore(model_name))
+    end
+
+    # Converts a model name to its foreign key:
+    #
+    # ```
+    # Altair::Inflector.foreign_key("Post")     # => "post_id"
+    # Altair::Inflector.foreign_key("BlogPost") # => "blog_post_id"
+    # ```
+    def self.foreign_key(model_name : String) : String
+      "#{underscore(model_name)}_id"
+    end
+
     # Converts a singular noun to its plural form:
     #
     # ```
@@ -103,7 +137,7 @@ module Altair
     # ```
     def self.pluralize(word : String) : String
       return word if word.empty?
-      IRREGULAR_PLURALS[word]? || pluralize_regular(word)
+      @@irregulars[word]? || IRREGULAR_PLURALS[word]? || pluralize_regular(word)
     end
 
     # Converts a plural noun to its singular form:
@@ -115,6 +149,9 @@ module Altair
     # ```
     def self.singularize(word : String) : String
       return word if word.empty?
+      @@irregulars.each do |singular, plural|
+        return singular if word == plural
+      end
       IRREGULAR_PLURALS.each do |singular, plural|
         return singular if word == plural
       end

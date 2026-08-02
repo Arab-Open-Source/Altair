@@ -102,12 +102,12 @@ module Altair
         private def migration_files : Array(Path)
           Dir.children(@migrations_dir.to_s)
             .select(&.matches?(/\A\d{14}_.+\.cr\z/))
-            .sort
-            .map { |f| @migrations_dir.join(f) }
+            .sort!
+            .map { |file| @migrations_dir.join(file) }
         end
 
         private def registry_class(version : String) : Migration.class
-          klass = Migration.registry.find { |m| m.name.ends_with?(camelized(version)) }
+          klass = Migration.registry.find(&.name.ends_with?(camelized(version)))
           raise Altair::Error.new("No migration class found for #{version}. Is the file required by the runner script?") unless klass
           klass
         end

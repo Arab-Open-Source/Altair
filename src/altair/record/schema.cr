@@ -28,7 +28,7 @@ module Altair
         end
 
         # Updates the nullability after a `change_column_null`.
-        def set_null(null : Bool) : Nil
+        def null=(null : Bool) : Nil
           @null = null
         end
       end
@@ -122,7 +122,7 @@ module Altair
       #   end
       # end
       # ```
-      def self.define(adapter : Adapter = Adapters::SQLite3.instance, &block : Schema ->) : Schema
+      def self.define(adapter : Adapter = Adapters::SQLite3.instance, & : Schema ->) : Schema
         schema = new(adapter)
         yield schema
         self.defined = schema
@@ -131,14 +131,14 @@ module Altair
 
       # Registers a table definition without executing SQL — the shape of
       # a generated `db/schema.cr`.
-      def table(name : Symbol, &block : TableBuilder ->) : Nil
+      def table(name : Symbol, & : TableBuilder ->) : Nil
         builder = TableBuilder.new(@adapter, Table.new(name.to_s))
         yield builder
         @tables << builder.table
       end
 
       # Creates a table: records the definition and executes the DDL.
-      def create_table(name : Symbol, &block : TableBuilder ->) : Nil
+      def create_table(name : Symbol, & : TableBuilder ->) : Nil
         table(name) { |t| yield t }
         @connection.try(&.exec(builder_sql(@tables.last)))
       end
@@ -176,7 +176,7 @@ module Altair
       def add_index(table : Symbol, columns : Symbol | Array(Symbol), unique : Bool = false, name : String? = nil) : Nil
         names = columns.is_a?(Array) ? columns.map(&.to_s) : [columns.to_s]
         index = Index.new(name || "index_#{table}_on_#{names.join("_")}", names, unique)
-        quoted = names.map { |c| @adapter.quote_identifier(c) }.join(", ")
+        quoted = names.map { |column| @adapter.quote_identifier(column) }.join(", ")
         @connection.try(&.exec(
           "CREATE #{unique ? "UNIQUE " : ""}INDEX #{@adapter.quote_identifier(index.name)} " \
           "ON #{@adapter.quote_identifier(table.to_s)} (#{quoted})"
@@ -199,7 +199,7 @@ module Altair
           "#{null ? "DROP" : "SET"} NOT NULL"
         ))
         found = @tables.find(&.name.==(table.to_s))
-        found.try { |t| t.columns.find(&.name.==(name.to_s)).try { |c| c.set_null(null) } }
+        found.try { |t| t.columns.find(&.name.==(name.to_s)).try(&.null=(null)) }
       end
 
       private def builder_sql(table : Table) : String

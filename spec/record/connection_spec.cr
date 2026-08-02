@@ -71,7 +71,7 @@ describe Altair::Record::Connection do
     conn = spec_connection
     seen = [] of String
     begin
-      handler = ->(sql : String, duration : Time::Span) { seen << sql }
+      handler = ->(sql : String, _duration : Time::Span) { seen << sql }
       Altair::Record.on_query(&handler)
       conn.exec("INSERT INTO widgets (name) VALUES (?)", "beta")
       conn.exec("SELECT COUNT(*) FROM widgets")

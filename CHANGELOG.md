@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`Altair::Record` wave 2 — CRUD, finders, validations, timestamps and
+  callbacks**: the `table :name` macro reads compile-time column metadata
+  from `db/schema.cr` and generates typed attributes, a defaults-aware
+  `initialize`, `create`, `save`/`save!`, `update`, `delete`,
+  `find`/`find!`, `all`, `count`, `exists?`, `find_by_*`/`find_by_*!`
+  finders for every column and `pluck`. Validations cover presence,
+  length and numericality (`validates_presence_of`,
+  `validates_length_of`, `validates_numericality_of`) with custom
+  messages and custom methods via `validate`; errors collect into
+  `errors[:attribute]` / `errors.full_messages`. `created_at` /
+  `updated_at` are maintained automatically, and the eight save/create/
+  update/destroy callbacks (`before_save`, `after_destroy`, ...) run in
+  the standard order. Transactions nest through savepoints, and an inner
+  `DB::Rollback` discards only the inner work. The generated
+  `db/schema.cr` now also carries a compile-time `META` constant (the
+  model macros' source of truth) and its index lines are formatter-clean.
+  `examples/blog` grew a real `Post` model with full CRUD (validations
+  answer 422 with the error on the form; posts and their timestamps
+  survive restarts).
+
 - **`Altair::Record` wave 1 — the ORM foundation**: an adapter interface
   with a SQLite3 implementation, a pooled connection wired to
   `config.db_url` (`db_max_pool_size`, `db_checkout_timeout`,
