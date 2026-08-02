@@ -14,7 +14,7 @@
 #
 # then open http://localhost:3001. Add, edit and delete tasks — the list
 # swaps in place, nothing reloads.
-require "../../../src/altair"
+require "altair"
 require "./config/application"
 require "./app/controllers/application_controller"
 require "./app/controllers/tasks_controller"

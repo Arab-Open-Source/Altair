@@ -38,9 +38,11 @@ Nothing ships unless someone can look at it, click it, and see it work.
 
 ## Current status
 
-- **Phases 0–2 done** (Foundation, Router, Controllers). Phase 3
-  (**Views**) is next.
-- 155 specs passing, formatter clean, Ameba silent.
+- **Phases 0–3 done** (Foundation, Router, Controllers, Views). Phase 4
+  (**Record — the ORM**) is in progress: wave 1 (adapter, connection,
+  migrations, schema generation) is in the tree, and `examples/blog` is
+  the always-running persistence demo — its posts survive restarts.
+- 234 specs passing, formatter clean, Ameba silent.
 - Smart error pages (404 with route suggestions, 405 with `_method`
   explanation, detailed 500 diagnostics) shipped early as a pre-Phase-3
   gift — they live in the framework already.
@@ -50,11 +52,11 @@ Nothing ships unless someone can look at it, click it, and see it work.
 | 0 | Foundation | Completed |
 | 1 | Router | Completed |
 | 2 | Controllers | Completed |
-| 3 | Views | **Next** |
-| 4 | CLI | Planned |
-| 5 | ORM (`Altair::Record`) | Planned |
-| 6 | Generators | Planned |
-| 7 | Hardening | Planned |
+| 3 | Views | Completed |
+| 4 | Record (ORM) | **In progress** |
+| 5 | Generators | Planned |
+| 6 | Hardening | Planned |
+| 7 | CLI | Planned |
 | 8 | Post-release | Planned |
 
 ## The phases
@@ -64,38 +66,45 @@ Detailed phase-by-phase implementation plans live in
 table in [`ROADMAP.md`](ROADMAP.md). The exit criteria — the contract for
 "done" — are:
 
-### Phase 3: Views (next)
+### Phase 3: Views (done)
 - Auto-escaping by default: `<%= %>` escapes, `<%== %>` raw — XSS-safe out
   of the box.
 - Layouts + `yield`: pages share a header and footer.
 - Partials (`render "form"`): file reuse.
 - Helpers: `link_to`, `content_tag`, basic form builder — a live HTML demo
-  viewable in the browser.
+  viewable in the browser (`examples/htmx`).
 
-### Phase 4: CLI
-- `altair new blog` generates the standard layout (`app/`, `config/`, `db/`).
-- `altair server` runs a project with a single command.
-- `altair routes` prints the route table.
+### Phase 4: ORM — `Altair::Record` (the big one, ~40% of total effort)
+Three vertical waves, each ending green with something visible:
+- Wave 1 (done, in the tree): adapter interface + SQLite3, connection +
+  pool config + `on_query` instrumentation, migrations DSL + runner
+  (timestamped files, `schema_migrations` table, auto-regenerated
+  `db/schema.cr`), `examples/blog` persists across restarts.
+- Wave 2: CRUD + finders (`find_by_*`), validations (`valid?` + errors),
+  timestamps + callbacks.
+- Wave 3: associations (`belongs_to` / `has_many` / `has_one`) with
+  batched eager loading; `dependent:` handling.
+- Deferred to later phases: `has_many :through`, prepared-statement
+  caching, `find_each`, `explain`, migration linter, savepoints
+  (Phase 8); console/seeds (Phase 7); enums/JSON columns/dirty tracking
+  (Phase 5); `insert_all` (Phase 5).
 
-### Phase 5: ORM — `Altair::Record` (the big one, ~40% of total effort)
-- Connection + config (SQLite first, PostgreSQL ready).
-- Migrations DSL + `db:migrate` / `db:rollback`.
-- `schema.cr` generation — a wrong column is a *compile* error.
-- CRUD + finders (`find_by_*`).
-- Validations: `valid?` + errors.
-- Associations: `belongs_to` / `has_many` / `has_one`.
-- Callbacks + transactions.
-
-### Phase 6: Generators
+### Phase 5: Generators
 - `altair g model/migration/controller` generates ready-to-edit files.
 - `altair g scaffold Post title:string body:text` — the full magic: model +
   migration + controller + views.
 - Full blog demo works out of the box: new project + scaffold + server.
 
-### Phase 7: Hardening
+### Phase 6: Hardening
 - Sessions + flash + CSRF — a simple login works.
 - `database.yml` / `.env` config — production-ready project.
 - Maintenance: Ameba + specs everywhere — real project quality.
+
+### Phase 7: CLI
+- `altair new blog` generates the standard layout (`app/`, `config/`, `db/`).
+- `altair server` runs a project with a single command.
+- `altair routes` prints the route table; `db:migrate` / `db:rollback`
+  bind the runner script the migration wave already built.
 
 ### Phase 8: Post-release
 - Background jobs, full authentication, asset pipeline, rich query DSL
@@ -125,14 +134,16 @@ src/altair/
   support/       Inflector and other utilities
   exceptions/    The exception hierarchy
   server/        HTTP server wiring
+  record/        Adapter, SQLite3, Connection, Schema, migrations
+  view/          ECR templates, layouts, partials, helpers, htmx layer
+  rendering/     Renderers (html, json, text, fragment)
   cli/           (planned — empty placeholder)
-  rendering/     (planned — empty placeholder)
-  view/          (planned — empty placeholder)
   plugins/       (planned — empty placeholder)
   concerns/      (planned — empty placeholder)
   testing/       (planned — empty placeholder)
 spec/            Mirrors src/altair, plus controller/routing integration specs
-examples/        hello_world is the always-running demo app
+examples/        hello_world is the always-running demo app; examples/blog
+                 is the persistence demo (Phase 4)
 docs/architecture/  Phase-by-phase implementation plans
 ```
 
@@ -194,7 +205,7 @@ crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
 
 ## Testing
 
-The suite is `crystal spec` (currently 155 examples). Run it before and
+The suite is `crystal spec` (currently 234 examples). Run it before and
 after every change:
 
 ```bash
@@ -226,6 +237,10 @@ Rules:
 
 These cost real debugging time once — internalize them:
 
+- **Every value travels as a bind parameter.** Never interpolate values
+  into SQL strings — the connection's `exec`/`query` take `*args` and bind
+  them. SQL strings stay constant; identifiers go through
+  `Adapter#quote_identifier`.
 - **`NamedTuple#select` does not exist.** To filter a `NamedTuple`, go
   through `to_a.select(...)` or restructure.
 - **`Exception#cause=` is not public API.** Build the chain in the

@@ -12,6 +12,8 @@ Altair.env = Altair::Env::Test
 
 class SpecApp < Altair::Application
   config.name = "SpecApp"
+  config.db_url = "sqlite3://./spec/record/test.db"
+  config.db_max_pool_size = 1
 end
 
 # Compile-time stubs for the routing DSL specs. The DSL wires routes to

@@ -42,6 +42,22 @@ module Altair
     # `public/`. Takes precedence over `htmx_version`.
     property htmx_src : String? = nil
 
+    # The database connection URL, e.g. `sqlite3://./db/app.db`. The
+    # `Altair::Record` layer opens one connection pool from it on first
+    # use; set it per environment for isolated test databases.
+    property db_url : String? = nil
+
+    # The maximum number of pooled database connections. Each request may
+    # check one out at a time; extra checks wait for a free connection.
+    property db_max_pool_size : Int32 = 5
+
+    # How long a connection checkout waits when the pool is exhausted
+    # before raising, in seconds.
+    property db_checkout_timeout : Float64 = 5.0
+
+    # The per-query timeout applied to statements.
+    property db_query_timeout : Time::Span = 5.seconds
+
     # The middleware stack, run in order on every request before routing.
     # Each entry is a factory proc that builds one middleware for the
     # application, e.g. `->(app : Altair::Application) { MyMiddleware.new(app) }`.

@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`Altair::Record` wave 1 — the ORM foundation**: an adapter interface
+  with a SQLite3 implementation, a pooled connection wired to
+  `config.db_url` (`db_max_pool_size`, `db_checkout_timeout`,
+  `db_query_timeout`), and an `on_query` instrumentation hook. The
+  migrations layer ships a DSL (`create_table`, `drop_table`,
+  `add_column`, `remove_column`, `add_index`, `remove_index`,
+  `change_column_null`, typed columns) with timestamped files, a
+  `schema_migrations` table, a runner (`migrate` / `rollback`) and
+  automatic `db/schema.cr` regeneration — the schema file and the
+  database can never drift apart. Every migration applies inside a
+  transaction, so a failing migration rolls back completely. SQLite
+  connections run in WAL journaling mode with a 5s busy timeout by
+  default. `examples/blog` is the persistence demo: posts survive server
+  restarts.
 - **`rescue_from`**: map exceptions to responses instead of a bare 500.
   `rescue_from KeyError, to: 404` answers the given status;
   `rescue_from MyError, handler: :my_handler` calls an instance method on

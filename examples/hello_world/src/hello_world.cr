@@ -27,7 +27,7 @@
 # curl -X POST localhost:3000/posts/5   # → 405 with the Allow header
 # curl localhost:3000/nope              # → 404
 # ```
-require "../../../src/altair"
+require "altair"
 require "./config/application"
 require "./app/controllers/application_controller"
 require "./app/controllers/pages_controller"
