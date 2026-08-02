@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`Altair::Record` wave 3 — associations**: `belongs_to`,
+  `has_many` and `has_one` macros generate typed accessors with
+  per-instance caching, plus setter support for `belongs_to`; the
+  `class_name:`, `foreign_key:` and `dependent:` options cover
+  `:destroy` / `:delete_all` / `:nullify` (destroy and nullify run as
+  `before_destroy` callbacks). `Relation(T)` — returned by `all` —
+  is an `Enumerable` whose `includes(:name)` preloads the association
+  for every record in one extra query, so a loop over `post.comments`
+  never runs N queries; an unknown association name is a compile-time
+  error. `examples/blog` now has comments: a `Comment` model
+  `belongs_to :post`, `has_many :comments, dependent: :destroy` on
+  `Post`, a comments form on the post page (422 with the error inline)
+  and comment counts on the index — comments survive restarts and are
+  destroyed with their post.
+
 - **`Altair::Record` wave 2 — CRUD, finders, validations, timestamps and
   callbacks**: the `table :name` macro reads compile-time column metadata
   from `db/schema.cr` and generates typed attributes, a defaults-aware

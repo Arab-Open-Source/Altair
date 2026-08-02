@@ -2,5 +2,7 @@
 class Post < Altair::Record::Model
   table :posts
 
+  has_many :comments, dependent: :destroy
+
   validates_presence_of :title
 end

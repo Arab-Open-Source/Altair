@@ -12,8 +12,8 @@
 | 1 | Router | Completed |
 | 2 | Controllers | Completed |
 | 3 | Views | Completed |
-| 4 | CLI | Next |
-| 5 | ORM | Planned |
+| 4 | CLI | Planned |
+| 5 | ORM | In progress |
 | 6 | Generators | Planned |
 | 7 | Hardening | Planned |
 | 8 | Post-release | Planned |

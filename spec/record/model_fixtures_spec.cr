@@ -15,19 +15,40 @@ class Altair::Record::Schema
       views:      {type: :integer, null: false, primary: false},
       published:  {type: :boolean, null: false, primary: false},
       rating:     {type: :float, null: true, primary: false},
+      user_id:    {type: :integer, null: true, primary: false},
       created_at: {type: :datetime, null: true, primary: false},
       updated_at: {type: :datetime, null: true, primary: false},
     },
     comments: {
       id:      {type: :integer, null: false, primary: true},
-      post_id: {type: :integer, null: false, primary: false},
+      post_id: {type: :integer, null: true, primary: false},
       body:    {type: :text, null: false, primary: false},
+    },
+    users: {
+      id:   {type: :integer, null: false, primary: true},
+      name: {type: :string, null: true, primary: false},
+    },
+    profiles: {
+      id:      {type: :integer, null: false, primary: true},
+      user_id: {type: :integer, null: true, primary: false},
+      bio:     {type: :string, null: true, primary: false},
+    },
+    categories: {
+      id:   {type: :integer, null: false, primary: true},
+      name: {type: :string, null: true, primary: false},
+    },
+    articles: {
+      id:          {type: :integer, null: false, primary: true},
+      category_id: {type: :integer, null: true, primary: false},
+      title:       {type: :string, null: true, primary: false},
     },
   }
 end
 
 class Post < Altair::Record::Model
   table :posts
+
+  has_many :comments, dependent: :destroy
 
   validates_presence_of :title
   validates_length_of :title, maximum: 10
@@ -39,8 +60,39 @@ class Post < Altair::Record::Model
   end
 end
 
+# A one-to-many owner without a dependent clause.
+class User < Altair::Record::Model
+  table :users
+
+  has_many :posts
+  has_one :profile, dependent: :nullify
+end
+
+# The one side of a `has_one`.
+class Profile < Altair::Record::Model
+  table :profiles
+
+  belongs_to :user
+end
+
+# A `dependent: :delete_all` owner.
+class Category < Altair::Record::Model
+  table :categories
+
+  has_many :articles, dependent: :delete_all
+end
+
+# The child of the `dependent: :delete_all` owner.
+class Article < Altair::Record::Model
+  table :articles
+
+  belongs_to :category
+end
+
 class Comment < Altair::Record::Model
   table :comments
+
+  belongs_to :post
 
   validates_presence_of :body, message: "is required"
   validates_length_of :body, minimum: 5
@@ -97,19 +149,39 @@ end
 module RecordSpec
   def self.setup_database : Nil
     connection = Altair::Record.connection
+    connection.exec("DROP TABLE IF EXISTS articles")
+    connection.exec("DROP TABLE IF EXISTS categories")
+    connection.exec("DROP TABLE IF EXISTS profiles")
+    connection.exec("DROP TABLE IF EXISTS users")
     connection.exec("DROP TABLE IF EXISTS comments")
     connection.exec("DROP TABLE IF EXISTS posts")
     connection.exec(
       "CREATE TABLE posts (" \
       "id INTEGER PRIMARY KEY AUTOINCREMENT, " \
       "title TEXT, body TEXT, views INTEGER NOT NULL DEFAULT 0, " \
-      "published BOOLEAN NOT NULL DEFAULT 0, rating FLOAT, " \
+      "published BOOLEAN NOT NULL DEFAULT 0, rating FLOAT, user_id INTEGER, " \
       "created_at DATETIME, updated_at DATETIME)"
     )
     connection.exec(
       "CREATE TABLE comments (" \
       "id INTEGER PRIMARY KEY AUTOINCREMENT, " \
-      "post_id INTEGER NOT NULL, body TEXT NOT NULL)"
+      "post_id INTEGER, body TEXT NOT NULL)"
+    )
+    connection.exec(
+      "CREATE TABLE users (" \
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)"
+    )
+    connection.exec(
+      "CREATE TABLE profiles (" \
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, bio TEXT)"
+    )
+    connection.exec(
+      "CREATE TABLE categories (" \
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)"
+    )
+    connection.exec(
+      "CREATE TABLE articles (" \
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, category_id INTEGER, title TEXT)"
     )
   end
 end

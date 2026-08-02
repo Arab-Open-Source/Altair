@@ -400,13 +400,10 @@ module Altair
         find(id) || raise RecordNotFound.new("Couldn't find #{table_name} with id=#{id}")
       end
 
-      # Every record, in no particular order.
-      def self.all : Array(self)
-        rows = [] of self
-        connection.query(select_sql) do |rs|
-          rs.each { rows << from_row(rs) }
-        end
-        rows
+      # Every record, lazily loaded on iteration. `includes` schedules
+      # batched eager loading of associations.
+      def self.all : Relation(self)
+        Relation(self).new
       end
 
       # The number of records.
@@ -511,6 +508,14 @@ module Altair
         @@callbacks = {} of Symbol => Array(Proc({{@type.id}}, Nil))
         @@validations = [] of Rule
         @@custom_validations = [] of Proc({{@type.id}}, Nil)
+        @@preloaders = {} of Symbol => Proc(Array({{@type.id}}), Nil)
+
+        # The eager loader for an association, or a clear error.
+        def self.__preloader_for(name : Symbol) : Proc(Array({{@type.id}}), Nil)
+          @@preloaders[name]? || raise ArgumentError.new(
+            "Unknown association :#{name} for #{self}"
+          )
+        end
 
         def _run_callbacks(kind : Symbol) : Nil
           @@callbacks.fetch(kind, [] of Proc({{@type.id}}, Nil)).each do |callback|

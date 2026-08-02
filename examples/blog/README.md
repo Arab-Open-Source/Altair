@@ -9,6 +9,14 @@
 # journaling mode with a 5s busy timeout, and each migration applies
 # inside a transaction — a failing migration rolls back completely.
 #
+# Wave 3 adds the associations: `Post has_many :comments, dependent:
+# :destroy` and `Comment belongs_to :post`. The post page lists its
+# comments with a form to add new ones (an empty body answers 422 with
+# the error on the form), the index shows each post's comment count,
+# and `Post.all.includes(:comments)` on the index preloads every post's
+# comments in a single query instead of one per post. Deleting a post
+# destroys its comments.
+#
 # ## Run it
 #
 # From this directory:
@@ -27,9 +35,13 @@
 # curl -X POST localhost:4000/posts -d "title=Second+post"
 # curl -X POST localhost:4000/posts/1 -d "_method=PUT&title=Renamed"
 # curl -X POST localhost:4000/posts/2 -d "_method=DELETE"
+# curl -X POST localhost:4000/posts/1/comments -d "body=A+comment"
+# curl localhost:4000/posts/1        # the comment appears on the post page
+# curl localhost:4000/               # the index shows comment counts
 # ```
 #
-# An empty title answers 422 with the validation error shown on the form.
+# An empty title answers 422 with the validation error shown on the form,
+# and so does an empty comment body.
 #
 # ## Migrations
 #
@@ -52,7 +64,7 @@
 # db/schema.cr             generated schema + compile-time META (written by the runner)
 # db/blog.db               the SQLite database (created on first run)
 # src/config/application.cr  the application + routes + db_url
-# src/app/models/          the Post model (table, validations, timestamps)
-# src/app/controllers/     the posts controller (full CRUD)
+# src/app/models/          the Post and Comment models (associations, validations)
+# src/app/controllers/     the posts and comments controllers (CRUD + comments)
 # scripts/db.cr            the migrate/rollback runner
 # ```

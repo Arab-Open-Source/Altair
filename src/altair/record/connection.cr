@@ -54,15 +54,17 @@ module Altair
         result
       end
 
-      # Runs a query with bound parameters, yielding each row to the block.
-      def query(sql : String, *args, & : DB::ResultSet ->) : Nil
+      # Runs a query with bound parameters, yielding each row to the
+      # block. `values:` binds a variable-length collection, for
+      # `IN (...)` clauses.
+      def query(sql : String, *args, values : Enumerable? = nil, & : DB::ResultSet ->) : Nil
         start = Time.instant
         if conn = @active_connection
-          conn.fetch_or_build_prepared_statement(sql).query(*args) do |rs|
+          conn.fetch_or_build_prepared_statement(sql).query(*args, args: values) do |rs|
             yield rs
           end
         else
-          @database.query(sql, *args) do |rs|
+          @database.query(sql, *args, args: values) do |rs|
             yield rs
           end
         end

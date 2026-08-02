@@ -24,6 +24,8 @@ require "../db/schema"
 require "./config/application"
 require "./app/controllers/application_controller"
 require "./app/models/post"
+require "./app/models/comment"
 require "./app/controllers/posts_controller"
+require "./app/controllers/comments_controller"
 
 Blog.run!

@@ -2,13 +2,17 @@
 #
 # The same REST actions as hello_world, but backed by SQLite through the
 # `Post` model. Every value travels as a bind parameter — the SQL strings
-# are constant — and validation failures are reported inline.
+# are constant — and validation failures are reported inline. The index
+# eager-loads each post's comments in one batched query, so the comment
+# counts never trigger a query per post.
 class PostsController < ApplicationController
   def index : Nil
-    rows = Post.all.sort_by { |post| -post.id.not_nil! }.map do |post|
+    rows = Post.all.includes(:comments).to_a.sort_by { |post| -post.id.not_nil! }.map do |post|
+      count = post.comments.size
       <<-HTML
         <li>
           <a href="#{post_path(post.id.not_nil!)}">#{post.title}</a>
+          (#{count} comment#{count == 1 ? "" : "s"})
           <a href="#{edit_post_path(post.id.not_nil!)}">edit</a>
           <form action="#{post_path(post.id.not_nil!)}" method="post">
             <input type="hidden" name="_method" value="DELETE">
@@ -42,6 +46,7 @@ class PostsController < ApplicationController
       render html: page_html(<<-HTML)
         <h1>#{post.title}</h1>
         <p>Post ##{post.id} — <a href="#{edit_post_path(post.id.not_nil!)}">edit</a></p>
+        #{comments_html(post)}
         HTML
     else
       render text: "Post not found", status: ::HTTP::Status::NOT_FOUND
@@ -82,23 +87,6 @@ class PostsController < ApplicationController
     if id = params["id"]?.try(&.to_i?)
       Post.find(id)
     end
-  end
-
-  private def page_html(body : String) : String
-    <<-HTML
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <link rel="stylesheet" href="/css/app.css">
-          <title>Posts</title>
-        </head>
-        <body>
-          #{body}
-          <p><a href="#{posts_path}">Back to posts</a></p>
-        </body>
-      </html>
-      HTML
   end
 
   private def form_html(action : String, post : Post = Post.new, method : String = "POST") : String

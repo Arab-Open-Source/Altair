@@ -13,5 +13,6 @@ class Blog < Altair::Application
   routes do
     root to: PostsController.index
     resources :posts
+    post "/posts/:post_id/comments", to: CommentsController.create, named: :post_comments
   end
 end

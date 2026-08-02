@@ -39,10 +39,12 @@ Nothing ships unless someone can look at it, click it, and see it work.
 ## Current status
 
 - **Phases 0–3 done** (Foundation, Router, Controllers, Views). Phase 4
-  (**Record — the ORM**) is in progress: wave 1 (adapter, connection,
-  migrations, schema generation) is in the tree, and `examples/blog` is
-  the always-running persistence demo — its posts survive restarts.
-- 234 specs passing, formatter clean, Ameba silent.
+  (**Record — the ORM**) is in progress: waves 1–3 are in the tree
+  (adapter/connection/migrations/schema, CRUD + finders + validations +
+  timestamps + callbacks, associations with eager loading), and
+  `examples/blog` is the always-running persistence demo — its posts and
+  comments survive restarts.
+- 314 specs passing, formatter clean, Ameba silent.
 - Smart error pages (404 with route suggestions, 405 with `_method`
   explanation, detailed 500 diagnostics) shipped early as a pre-Phase-3
   gift — they live in the framework already.
@@ -80,10 +82,11 @@ Three vertical waves, each ending green with something visible:
   pool config + `on_query` instrumentation, migrations DSL + runner
   (timestamped files, `schema_migrations` table, auto-regenerated
   `db/schema.cr`), `examples/blog` persists across restarts.
-- Wave 2: CRUD + finders (`find_by_*`), validations (`valid?` + errors),
-  timestamps + callbacks.
-- Wave 3: associations (`belongs_to` / `has_many` / `has_one`) with
-  batched eager loading; `dependent:` handling.
+- Wave 2 (done, in the tree): CRUD + finders (`find_by_*`), validations
+  (`valid?` + errors), timestamps + callbacks.
+- Wave 3 (done, in the tree): associations (`belongs_to` / `has_many` /
+  `has_one`) with batched eager loading via `Relation#includes`;
+  `dependent:` handling.
 - Deferred to later phases: `has_many :through`, prepared-statement
   caching, `find_each`, `explain`, migration linter, savepoints
   (Phase 8); console/seeds (Phase 7); enums/JSON columns/dirty tracking
@@ -205,7 +208,7 @@ crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
 
 ## Testing
 
-The suite is `crystal spec` (currently 234 examples). Run it before and
+The suite is `crystal spec` (currently 314 examples). Run it before and
 after every change:
 
 ```bash
