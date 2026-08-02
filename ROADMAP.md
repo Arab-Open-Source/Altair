@@ -4,109 +4,110 @@
 > vertical slices, not horizontal scaffolding. Each phase has a clear exit
 > criterion.
 
+This roadmap tracks the build in phases. **Phases 0–4 are complete and ship
+with passing specs**; the remaining phases are planned. The ORM (`Altair::Record`)
+— originally a single large "Phase 5" — landed across three waves inside the
+Phase 4 milestone, so the router/controller/view/ORM stack is now usable end to
+end against both SQLite and PostgreSQL.
+
 ## Current status
 
 | Phase | Focus | Status |
-|---|---|---|
-| 0 | Foundation | Completed |
+|-------|-------|--------|
+| 0 | Foundation (app core, HTTP, config) | Completed |
 | 1 | Router | Completed |
-| 2 | Controllers | Completed |
-| 3 | Views | Completed |
-| 4 | CLI | Planned |
-| 5 | ORM | In progress |
-| 6 | Generators | Planned |
-| 7 | Hardening | Planned |
-| 8 | Post-release | Planned |
+| 2 | Controllers + middleware + smart errors | Completed |
+| 3 | Views (templates, layouts, partials, htmx) | Completed |
+| 4 | ORM (`Altair::Record`, 3 waves) | Completed |
+| 5 | CLI + Generators & scaffolding | Planned |
+| 6 | Hardening (sessions, flash, CSRF, config) | Planned |
+| 7 | Post-release features | Planned |
+
+> **Note on the CLI:** the original Phase 4 plan listed `altair new` /
+> `altair server` / `altair routes`. That CLI has **not been built** — the
+> ORM was the part of Phase 4 that actually landed. Applications currently
+> boot by `crystal run` of the project's entry file (no `bin/altair` exists).
+> The CLI is now tracked as the first item of Phase 5.
 
 ---
 
 ## Phase 0: Foundation (completed)
 
 | Task | Exit criterion |
-|---|---|
+|------|----------------|
 | Application core (`Altair::Application`) | App boots and answers a request |
-| Request / Response abstractions + params | Query params and body are readable |
-| Configuration system | Per-environment settings load correctly |
+| Request / Response abstractions + `Params` | Query, route and body params are readable and typed |
+| Configuration system | Per-environment settings load correctly (`config/env`, `environments/base`) |
 
 ## Phase 1: Router (completed)
 
 | Task | Exit criterion |
-|---|---|
-| Routing DSL: `get` / `post` / `put` / `patch` / `delete` + `namespace` | Routes written naturally |
+|------|----------------|
+| Routing DSL: `get`/`post`/`put`/`patch`/`delete` + `namespace` | Routes written naturally, compile-time |
 | Path params (`:id`) | `/users/5` yields `params["id"] == "5"` |
-| Named routes (`user_path`) | Paths callable by name |
-| `resources` macro | One line generates seven REST routes |
-| 404 / 405 handling | Wrong path and wrong method return proper responses |
+| Named routes (`user_path`) | Paths callable by name, type-checked |
+| `resources` macro | One line generates seven REST routes + helpers |
+| 404 / 405 handling | Wrong path → 404, wrong method → 405 with `Allow` |
 
 ## Phase 2: Controllers (completed)
 
 | Task | Exit criterion |
-|---|---|
-| Controller base: render, redirect, params | A full controller works end to end |
-| Middleware pipeline | Logger + static files |
+|------|----------------|
+| Controller base: `render` / `redirect_to` / `head` / typed `params` | A full controller works end to end |
+| Middleware pipeline | `Logger` + `Static` (path-traversal protected) |
+| Smart error pages | Dev 404/405/500 pages with route suggestions + diagnostics |
 
 ## Phase 3: Views (completed)
 
 | Task | Exit criterion |
-|---|---|
+|------|----------------|
 | Auto-escaping by default (`<%= %>` escapes, `<%== %>` raw) | XSS-safe out of the box |
-| Layouts + `yield` | Pages share a header and footer |
-| Partials (`render "form"`) | File reuse |
-| Helpers: `link_to`, `content_tag`, basic form builder | Live HTML demo viewable in the browser |
-
-Bonus on top of the phase's exit criteria, all verified in specs and in
-`examples/htmx`:
-
-| Task | Exit criterion |
-|---|---|
+| Layouts + `yield`, partials, helpers, form builder | Live HTML demo viewable in the browser |
 | Compile-time `templates` macro with typed locals | Wrong local or missing file is a compile error |
-| htmx layer: `HX-Request` detection, fragment rendering, `hx_*` attributes, `HX-Trigger` | No-reload flows work; everything also works without JS |
-| `examples/htmx` demo | Add/edit/delete tasks without a page reload |
+| htmx layer (`HX-Request`, fragment rendering, `hx_*`, response headers) | No-reload flows work; everything also works without JS |
 
-## Phase 4: CLI
+## Phase 4: ORM — `Altair::Record` (completed, 3 waves)
+
+| Wave | Delivered |
+|------|-----------|
+| Wave 1 — foundation | Adapter interface + SQLite3/PostgreSQL adapters, pooled `Connection`, transactions & savepoints, `on_query` instrumentation, multi-db via `ALTAIR_DB_URL` |
+| Wave 2 — models | `Model` base, `table` macro + typed attributes, CRUD + finders (`find`/`find_by_*`/`create`/`update`/`save`/`delete`), `pluck`, validations (`presence`/`length`/`numericality`/`uniqueness`/custom), timestamps, callbacks (`before_*`/`after_*`) |
+| Wave 3 — associations | `belongs_to` / `has_many` / `has_one` with lazy+cached accessors, **batched eager loading** via `Relation#includes`, `dependent:` (`:destroy` / `:delete_all` / `:nullify`) |
+| Cross-cutting | Migrations DSL + runner (`db:migrate` / `db:rollback`), `db/schema.cr` generation, contract test suite running against **both** SQLite and PostgreSQL |
+
+ORM exit criteria met: connect to a database; create/drop tables via
+migrations; a wrong column is a compile error (via generated `schema.cr`);
+natural row handling (`find_by_*`); `valid?` + errors; associations work;
+automatic timestamps + safe transactions.
+
+## Phase 5: Generators & the CLI (next)
 
 | Task | Exit criterion |
-|---|---|
-| `altair new blog` | Generates the standard project layout: `app/`, `config/`, `db/` |
-| `altair server` | Single command to run |
+|------|----------------|
+| `altair new <name>` | Generates the standard layout: `app/`, `config/`, `db/`, `public/` |
+| `altair server` | Single command to run the app (replaces `crystal run …`) |
 | `altair routes` | Prints the route table |
-
-## Phase 5: ORM — `Altair::Record` (the big one)
-
-| Task | Exit criterion |
-|---|---|
-| Connection + config (SQLite first, PostgreSQL ready) | App connects to a database |
-| Migrations DSL + `db:migrate` / `db:rollback` | Table created and dropped |
-| `schema.cr` generation | Wrong column is a compile error |
-| CRUD + finders (`find_by_*`) | Natural row handling |
-| Validations | `valid?` + errors |
-| Associations: `belongs_to` / `has_many` / `has_one` | `user.posts` works |
-| Callbacks + transactions | Automatic saves + safe operations |
-
-## Phase 6: Generators (the magic moment)
-
-| Task | Exit criterion |
-|---|---|
 | `altair g model/migration/controller` | Ready-to-edit files generated |
-| `altair g scaffold Post title:string body:text` | Full generator: model + migration + controller + views |
-| Full blog demo (scaffold + validations + associations) | New project + scaffold + server works out of the box |
+| `altair g scaffold Post title:string body:text` | Model + migration + controller + views |
+| Full blog demo via scaffold | New project + scaffold + server works out of the box |
 
-## Phase 7: Hardening
-
-| Task | Exit criterion |
-|---|---|
-| Sessions + flash + CSRF | Simple login works |
-| `database.yml` / `.env` config | Production-ready project |
-| Maintenance: Ameba (linter) + specs everywhere | Real project quality |
-
-> Note: "Beautiful error pages in development" shipped early as a small
-> pre-Phase-3 gift — the debug-mode 404/405/500 pages with route
-> suggestions and the route table live in the framework already.
-
-## Phase 8: Post-release
+## Phase 6: Hardening
 
 | Task | Exit criterion |
-|---|---|
+|------|----------------|
+| Sessions + flash + CSRF | Simple login works; state-changing forms protected |
+| `database.yml` / `.env` config | Production-ready configuration, no code edits |
+| Multipart form parsing | File uploads work through `params` |
+| Maintenance: Ameba (linter) + specs everywhere | Real-project quality gate |
+
+> Note: "beautiful error pages in development" and the compile-time view
+> safety already shipped early as pre-Phase-3 gifts and are live in the
+> framework.
+
+## Phase 7: Post-release
+
+| Task | Exit criterion |
+|------|----------------|
 | Background jobs | Scheduled work runs |
 | Full authentication | Registration, login, logout |
 | Asset pipeline | CSS/JS bundling and serving |
@@ -118,15 +119,16 @@ Bonus on top of the phase's exit criteria, all verified in specs and in
 
 ## Realistic estimate
 
-**3.5 – 5 months** of serious work to reach v0.1 (blog demo + scaffold + core
-ORM). The ORM will consume roughly 40% of the time — expected, it is the
-heart of the framework.
+Reaching **v0.1** (blog demo + scaffold + core ORM + CLI) was the bulk of the
+effort; the ORM consumed the largest share, as expected — it is the heart of
+the framework. The remaining phases (CLI, generators, hardening, auth, asset
+pipeline) are incremental on top of a working, spec-covered stack.
 
 ## Golden rules
 
 1. **Specs from day one** — each phase ends with its specs passing.
-2. **Never skip a phase's exit criterion** — building the ORM before a
-   working demo exists is wasted effort.
+2. **Never skip a phase's exit criterion** — building a later phase before a
+   working slice exists is wasted effort.
 3. **Every week, something visible** — eyes on the demo, not just internals.
-4. **Hold off the complex 20%** — polymorphic associations and STI come after
-   the first release, not before.
+4. **Hold off the complex 20%** — polymorphic associations, STI and
+   `has_many :through` come after the first release, not before.
