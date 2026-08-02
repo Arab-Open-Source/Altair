@@ -6,3 +6,5 @@ crystal: '>= 1.21.0'
 dependencies:
   altair:
     path: ../..
+  pg:
+    github: will/crystal-pg

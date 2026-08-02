@@ -63,7 +63,7 @@ describe Altair::Record::Model do
           comment.post.not_nil!.id.should eq(original.post_id)
         end
       end
-      puts "DEBUG count=#{count}"
+      count.should eq(2)
     end
 
     it "eager loads owners when some foreign keys are missing" do
@@ -113,6 +113,19 @@ describe Altair::Record::Model do
         loaded.first.comments.should be_empty
       end
       count.should eq(2)
+    end
+
+    it "derives the model class from an irregular plural name" do
+      human = Human.create(name: "hmh")
+      child = Child.create(human_id: human.id, name: "kid")
+      human.children.map(&.id).should eq([child.id])
+      child.human.not_nil!.id.should eq(human.id)
+    end
+
+    it "derives the model class through the -ies rule" do
+      user = User.create(name: "hmh")
+      category = Category.create(user_id: user.id, name: "news")
+      user.categories.map(&.id).should eq([category.id])
     end
   end
 

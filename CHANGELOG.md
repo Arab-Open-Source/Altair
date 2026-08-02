@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Multi-database Record support**: PostgreSQL is now available through the
+  `will/crystal-pg` adapter with `$n` placeholders, identity primary keys,
+  `TEXT` string/text columns and `INSERT ... RETURNING`. SQLite remains the
+  default; the adapter contract suite runs against SQLite always and against
+  PostgreSQL when `ALTAIR_TEST_PG_URL` is configured. `examples/blog` accepts
+  `ALTAIR_DB_URL` to run the same persistence demo on either backend.
+  `examples/sqlite_crud` and `examples/postgresql_crud` provide complete MVC
+  web applications with REST controllers, ECR views and ORM-backed CRUD.
+
+- **Uniqueness validation**: models can declare
+  `validates_uniqueness_of`, including an optional `scope:` and custom
+  messages. The current record is excluded during updates and `nil` values
+  are allowed.
+
 - **`Altair::Record` wave 3 — associations**: `belongs_to`,
   `has_many` and `has_one` macros generate typed accessors with
   per-instance caching, plus setter support for `belongs_to`; the

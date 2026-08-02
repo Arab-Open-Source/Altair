@@ -100,7 +100,8 @@ module Altair
 
       # One declared validation rule.
       struct Rule
-        # The rule kind: `:presence`, `:length`, `:numericality` or `:custom`.
+        # The rule kind: `:presence`, `:length`, `:numericality`,
+        # `:uniqueness` or `:custom`.
         getter kind : Symbol
 
         # The attribute the rule checks (`nil` for custom-method rules).
@@ -121,12 +122,16 @@ module Altair
         # The `integer` option of a `:numericality` rule.
         getter integer : Bool?
 
+        # The `scope` option of a `:uniqueness` rule.
+        getter scope : Symbol?
+
         # A custom message replacing the default one.
         getter message : String?
 
         def initialize(@kind : Symbol, @attribute : Symbol? = nil, @method : Symbol? = nil,
                        @minimum : Int32? = nil, @maximum : Int32? = nil,
-                       @greater_than : Float64? = nil, @integer : Bool? = nil, @message : String? = nil)
+                       @greater_than : Float64? = nil, @integer : Bool? = nil,
+                       @scope : Symbol? = nil, @message : String? = nil)
         end
       end
 
@@ -277,10 +282,10 @@ module Altair
           def self.find_by_{{ col_name.id }}(value : {{ CRYSTAL_TYPE[type].id }}{% if nullable %}?{% end %}) : self?
             quoted = connection.adapter.quote_identifier("{{ col_name.id }}")
             {% if nullable %}
-              sql = select_sql + " WHERE #{quoted} " + (value.nil? ? "IS NULL" : "= ?") + " LIMIT 1"
+              sql = select_sql + " WHERE #{quoted} " + (value.nil? ? "IS NULL" : "= #{connection.adapter.placeholder(0)}") + " LIMIT 1"
               value.nil? ? connection.query_one(sql) { |rs| from_row(rs) } : connection.query_one(sql, value) { |rs| from_row(rs) }
             {% else %}
-              connection.query_one(select_sql + " WHERE #{quoted} = ? LIMIT 1", value) { |rs| from_row(rs) }
+              connection.query_one(select_sql + " WHERE #{quoted} = #{connection.adapter.placeholder(0)} LIMIT 1", value) { |rs| from_row(rs) }
             {% end %}
           rescue DB::NoResultsError
             nil
@@ -333,12 +338,26 @@ module Altair
           columns = self.class.column_names.reject { |column| column == "id" }
           quoted = columns.map { |column| conn.adapter.quote_identifier(column) }
           placeholders = columns.each_index.map { |index| conn.adapter.placeholder(index) }
-          result = conn.exec(
-            "INSERT INTO #{conn.adapter.quote_identifier(self.class.table_name)} " \
-            "(#{quoted.join(", ")}) VALUES (#{placeholders.join(", ")})",
-            {% for col_name, col in columns %}{% unless col[:primary] %}@{{ col_name.id }}, {% end %}{% end %}
-          )
-          @id = conn.last_insert_id(result).to_i32
+          sql = "INSERT INTO #{conn.adapter.quote_identifier(self.class.table_name)} " \
+                "(#{quoted.join(", ")}) VALUES (#{placeholders.join(", ")})"
+          {% args = [] of String %}
+          {% for col_name, col in columns %}
+            {% unless col[:primary] %}
+              {% args << "@#{col_name.id}" %}
+            {% end %}
+          {% end %}
+          if conn.adapter.supports_returning?(:insert)
+            conn.query_one(
+              "#{sql} RETURNING #{conn.adapter.quote_identifier("id")}",
+              {{ args.join(", ").id }}
+            ) { |rs| @id = rs.read(Int32) }
+          else
+            result = conn.exec(
+              sql,
+              {{ args.join(", ").id }}
+            )
+            @id = conn.last_insert_id(result).to_i32
+          end
         end
 
         private def update_row : Nil
@@ -349,7 +368,7 @@ module Altair
           end
           conn.exec(
             "UPDATE #{conn.adapter.quote_identifier(self.class.table_name)} " \
-            "SET #{set.join(", ")} WHERE #{conn.adapter.quote_identifier("id")} = ?",
+            "SET #{set.join(", ")} WHERE #{conn.adapter.quote_identifier("id")} = #{conn.adapter.placeholder(columns.size)}",
             {% for col_name, col in columns %}{% unless col[:primary] %}@{{ col_name.id }}, {% end %}{% end %}@id
           )
         end
@@ -388,7 +407,7 @@ module Altair
       # Finds the record with the given id, or `nil`.
       def self.find(id : Int32) : self?
         connection.query_one(
-          select_sql + " WHERE #{connection.adapter.quote_identifier("id")} = ? LIMIT 1", id
+          select_sql + " WHERE #{connection.adapter.quote_identifier("id")} = #{connection.adapter.placeholder(0)} LIMIT 1", id
         ) { |rs| from_row(rs) }
       rescue DB::NoResultsError
         nil
@@ -426,7 +445,7 @@ module Altair
       def self.exists?(id : Int32) : Bool
         connection.query_one(
           "SELECT 1 FROM #{connection.adapter.quote_identifier(table_name)} " \
-          "WHERE #{connection.adapter.quote_identifier("id")} = ? LIMIT 1",
+          "WHERE #{connection.adapter.quote_identifier("id")} = #{connection.adapter.placeholder(0)} LIMIT 1",
           id
         ) { |rs| rs.read(Int64) } == 1
       rescue DB::NoResultsError
@@ -481,7 +500,7 @@ module Altair
         _run_callbacks(:before_destroy)
         result = connection.exec(
           "DELETE FROM #{connection.adapter.quote_identifier(self.class.table_name)} " \
-          "WHERE #{connection.adapter.quote_identifier("id")} = ?",
+          "WHERE #{connection.adapter.quote_identifier("id")} = #{connection.adapter.placeholder(0)}",
           @id
         )
         _run_callbacks(:after_destroy)
@@ -532,6 +551,7 @@ module Altair
             when :presence     then check_presence(rule)
             when :length       then check_length(rule)
             when :numericality then check_numericality(rule)
+            when :uniqueness   then check_uniqueness(rule)
             end
           end
         end
@@ -603,6 +623,12 @@ module Altair
         {% end %}
       end
 
+      macro validates_uniqueness_of(*attributes, scope = nil, message = nil)
+        {% for attribute in attributes %}
+          @@validations << Rule.new(:uniqueness, attribute: {{ attribute }}, scope: {{ scope }}, message: {{ message }})
+        {% end %}
+      end
+
       macro validate(*methods)
         {% for method in methods %}
           @@custom_validations << ->(record : {{@type.id}}) { record.{{method.id}} }
@@ -652,6 +678,33 @@ module Altair
         if rule.integer
           errors.add(attribute, rule.message || "must be an integer") unless value.is_a?(Int32) || value.is_a?(Int64) || value.to_f64.round == value.to_f64
         end
+      end
+
+      private def check_uniqueness(rule : Rule) : Nil
+        attribute = rule.attribute.not_nil!
+        value = attribute_value(attribute)
+        return if value.nil?
+        adapter = connection.adapter
+        where = [] of String
+        args = [] of Value
+        where << "#{adapter.quote_identifier(attribute.to_s)} = #{adapter.placeholder(args.size)}"
+        args << value
+        if id = @id
+          where << "#{adapter.quote_identifier("id")} != #{adapter.placeholder(args.size)}"
+          args << id
+        end
+        if scope = rule.scope
+          where << "#{adapter.quote_identifier(scope.to_s)} = #{adapter.placeholder(args.size)}"
+          args << attribute_value(scope)
+        end
+        duplicate = false
+        connection.query(
+          "SELECT 1 FROM #{adapter.quote_identifier(self.class.table_name)} WHERE #{where.join(" AND ")}",
+          values: args
+        ) do |rs|
+          duplicate = rs.move_next
+        end
+        errors.add(attribute, rule.message || "has already been taken") if duplicate
       end
     end
   end

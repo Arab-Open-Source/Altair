@@ -1,0 +1,19 @@
+<h1>Products</h1>
+<p>Stored by Altair::Record in PostgreSQL.</p>
+<% if products.empty? %>
+  <p>No products yet.</p>
+<% else %>
+  <ul>
+  <% products.each do |product| %>
+    <li>
+      <a href="/products/<%= product.id %>"><%= product.name %></a>
+      — $<%= product.price %>
+      <a href="/products/<%= product.id %>/edit">Edit</a>
+      <form style="display:inline" action="/products/<%= product.id %>" method="post">
+        <input type="hidden" name="_method" value="DELETE">
+        <button type="submit">Delete</button>
+      </form>
+    </li>
+  <% end %>
+  </ul>
+<% end %>

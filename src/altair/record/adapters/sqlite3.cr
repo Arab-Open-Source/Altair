@@ -47,7 +47,7 @@ module Altair
           clauses.join(" ")
         end
 
-        def primary_key_sql : String
+        def autoincrement_pk_sql : String
           "\"id\" INTEGER PRIMARY KEY AUTOINCREMENT"
         end
 
@@ -55,7 +55,7 @@ module Altair
           result.last_insert_id
         end
 
-        def supports_returning? : Bool
+        def supports_returning?(statement : Symbol) : Bool
           false
         end
 

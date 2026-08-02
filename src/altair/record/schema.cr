@@ -203,7 +203,7 @@ module Altair
       end
 
       private def builder_sql(table : Table) : String
-        parts = [@adapter.primary_key_sql]
+        parts = [@adapter.autoincrement_pk_sql]
         table.columns.each do |column|
           next if column.primary? && column.name == "id"
           parts << "#{@adapter.quote_identifier(column.name)} #{@adapter.column_type_sql(column.type)}#{column.null? ? "" : " NOT NULL"}"

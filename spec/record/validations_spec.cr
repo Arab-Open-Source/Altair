@@ -105,4 +105,48 @@ describe Altair::Record::Model, "validations" do
       Post.count.should eq(0)
     end
   end
+
+  describe "#validates_uniqueness_of" do
+    it "accepts a value no other record has" do
+      Tag.new(name: "ruby").valid?.should be_true
+    end
+
+    it "rejects a value another record has" do
+      Tag.create(name: "ruby")
+      tag = Tag.new(name: "ruby")
+      tag.valid?.should be_false
+      tag.errors[:name].should eq(["has already been taken"])
+    end
+
+    it "ignores the record's own row when validating an update" do
+      tag = Tag.create(name: "ruby")
+      tag.name = "ruby"
+      tag.valid?.should be_true
+    end
+
+    it "allows repeated nil values" do
+      Tag.create(name: nil)
+      Tag.new.valid?.should be_true
+    end
+
+    it "keeps create from persisting a duplicate" do
+      Tag.create(name: "ruby")
+      Tag.create(name: "ruby")
+      Tag.count.should eq(1)
+    end
+  end
+
+  describe "#validates_uniqueness_of with scope" do
+    it "rejects a duplicate within the same scope" do
+      Label.create(name: "a", kind: "x")
+      label = Label.new(name: "a", kind: "x")
+      label.valid?.should be_false
+      label.errors[:name].should eq(["is taken"])
+    end
+
+    it "accepts the same value in a different scope" do
+      Label.create(name: "a", kind: "x")
+      Label.new(name: "a", kind: "y").valid?.should be_true
+    end
+  end
 end

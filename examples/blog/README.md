@@ -1,7 +1,7 @@
 # Blog — the first Altair application backed by a database.
 #
 # Shows the Phase 4 (record) vertical slice end to end: migrations create
-# the SQLite schema, `db/schema.cr` is regenerated automatically after
+# a SQLite or PostgreSQL schema, `db/schema.cr` is regenerated automatically after
 # every run (with the compile-time column metadata the models read), and
 # the posts controller drives full CRUD through the `Post` model —
 # validations, auto-timestamps, finders and callbacks included. Every
@@ -28,6 +28,18 @@
 #
 # then open http://localhost:4000, add a post, and restart the server —
 # the post is still there, because it lives in `db/blog.db`.
+#
+# PostgreSQL uses the same application, models, controllers and migrations.
+# Set `ALTAIR_DB_URL` for both the migration runner and server:
+#
+# ```
+# export ALTAIR_DB_URL="postgres://postgres:secret@localhost:5432/blog"
+# crystal run scripts/db.cr -- migrate
+# crystal run src/blog.cr
+# ```
+#
+# PostgreSQL support comes from the example's `pg` dependency. SQLite remains
+# the default when `ALTAIR_DB_URL` is absent.
 #
 # ```
 # curl localhost:4000/

@@ -1,0 +1,9 @@
+<h1>New product</h1>
+<% product.errors.full_messages.each do |message| %>
+  <p class="error"><%= message %></p>
+<% end %>
+<form action="/products" method="post">
+  <label>Name <input name="name" value="<%= product.name %>"></label>
+  <label>Price <input name="price" type="number" min="0.01" step="0.01" value="<%= product.price %>"></label>
+  <button type="submit">Save product</button>
+</form>

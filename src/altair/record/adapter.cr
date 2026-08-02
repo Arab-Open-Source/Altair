@@ -20,14 +20,16 @@ module Altair
       # The `LIMIT`/`OFFSET` clause, e.g. `LIMIT 10 OFFSET 20`.
       abstract def limit_offset_clause(limit : Int32?, offset : Int32?) : String
 
-      # The SQL for the primary-key column of `create_table`.
-      abstract def primary_key_sql : String
+      # The SQL for the auto-incrementing primary-key column of
+      # `create_table`.
+      abstract def autoincrement_pk_sql : String
 
       # Returns the last auto-generated id of an insert result.
       abstract def last_insert_id(result : DB::ExecResult) : Int64
 
-      # Whether `INSERT ... RETURNING` is supported and reliable.
-      abstract def supports_returning? : Bool
+      # Whether the database supports `... RETURNING` for the given
+      # statement kind (`:insert`, `:update` or `:delete`).
+      abstract def supports_returning?(statement : Symbol) : Bool
 
       # The SQL type for a logical column type (`:string`, `:integer`,
       # `:boolean`, ...).

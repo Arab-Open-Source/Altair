@@ -88,7 +88,7 @@ Three vertical waves, each ending green with something visible:
   `has_one`) with batched eager loading via `Relation#includes`;
   `dependent:` handling.
 - Deferred to later phases: `has_many :through`, prepared-statement
-  caching, `find_each`, `explain`, migration linter, savepoints
+  caching, `find_each`, `explain`, migration linter
   (Phase 8); console/seeds (Phase 7); enums/JSON columns/dirty tracking
   (Phase 5); `insert_all` (Phase 5).
 

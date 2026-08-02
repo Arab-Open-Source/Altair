@@ -34,13 +34,32 @@ class Altair::Record::Schema
       bio:     {type: :string, null: true, primary: false},
     },
     categories: {
-      id:   {type: :integer, null: false, primary: true},
-      name: {type: :string, null: true, primary: false},
+      id:      {type: :integer, null: false, primary: true},
+      user_id: {type: :integer, null: true, primary: false},
+      name:    {type: :string, null: true, primary: false},
     },
     articles: {
       id:          {type: :integer, null: false, primary: true},
       category_id: {type: :integer, null: true, primary: false},
       title:       {type: :string, null: true, primary: false},
+    },
+    humans: {
+      id:   {type: :integer, null: false, primary: true},
+      name: {type: :string, null: true, primary: false},
+    },
+    children: {
+      id:       {type: :integer, null: false, primary: true},
+      human_id: {type: :integer, null: true, primary: false},
+      name:     {type: :string, null: true, primary: false},
+    },
+    tags: {
+      id:   {type: :integer, null: false, primary: true},
+      name: {type: :string, null: true, primary: false},
+    },
+    labels: {
+      id:   {type: :integer, null: false, primary: true},
+      name: {type: :string, null: true, primary: false},
+      kind: {type: :string, null: true, primary: false},
     },
   }
 end
@@ -65,6 +84,7 @@ class User < Altair::Record::Model
   table :users
 
   has_many :posts
+  has_many :categories
   has_one :profile, dependent: :nullify
 end
 
@@ -87,6 +107,35 @@ class Article < Altair::Record::Model
   table :articles
 
   belongs_to :category
+end
+
+# An owner whose association name has an irregular plural; the model class
+# derives through the singularization rules (`:children` -> `Child`).
+class Human < Altair::Record::Model
+  table :humans
+
+  has_many :children
+end
+
+# The child of the irregular-plural owner.
+class Child < Altair::Record::Model
+  table :children
+
+  belongs_to :human
+end
+
+# A model with a plain uniqueness rule.
+class Tag < Altair::Record::Model
+  table :tags
+
+  validates_uniqueness_of :name
+end
+
+# A model whose uniqueness rule is scoped and uses a custom message.
+class Label < Altair::Record::Model
+  table :labels
+
+  validates_uniqueness_of :name, scope: :kind, message: "is taken"
 end
 
 class Comment < Altair::Record::Model
@@ -149,6 +198,10 @@ end
 module RecordSpec
   def self.setup_database : Nil
     connection = Altair::Record.connection
+    connection.exec("DROP TABLE IF EXISTS labels")
+    connection.exec("DROP TABLE IF EXISTS tags")
+    connection.exec("DROP TABLE IF EXISTS children")
+    connection.exec("DROP TABLE IF EXISTS humans")
     connection.exec("DROP TABLE IF EXISTS articles")
     connection.exec("DROP TABLE IF EXISTS categories")
     connection.exec("DROP TABLE IF EXISTS profiles")
@@ -177,11 +230,27 @@ module RecordSpec
     )
     connection.exec(
       "CREATE TABLE categories (" \
-      "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)"
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, name TEXT)"
     )
     connection.exec(
       "CREATE TABLE articles (" \
       "id INTEGER PRIMARY KEY AUTOINCREMENT, category_id INTEGER, title TEXT)"
+    )
+    connection.exec(
+      "CREATE TABLE humans (" \
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)"
+    )
+    connection.exec(
+      "CREATE TABLE children (" \
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, human_id INTEGER, name TEXT)"
+    )
+    connection.exec(
+      "CREATE TABLE tags (" \
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)"
+    )
+    connection.exec(
+      "CREATE TABLE labels (" \
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, kind TEXT)"
     )
   end
 end

@@ -10,6 +10,10 @@ module Altair
     class Connection
       # Returns the application's connection, opened lazily from
       # `config.db_url` on first use. Raises when no URL is configured.
+      # The adapter is picked from the URL scheme: `sqlite3://` uses
+      # SQLite, `postgres://` and `postgresql://` use the PostgreSQL
+      # adapter, which a project loads by requiring
+      # `altair/record/adapters/postgresql` (and declaring `crystal-pg`).
       def self.for(app : Altair::Application) : Connection
         url = app.config.db_url
         raise Altair::ConfigurationError.new(
@@ -19,7 +23,19 @@ module Altair
           max_pool_size: app.config.db_max_pool_size,
           checkout_timeout: app.config.db_checkout_timeout
         )
-        new(Adapters::SQLite3.instance, url, pool_options, app.config.db_query_timeout)
+        adapter = if url.starts_with?("postgres") || url.starts_with?("postgresql")
+                    {% if Altair::Record::Adapters.has_constant?("PostgreSQL") %}
+                      Adapters::PostgreSQL.instance
+                    {% else %}
+                      raise Altair::ConfigurationError.new(
+                        "The PostgreSQL adapter is not loaded — require \"altair/record/adapters/postgresql\" " \
+                        "and add crystal-pg to your dependencies"
+                      )
+                    {% end %}
+                  else
+                    Adapters::SQLite3.instance
+                  end
+        new(adapter, url, pool_options, app.config.db_query_timeout)
       end
 
       # The adapter in use.

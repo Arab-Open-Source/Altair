@@ -1,0 +1,8 @@
+<h1><%= product.name %></h1>
+<p>Price: $<%= product.price %></p>
+<p>Created: <%= product.created_at %></p>
+<a href="/products/<%= product.id %>/edit">Edit</a>
+<form action="/products/<%= product.id %>" method="post">
+  <input type="hidden" name="_method" value="DELETE">
+  <button type="submit">Delete</button>
+</form>

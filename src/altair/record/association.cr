@@ -86,9 +86,46 @@ module Altair
       # `dependent: :destroy` deletes the children through their own
       # callbacks, `dependent: :delete_all` deletes them with one query
       # and `dependent: :nullify` clears their foreign keys.
+      #
+      # The model class derives by singularizing the association name
+      # with the inflector's constant tables — `has_many :categories`
+      # resolves to `Category` and `has_many :children` to `Child`. The
+      # loop cannot call the runtime `Inflector` (it expands at compile
+      # time), so it replays the same lookup order here. Runtime
+      # `Inflector.irregular` pairs are invisible to it; pass
+      # `class_name:` for those.
       macro has_many(name, class_name = nil, foreign_key = nil, dependent = nil)
         {% assoc = name.id %}
-        {% model = class_name ? class_name.id : name.id.stringify.gsub(/s$/, "").camelcase %}
+        {% if class_name %}
+          {% model = class_name.id %}
+        {% else %}
+          {% singular = name.id.stringify %}
+          {% for s, p in Altair::Inflector::IRREGULAR_PLURALS %}
+            {% if singular == p %}
+              {% singular = s %}
+            {% end %}
+          {% end %}
+          {% matched = singular != name.id.stringify %}
+          {% unless matched %}
+            {% for w in Altair::Inflector::UNCOUNTABLES %}
+              {% if singular == w %}
+                {% matched = true %}
+              {% end %}
+            {% end %}
+          {% end %}
+          {% unless matched %}
+            {% for rule in Altair::Inflector::SINGULAR_RULES %}
+              {% unless matched %}
+                {% gsubbed = singular.gsub(rule[0], rule[1]) %}
+                {% if gsubbed != singular %}
+                  {% singular = gsubbed %}
+                  {% matched = true %}
+                {% end %}
+              {% end %}
+            {% end %}
+          {% end %}
+          {% model = singular.camelcase %}
+        {% end %}
         {% fk = foreign_key ? foreign_key.id : "#{@type.name.id.underscore}_id" %}
 
         @{{ assoc.id }} : Array({{ model.id }})?
@@ -98,7 +135,7 @@ module Altair
           @{{ assoc.id }} ||= if id = @id
             rows = [] of {{ model.id }}
             connection.query(
-              "#{{{ model.id }}.select_sql} WHERE #{connection.adapter.quote_identifier("{{ fk.id }}")} = ? " \
+              "#{{{ model.id }}.select_sql} WHERE #{connection.adapter.quote_identifier("{{ fk.id }}")} = #{connection.adapter.placeholder(0)} " \
               "ORDER BY #{connection.adapter.quote_identifier("id")}",
               id
             ) do |rs|
@@ -151,7 +188,7 @@ module Altair
           def __delete_all_{{ assoc.id }} : Nil
             connection.exec(
               "DELETE FROM #{connection.adapter.quote_identifier({{ model.id }}.table_name)} " \
-              "WHERE #{connection.adapter.quote_identifier("{{ fk.id }}")} = ?",
+              "WHERE #{connection.adapter.quote_identifier("{{ fk.id }}")} = #{connection.adapter.placeholder(0)}",
               @id
             )
           end
@@ -163,7 +200,7 @@ module Altair
             connection.exec(
               "UPDATE #{connection.adapter.quote_identifier({{ model.id }}.table_name)} " \
               "SET #{connection.adapter.quote_identifier("{{ fk.id }}")} = NULL " \
-              "WHERE #{connection.adapter.quote_identifier("{{ fk.id }}")} = ?",
+              "WHERE #{connection.adapter.quote_identifier("{{ fk.id }}")} = #{connection.adapter.placeholder(0)}",
               @id
             )
           end
@@ -233,7 +270,7 @@ module Altair
           def __delete_all_{{ assoc.id }} : Nil
             connection.exec(
               "DELETE FROM #{connection.adapter.quote_identifier({{ model.id }}.table_name)} " \
-              "WHERE #{connection.adapter.quote_identifier("{{ fk.id }}")} = ?",
+              "WHERE #{connection.adapter.quote_identifier("{{ fk.id }}")} = #{connection.adapter.placeholder(0)}",
               @id
             )
           end
@@ -245,7 +282,7 @@ module Altair
             connection.exec(
               "UPDATE #{connection.adapter.quote_identifier({{ model.id }}.table_name)} " \
               "SET #{connection.adapter.quote_identifier("{{ fk.id }}")} = NULL " \
-              "WHERE #{connection.adapter.quote_identifier("{{ fk.id }}")} = ?",
+              "WHERE #{connection.adapter.quote_identifier("{{ fk.id }}")} = #{connection.adapter.placeholder(0)}",
               @id
             )
           end

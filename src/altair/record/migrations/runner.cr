@@ -80,14 +80,14 @@ module Altair
         private def record_version(version : String) : Nil
           @connection.exec(
             "INSERT INTO #{@adapter.quote_identifier("schema_migrations")} " \
-            "(#{@adapter.quote_identifier("version")}) VALUES (?)", version
+            "(#{@adapter.quote_identifier("version")}) VALUES (#{@adapter.placeholder(0)})", version
           )
         end
 
         private def delete_version(version : String) : Nil
           @connection.exec(
             "DELETE FROM #{@adapter.quote_identifier("schema_migrations")} " \
-            "WHERE #{@adapter.quote_identifier("version")} = ?", version
+            "WHERE #{@adapter.quote_identifier("version")} = #{@adapter.placeholder(0)}", version
           )
         end
 

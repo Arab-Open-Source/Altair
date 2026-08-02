@@ -47,7 +47,7 @@ describe Altair::Record::Adapters::SQLite3 do
   end
 
   it "emits an autoincrement primary key" do
-    adapter.primary_key_sql.should eq("\"id\" INTEGER PRIMARY KEY AUTOINCREMENT")
+    adapter.autoincrement_pk_sql.should eq("\"id\" INTEGER PRIMARY KEY AUTOINCREMENT")
   end
 
   it "maps logical column types to sqlite types" do
@@ -72,7 +72,8 @@ describe Altair::Record::Adapters::SQLite3 do
   end
 
   it "does not rely on INSERT RETURNING" do
-    adapter.supports_returning?.should be_false
+    adapter.supports_returning?(:insert).should be_false
+    adapter.supports_returning?(:delete).should be_false
   end
 end
 
@@ -97,7 +98,7 @@ private class FakeAdapter
     "ROWS #{limit} FROM #{offset}"
   end
 
-  def primary_key_sql : String
+  def autoincrement_pk_sql : String
     "[id] SERIAL PRIMARY KEY"
   end
 
@@ -105,7 +106,7 @@ private class FakeAdapter
     0_i64
   end
 
-  def supports_returning? : Bool
+  def supports_returning?(statement : Symbol) : Bool
     true
   end
 

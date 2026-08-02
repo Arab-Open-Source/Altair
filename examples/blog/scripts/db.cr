@@ -9,10 +9,12 @@
 # ```
 require "altair"
 require "../db/schema"
-require "../src/config/application"
-require "../src/app/controllers/application_controller"
+require "../src/app/models/comment"
 require "../src/app/models/post"
+require "../src/app/controllers/application_controller"
+require "../src/app/controllers/comments_controller"
 require "../src/app/controllers/posts_controller"
+require "../src/config/application"
 require "../db/migrations/20260802000001_create_posts"
 require "../db/migrations/20260802000002_add_comments"
 require "../db/migrations/20260802000003_add_timestamps_to_posts"
@@ -22,7 +24,7 @@ runner = Altair::Record::Migrations::Runner.new(
   conn,
   Path.new("db/migrations"),
   Path.new("db/schema.cr"),
-  Altair::Record::Adapters::SQLite3.instance
+  conn.adapter
 )
 
 case ARGV[0]?

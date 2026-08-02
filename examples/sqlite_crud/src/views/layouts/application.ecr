@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SQLite3 MVC CRUD</title>
+  <style>
+    body { max-width: 760px; margin: 3rem auto; padding: 0 1rem; font: 16px/1.5 sans-serif; color: #18212b; }
+    nav, .actions { display: flex; gap: .75rem; align-items: center; }
+    li { margin: .75rem 0; }
+    form.inline { display: inline; }
+    label { display: block; margin: 1rem 0; }
+    input { display: block; width: 100%; max-width: 28rem; padding: .55rem; }
+    .error { color: #a11; }
+  </style>
+</head>
+<body>
+  <nav><a href="/products">Products</a><a href="/products/new">New product</a></nav>
+  <main><% yield %></main>
+</body>
+</html>

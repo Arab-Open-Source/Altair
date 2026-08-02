@@ -4,8 +4,6 @@
 # call `posts_path`, `new_post_path`, `post_path(5)` and friends as plain
 # methods, and the shared page chrome both controllers render into.
 abstract class ApplicationController < Altair::Controller
-  include Blog::RouteHelpers
-
   # The shared page chrome every page renders into.
   private def page_html(body : String) : String
     <<-HTML

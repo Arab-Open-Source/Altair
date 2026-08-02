@@ -16,3 +16,5 @@ development_dependencies:
   ameba:
     github: crystal-ameba/ameba
     branch: master
+  pg:
+    github: will/crystal-pg

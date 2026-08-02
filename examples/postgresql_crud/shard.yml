@@ -1,0 +1,10 @@
+name: postgresql_crud
+version: 0.1.0
+
+crystal: ">= 1.21.0"
+
+dependencies:
+  altair:
+    path: ../..
+  pg:
+    github: will/crystal-pg
