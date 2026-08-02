@@ -19,15 +19,18 @@ Its goal is to provide an exceptional developer experience while taking
 advantage of Crystal's native performance, low memory usage and single-binary
 deployment.
 
-> **Status:** early development (pre-alpha)
+> **Status:** early development (pre-alpha) — Phases 0–4 complete
 
 ## Under development
 
 Altair is built in phases, each ending with something working and visible.
-Phases 0–3 are complete: the application core, router, controllers and the
-view stack all ship with passing specs. The next milestone is the CLI
-(`altair new`, `altair server`, `altair routes`), followed by the ORM —
-the biggest phase still ahead.
+Phases 0–4 are complete: the application core, router, controllers, the
+view stack, and the ORM (`Altair::Record`) all ship with passing specs.
+The ORM supports SQLite3 and PostgreSQL, with migrations, schema generation,
+CRUD, validations, associations, callbacks, and a contract test suite that
+runs against both backends. The next milestone is the CLI
+(`altair new`, `altair server`, `altair routes`), followed by generators,
+sessions/flash/CSRF, and the remaining hardening work.
 
 What is already in place:
 
@@ -42,10 +45,12 @@ What is already in place:
 | Middleware | `use`-based pipeline, request logging, static files with traversal protection |
 | Errors | `rescue_from`, smart debug pages (404 suggestions, 405 methods, 500 diagnostics), plain in production |
 | Hardening | 2 MB request-body limit, `413` before the body is read |
+| ORM (`Altair::Record`) | adapter interface + SQLite3 and PostgreSQL adapters, connection pooling, migrations DSL + runner, `db/schema.cr` generation, CRUD + finders, validations (`valid?` + errors), timestamps + callbacks, associations (`belongs_to` / `has_many` / `has_one`) with batched eager loading, `dependent:` handling, `validates_uniqueness_of`, multi-database support via `ALTAIR_DB_URL` |
 
-What is still missing (in rough order): the CLI, the ORM with migrations,
-generators, sessions/flash/CSRF, multipart parsing, `.env` support,
-background jobs and an asset pipeline.
+What is still missing (in rough order): the CLI, generators and scaffolding,
+sessions/flash/CSRF, multipart parsing, `.env` / `database.yml` configuration,
+background jobs, authentication, asset pipeline, rich query DSL, testing
+utilities.
 
 ---
 
@@ -95,16 +100,11 @@ background jobs and an asset pipeline.
   (configurable, and disablable per environment), so oversized payloads
   get a `413 Payload Too Large` before they are ever read, and the
   response never echoes the rejected body.
-- **Example applications** — `examples/hello_world`, a working demo with a
-  RESTful resource, static assets and verified behavior over real HTTP,
-  and `examples/htmx`, showing the view stack and the htmx layer in the
-  browser.
+- **Example applications** — `examples/hello_world`, a working demo with a RESTful resource, static assets and verified behavior over real HTTP; `examples/htmx`, showing the view stack and the htmx layer in the browser; `examples/blog`, the persistence demo with posts and comments surviving restarts (SQLite3 by default, PostgreSQL via `ALTAIR_DB_URL`); `examples/sqlite_crud` and `examples/postgresql_crud`, full MVC CRUD examples for the ORM on each backend.
 
 ### Planned
 
 - CLI: `altair new`, `altair server`, `altair routes`
-- ORM (`Altair::Record`): migrations, `schema.cr`, CRUD, validations,
-  associations, callbacks
 - Generators and scaffolding
 - Sessions, flash and CSRF protection
 - Multipart form parsing
@@ -175,6 +175,34 @@ router.
 
 See [examples/hello_world/README.md](examples/hello_world/README.md) for a
 full walkthrough with curl and HTTP client examples.
+
+### Persistence with Altair::Record
+
+Altair ships a full ORM — `Altair::Record` — with SQLite3 and PostgreSQL
+adapters, migrations, validations, associations, and callbacks.
+
+The bundled blog demo persists posts and comments across restarts:
+
+```bash
+ALTAIR_DB_URL="sqlite://db/development.sqlite3" crystal run examples/blog/src/blog.cr
+```
+
+Open <http://localhost:3000> to create, read, update, and delete posts
+and comments. To use PostgreSQL instead:
+
+```bash
+ALTAIR_DB_URL="postgresql://postgres:postgres@localhost:5433/blog_development" crystal run examples/blog/src/blog.cr
+```
+
+Two standalone MVC CRUD examples are available — one for each backend:
+
+| Example | Backend | Command |
+|---------|---------|---------|
+| `examples/sqlite_crud` | SQLite3 | `crystal run examples/sqlite_crud/src/sqlite_crud.cr` |
+| `examples/postgresql_crud` | PostgreSQL | `ALTAIR_DB_URL="postgresql://postgres:postgres@localhost:5434/crud_development" crystal run examples/postgresql_crud/src/postgresql_crud.cr` |
+
+Each exposes full CRUD for a `Product` resource at <http://localhost:4100>
+(SQLite) or <http://localhost:4200> (PostgreSQL).
 
 ---
 
