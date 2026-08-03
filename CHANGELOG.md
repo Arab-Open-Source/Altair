@@ -35,7 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now exports p99/p99.9 trend stats and the summary includes them. The README's
   pool claims, results tables, and the tail-latency investigation write-up were
   updated to match the fair numbers (Altair read 14,096 req/s / write 11,889
-  req/s).
+  req/s). A parallel **Rails-vs-Altair** comparison
+  (`examples/rails-vs-altair`) stages the same 500/1000/2000-tiered k6 load
+  against a 2-CPU/3-GB PostgreSQL and runs both stacks on the host with the
+  same 200-connection budget; its runner always stops leftover apps first so a
+  stale server's pooled connections can no longer starve a run.
 
 - **Per-statement timing only when instrumented**:
   `Altair::Record::Connection#exec` / `#query` / `#query_one` only read the

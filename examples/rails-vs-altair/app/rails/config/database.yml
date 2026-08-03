@@ -1,0 +1,31 @@
+# Rails vs Altair benchmark — PostgreSQL only. The runner grants every
+# framework the SAME total connection budget (BENCH_POOL, 200) against the
+# shared PostgreSQL max_connections=220. Rails splits that budget evenly
+# across its Puma workers (BENCH_WORKERS) so workers x pool never exceeds it.
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= begin
+    budget = ENV.fetch("BENCH_POOL") { 200 }.to_i
+    workers = [ENV.fetch("BENCH_WORKERS") { 1 }.to_i, 1].max
+    [budget / workers, 1].max
+  end %>
+  host: <%= ENV.fetch("DB_HOST") { "127.0.0.1" } %>
+  port: <%= ENV.fetch("DB_PORT") { 55434 } %>
+  username: bench
+  password: bench
+  database: bench
+  prepared_statements: true
+  timeout: 5000
+
+development:
+  <<: *default
+
+# Warning: The database defined as "test" will be erased and
+# re-generated from your development database when you run "rake".
+# Do not set this db to the same as development or production.
+test:
+  <<: *default
+
+production:
+  <<: *default

@@ -1,0 +1,14 @@
+name: bench_altair
+version: 1.0.0
+
+crystal: ">= 1.21.0"
+
+dependencies:
+  altair:
+    path: ../../../..
+  pg:
+    github: will/crystal-pg
+
+targets:
+  bench:
+    main: src/bench.cr

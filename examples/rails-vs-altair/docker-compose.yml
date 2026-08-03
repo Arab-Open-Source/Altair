@@ -1,0 +1,41 @@
+# Rails vs Altair benchmark — PostgreSQL host.
+#
+# Only the database runs in Docker. Both applications run natively on the host
+# and take whatever machine resources they need. PostgreSQL is pinned to the
+# requested 3 GB RAM / 2 processor cores so the ORM round-trips are realistic
+# and the shared connection ceiling is high enough for the tiered VU load.
+#
+#   docker compose up -d
+#   ./scripts/bench.sh
+name: rails-vs-altair
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: rails-altair-postgres
+    # 2000 VUs need far more than the 100-connection default; 220 is the
+    # fairness ceiling: every framework runs with a 200-connection budget so
+    # neither exceeds the shared server cap (see scripts/bench.sh).
+    command: ["postgres", "-c", "max_connections=220"]
+    environment:
+      POSTGRES_USER: bench
+      POSTGRES_PASSWORD: bench
+      POSTGRES_DB: bench
+    ports:
+      - "127.0.0.1:55434:5432"
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bench -d bench"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 3G
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
