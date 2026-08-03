@@ -13,18 +13,28 @@ private def spec_connection : Altair::Record::Connection
 end
 
 # A connection allowed to grow beyond the single-connection test pool, so
-# concurrent transactions each get their own pooled connection.
+# concurrent transactions each get their own pooled connection. The pool is
+# fully warm (initial = idle = max) so the leak assertions below can compare
+# open versus idle counts exactly.
 private def concurrent_connection : Altair::Record::Connection
   app = SpecApp.instance
-  original = app.config.db_max_pool_size
+  original = {
+    initial: app.config.db_initial_pool_size,
+    max:     app.config.db_max_pool_size,
+    idle:    app.config.db_max_idle_pool_size,
+  }
+  app.config.db_initial_pool_size = 16
   app.config.db_max_pool_size = 16
+  app.config.db_max_idle_pool_size = 16
   begin
     conn = Altair::Record.connection_for(app)
     conn.exec("DROP TABLE IF EXISTS widgets")
     conn.exec("CREATE TABLE widgets (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL)")
     conn
   ensure
-    app.config.db_max_pool_size = original
+    app.config.db_initial_pool_size = original[:initial]
+    app.config.db_max_pool_size = original[:max]
+    app.config.db_max_idle_pool_size = original[:idle]
   end
 end
 
@@ -229,5 +239,21 @@ describe Altair::Record::Connection do
     count = conn.query_one("SELECT COUNT(*) FROM widgets") { |rs| rs.read(Int64) }
     count.should eq(1)
     conn.close
+  end
+
+  it "returns every pooled connection after a batch of transactions" do
+    conn = concurrent_connection
+    begin
+      32.times do
+        conn.transaction do
+          conn.exec("INSERT INTO widgets (name) VALUES (?)", "row")
+        end
+      end
+      stats = conn.database.pool.stats
+      stats.open_connections.should eq(16)
+      stats.idle_connections.should eq(16)
+    ensure
+      conn.close
+    end
   end
 end

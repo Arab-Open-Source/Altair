@@ -7,7 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Lock-free connection lookup outside transactions**:
+  `Altair::Record::Connection#active_connection` no longer takes the
+  connection mutex for every statement. An `Atomic(Int32)` transaction
+  counter gives a cheap fast path: when no transaction is open the lookup
+  returns nil without touching the mutex (the mutex still protects the map
+  during register/clear). Under benchmark load this removed a global lock
+  acquisition from every single-statement query.
+
+- **Thread-safe transaction state**: `Altair::Record::Connection` now guards
+  its per-fiber transaction map and savepoint counters with a mutex. Under
+  parallel load the unsynchronized map could corrupt — a fiber would freeze
+  inside the transaction teardown and strand its pooled connection open
+  (`idle in transaction`) until the pool was exhausted and requests started
+  failing with `DB::PoolTimeout`. Proven by a new adapter-contract churn spec
+  that hammers a 50-connection PostgreSQL pool from 8 threads and asserts
+  every connection returns to the pool.
+
+### Changed
+
+- **Fair cross-framework benchmark**: the k6 comparison now runs all three
+  frameworks (Altair, Express, Fiber) under the **same 200-connection budget**
+  (PostgreSQL `max_connections=220`), instead of Altair at 200 against
+  Express/Fiber at 8×50. The runner (`examples/benchmark_k6/scripts/bench.sh`)
+  now exports p99/p99.9 trend stats and the summary includes them. The README's
+  pool claims, results tables, and the tail-latency investigation write-up were
+  updated to match the fair numbers (Altair read 14,096 req/s / write 11,889
+  req/s).
+
+- **Per-statement timing only when instrumented**:
+  `Altair::Record::Connection#exec` / `#query` / `#query_one` only read the
+  clock and call the `on_query` hook when a handler is registered
+  (`Altair::Record.query_handlers?`). With no handler, both `Time.instant`
+  calls and the hook dispatch are skipped entirely.
+
+- **Single-statement saves for callback-free models**: `save` no longer wraps
+  the insert or update in a transaction when the model has no callbacks — one
+  round trip instead of three. Models with callbacks keep the transactional
+  guarantee that a raise rolls everything back.
+
+- **The connection pool opens exactly once**: `Altair::Record.connection`
+  synchronizes its lazy open, so first-touch load from many threads can no
+  longer construct several pools and blow past the database's connection
+  limit.
+
 ### Added
+
+- **Compile-time SELECT prefix**: the `table` macro now emits a
+  `self.select_sql` constant containing `SELECT "col1", "col2", ... FROM
+  "table"`, so `find` / `find_by` / `first` no longer build the SELECT prefix
+  by concatenating strings on every call.
 
 - **Configurable database pool warm-up**: `db_initial_pool_size` and
   `db_max_idle_pool_size` now control how many connections the pool opens

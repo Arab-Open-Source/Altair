@@ -25,17 +25,25 @@ func env(key, fallback string) string {
 }
 
 func main() {
-	// Tune: bind the Go scheduler to the CPU quota granted to the process.
-	runtime.GOMAXPROCS(runtime.NumCPU())
+	// Tune: pin the Go scheduler to the same worker count as the other
+	// runtimes (BENCH_WORKERS), defaulting to all available CPUs.
+	if w := env("BENCH_WORKERS", ""); w != "" {
+		n, _ := strconv.Atoi(w)
+		if n > 0 {
+			runtime.GOMAXPROCS(n)
+		}
+	}
 
 	pool, err := pgxpool.New(context.Background(), env("DATABASE_URL", "postgres://bench:bench@postgres:5432/bench"))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer pool.Close()
-	// Tune: pool sized for sustained load, eager minimum connections.
-	pool.Config().MaxConns = 30
-	pool.Config().MinConns = 5
+	// Tune: pool sized to match the other runtimes (BENCH_POOL), eagerly
+	// keeping all connections warm.
+	maxConns, _ := strconv.Atoi(env("BENCH_POOL", "30"))
+	pool.Config().MaxConns = int32(maxConns)
+	pool.Config().MinConns = int32(maxConns)
 
 	table := env("BENCH_TABLE", "items")
 	port := env("PORT", "8080")

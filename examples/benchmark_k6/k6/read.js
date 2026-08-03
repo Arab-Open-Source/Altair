@@ -6,8 +6,8 @@ import http from "k6/http";
 import { check } from "k6";
 
 const PAGES = 10000;
-const VUS = Number(__ENV.VUS || 50);
-const DURATION = Number(__ENV.DURATION || 30);
+const VUS = Number(__ENV.VUS || 2000);
+const DURATION = Number(__ENV.DURATION || 90);
 const WARMUP = Number(__ENV.WARMUP || 5);
 
 export const options = {

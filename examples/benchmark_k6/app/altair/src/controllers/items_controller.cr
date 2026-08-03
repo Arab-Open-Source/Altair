@@ -12,7 +12,8 @@ class ItemsController < ApplicationController
       render json: %({"error":"bad id"}), status: ::HTTP::Status::BAD_REQUEST
       return
     end
-    if item = Item.find(id.not_nil!)
+    item = Item.find(id.not_nil!)
+    if item
       render json: item_json(item)
     else
       render json: %({"error":"not found"}), status: ::HTTP::Status::NOT_FOUND

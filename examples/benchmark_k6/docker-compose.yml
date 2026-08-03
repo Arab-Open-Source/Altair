@@ -1,8 +1,10 @@
 # Altair benchmark — HTTP throughput comparison (Express vs Fiber vs Altair).
 #
-# The database pins 2 CPUs / 2 GB (the load-generator host supplies k6).
-# Every app service defaults to 2 CPUs so the runtimes can actually use
-# their threaded schedulers; override with BENCH_APP_CPUS in .env.
+# The database pins 6 CPUs / 2 GB so PostgreSQL stops being the binding
+# ceiling (a 2-CPU Postgres tops out around 10-11k reads/s, which drowned
+# the framework differences). Every app service defaults to 2 CPUs so the
+# runtimes can actually use their threaded schedulers; override with
+# BENCH_APP_CPUS in .env.
 #
 #   docker compose up -d --build
 #   ./scripts/seed.sh
@@ -15,6 +17,10 @@ services:
   postgres:
     image: postgres:17-alpine
     container_name: bench-postgres
+    # 2000 VUs need far more than the 100-connection default. 220 is also the
+    # fairness ceiling: every framework runs with a 200-connection budget so
+    # none of them exceeds the shared server cap (see scripts/bench.sh).
+    command: ["postgres", "-c", "max_connections=220"]
     environment:
       POSTGRES_USER: bench
       POSTGRES_PASSWORD: bench
@@ -31,7 +37,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "2.0"
+          cpus: "6.0"
           memory: 2G
     logging:
       driver: json-file
@@ -47,6 +53,8 @@ services:
       DATABASE_URL: postgres://bench:bench@postgres:5432/bench
       BENCH_TABLE: items_express
       PORT: "4001"
+      BENCH_WORKERS: "8"
+      BENCH_POOL: "200"
     depends_on:
       postgres:
         condition: service_healthy
@@ -68,8 +76,9 @@ services:
     environment:
       DATABASE_URL: postgres://bench:bench@postgres:5432/bench
       BENCH_TABLE: items_fiber
-      # Tuned: Go scheduler pinned to the app's 2 CPUs.
-      GOMAXPROCS: "2"
+      # Tuned: Go scheduler pinned to the same worker count as the others.
+      BENCH_WORKERS: "8"
+      BENCH_POOL: "200"
     depends_on:
       postgres:
         condition: service_healthy
@@ -94,8 +103,10 @@ services:
       DATABASE_URL: postgres://bench:bench@postgres:5432/bench
       # Tuned multi-threading: the app resizes Crystal's default execution
       # context from this value (instead of staying single-threaded).
-      CRYSTAL_WORKERS: "2"
-      BENCH_POOL: "30"
+      CRYSTAL_WORKERS: "8"
+      BENCH_POOL: "200"
+      BENCH_INITIAL_POOL: "200"
+      BENCH_MAX_IDLE: "200"
     depends_on:
       postgres:
         condition: service_healthy

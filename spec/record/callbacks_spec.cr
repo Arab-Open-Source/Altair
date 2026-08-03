@@ -85,4 +85,9 @@ describe Altair::Record::Model, "callbacks" do
       Comment.raise_after_destroy = false
     end
   end
+
+  it "only wraps saves in a transaction when the model has callbacks" do
+    Comment.__callbacks?.should be_true
+    Event.__callbacks?.should be_false
+  end
 end

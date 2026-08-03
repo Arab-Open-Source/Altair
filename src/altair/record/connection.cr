@@ -5,6 +5,8 @@
 # application's pool settings, and exposes an instrumentation hook —
 # `Altair::Record.on_query` — that every executed statement passes through,
 # the base for query logging and N+1 detection later.
+require "atomic"
+
 module Altair
   module Record
     class Connection
@@ -56,6 +58,21 @@ module Altair
       # savepoint name.
       @savepoint_counters = {} of Fiber => Int32
 
+      # Serializes access to the two maps above. Requests run on a shared
+      # execution context whose fibers can migrate between OS threads, so an
+      # unsynchronized map corrupts under parallel load — a fiber would then
+      # freeze inside `delete`, stranding its transaction connection open
+      # forever. The lock is held only around a map operation, never around
+      # query execution or the transaction body.
+      @lock = Mutex.new
+
+      # The number of fibers currently inside a transaction. Read without
+      # the lock by every statement: when it is zero, no fiber owns a
+      # transaction connection, and the per-query `active_connection` check
+      # short-circuits to `nil` instead of paying a mutex acquisition that
+      # every fiber on every thread would otherwise contend on.
+      @active_transactions = Atomic(Int32).new(0)
+
       def initialize(@adapter : Adapter, url : String, pool_options : DB::Pool::Options, @query_timeout : Time::Span)
         @database = @adapter.connect(url, pool_options)
       end
@@ -64,14 +81,18 @@ module Altair
       # instrumentation hooks. Every value travels as a bind parameter —
       # never interpolated into the SQL string. Inside a transaction the
       # statement runs on the calling fiber's transaction connection.
+      # Statement timing is skipped entirely unless a query handler is
+      # registered, so a bare application never pays the clock reads.
       def exec(sql : String, *db_args, args : Enumerable? = nil) : DB::ExecResult
-        start = Time.instant
+        start = Time.instant if Altair::Record.query_handlers?
         result = if conn = active_connection
                    conn.fetch_or_build_prepared_statement(sql).exec(*db_args, args: args)
                  else
                    @database.exec(sql, *db_args, args: args)
                  end
-        notify(sql, Time.instant - start)
+        if started = start
+          notify(sql, Time.instant - started)
+        end
         result
       end
 
@@ -79,7 +100,7 @@ module Altair
       # block. `values:` binds a variable-length collection, for
       # `IN (...)` clauses.
       def query(sql : String, *args, values : Enumerable? = nil, & : DB::ResultSet ->) : Nil
-        start = Time.instant
+        start = Time.instant if Altair::Record.query_handlers?
         if conn = active_connection
           conn.fetch_or_build_prepared_statement(sql).query(*args, args: values) do |rs|
             yield rs
@@ -89,12 +110,14 @@ module Altair
             yield rs
           end
         end
-        notify(sql, Time.instant - start)
+        if started = start
+          notify(sql, Time.instant - started)
+        end
       end
 
       # Runs a query expecting a single row, yielded to the block.
       def query_one(sql : String, *args, & : DB::ResultSet -> U) : U forall U
-        start = Time.instant
+        start = Time.instant if Altair::Record.query_handlers?
         result = if conn = active_connection
                    conn.fetch_or_build_prepared_statement(sql).query(*args) do |rs|
                      rs.move_next || raise DB::NoResultsError.new("No results")
@@ -103,7 +126,9 @@ module Altair
                  else
                    @database.query_one(sql, *args) { |rs| yield rs }
                  end
-        notify(sql, Time.instant - start)
+        if started = start
+          notify(sql, Time.instant - started)
+        end
         result
       end
 
@@ -121,16 +146,15 @@ module Altair
       # each get an isolated transaction.
       def transaction(&block : Proc(Nil)) : Nil
         fiber = Fiber.current
-        if @active_connections.has_key?(fiber)
+        if active?(fiber)
           savepoint_transaction(fiber) { block.call }
         else
           @database.transaction do |tx|
-            @active_connections[fiber] = tx.connection
+            register_active(fiber, tx.connection)
             begin
               block.call
             ensure
-              @active_connections.delete(fiber)
-              @savepoint_counters.delete(fiber)
+              clear_active(fiber)
             end
           end
         end
@@ -157,16 +181,45 @@ module Altair
         exec("RELEASE #{@adapter.quote_identifier(name)}")
       end
 
-      # The calling fiber's active transaction connection, if any.
+      # Whether the fiber owns a transaction connection.
+      private def active?(fiber : Fiber) : Bool
+        @lock.synchronize { @active_connections.has_key?(fiber) }
+      end
+
+      # The calling fiber's active transaction connection, if any. The fast
+      # path reads an atomic counter instead of the mutex: when no
+      # transaction is active anywhere the answer is always `nil`.
       private def active_connection : DB::Connection?
-        @active_connections[Fiber.current]?
+        return nil if @active_transactions.get == 0
+        @lock.synchronize { @active_connections[Fiber.current]? }
+      end
+
+      # Records the fiber as the owner of a transaction connection. The
+      # counter increments before the map write so a concurrent statement
+      # that reads it never misses a registered transaction.
+      private def register_active(fiber : Fiber, connection : DB::Connection) : Nil
+        @active_transactions.add(1)
+        @lock.synchronize { @active_connections[fiber] = connection }
+      end
+
+      # Drops the fiber's transaction state once its transaction ends. The
+      # counter decrements after the map delete so a concurrent statement
+      # only ever sees a consistent pair.
+      private def clear_active(fiber : Fiber) : Nil
+        @lock.synchronize do
+          @active_connections.delete(fiber)
+          @savepoint_counters.delete(fiber)
+        end
+        @active_transactions.sub(1)
       end
 
       # The next savepoint name, unique within the fiber's transaction.
       private def next_savepoint_counter(fiber : Fiber) : Int32
-        count = @savepoint_counters[fiber]? || 0
-        @savepoint_counters[fiber] = count + 1
-        count
+        @lock.synchronize do
+          count = @savepoint_counters[fiber]? || 0
+          @savepoint_counters[fiber] = count + 1
+          count
+        end
       end
 
       # Closes the pool. Tests call this to release file handles.

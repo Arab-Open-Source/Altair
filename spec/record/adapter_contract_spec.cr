@@ -269,6 +269,71 @@ private def adapter_contract(name : String, setup : Proc(Nil), teardown : Proc(N
       2.times { done.receive }
       Post.count.should eq(1)
     end
+
+    it "keeps every pooled connection across concurrent churn on multiple threads" do
+      unless parallel_writers?
+        pending! "SQLite serializes writers — run this on a server database"
+      end
+      original = Fiber::ExecutionContext.default.capacity
+      app = PgContractApp.instance
+      pool = {
+        initial: app.config.db_initial_pool_size,
+        max:     app.config.db_max_pool_size,
+        idle:    app.config.db_max_idle_pool_size,
+      }
+      conn : Altair::Record::Connection? = nil
+      begin
+        Fiber::ExecutionContext.default.resize(maximum: Math.max(original, 8))
+        app.config.db_initial_pool_size = 50
+        app.config.db_max_pool_size = 50
+        app.config.db_max_idle_pool_size = 50
+        conn = Altair::Record::Connection.for(app)
+        cnn = conn.not_nil!
+        placeholder = cnn.adapter.placeholder(0)
+        cnn.exec("DROP TABLE IF EXISTS churn_widgets")
+        cnn.exec(
+          "CREATE TABLE churn_widgets (id INTEGER GENERATED ALWAYS AS IDENTITY, name TEXT)"
+        )
+        failures = Channel(Exception?).new
+        total = 0
+        3.times do
+          n = 200
+          n.times do |i|
+            spawn do
+              begin
+                if i.even?
+                  cnn.transaction do
+                    cnn.exec("INSERT INTO churn_widgets (name) VALUES (#{placeholder})", "row")
+                  end
+                else
+                  cnn.exec("INSERT INTO churn_widgets (name) VALUES (#{placeholder})", "row")
+                end
+                failures.send(nil)
+              rescue ex
+                failures.send(ex)
+              end
+            end
+          end
+          n.times do
+            if failure = failures.receive
+              fail "statement failed: #{failure.message}"
+            end
+          end
+          total += n
+        end
+        count = cnn.query_one("SELECT COUNT(*) FROM churn_widgets") { |rs| rs.read(Int64) }
+        count.should eq(total)
+        stats = cnn.database.pool.stats
+        stats.open_connections.should eq(stats.idle_connections)
+      ensure
+        conn.try(&.exec("DROP TABLE IF EXISTS churn_widgets"))
+        conn.try(&.close)
+        app.config.db_initial_pool_size = pool[:initial]
+        app.config.db_max_pool_size = pool[:max]
+        app.config.db_max_idle_pool_size = pool[:idle]
+        Fiber::ExecutionContext.default.resize(maximum: original)
+      end
+    end
   end
 end
 

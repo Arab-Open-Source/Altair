@@ -1,8 +1,7 @@
-// Altair benchmark - write load.
+// Altair benchmark - no-DB echo load.
 //
-// POSTs one row per request to {BASE_URL}/items and asserts a 201. The
-// load shape (ramp-up, sustained duration, ramp-down) and VU count come
-// from the environment, so the runner can reuse this script unchanged.
+// GETs /health on {BASE_URL} - exercises the HTTP/scheduler layer only,
+// isolating it from the DB pool/record path.
 import http from "k6/http";
 import { check } from "k6";
 
@@ -27,16 +26,7 @@ export const options = {
   },
 };
 
-let seq = 0;
-
 export default function () {
-  seq += 1;
-  const body = JSON.stringify({
-    name: `bench-${__VU}-${seq}`,
-    price: (seq % 1000) + 0.5,
-  });
-  const res = http.post(`${__ENV.BASE_URL}/items`, body, {
-    headers: { "Content-Type": "application/json" },
-  });
-  check(res, { "status is 201": (r) => r.status === 201 });
+  const res = http.get(`${__ENV.BASE_URL}/health`);
+  check(res, { "status is 200": (r) => r.status === 200 });
 }

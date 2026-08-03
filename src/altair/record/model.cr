@@ -196,6 +196,9 @@ module Altair
 
         {% columns = Altair::Record::Schema::META[name] %}
 
+        {% select_columns = columns.map { |col_name, _| "\"#{col_name.id}\"" }.join(", ") %}
+        {% select_sql_literal = "SELECT " + select_columns + " FROM \"" + name.id.stringify + "\"" %}
+
         {% pk_name = "id" %}
         {% pk_type = :integer %}
         {% for col_name, col in columns %}
@@ -218,6 +221,13 @@ module Altair
 
         def self.timestamp_columns : Array(Symbol)
           [:created_at, :updated_at].select { |column| column_names.includes?(column.to_s) }
+        end
+
+        # The `SELECT` prefix over every column, in schema order — expanded
+        # at compile time so a query never allocates the prefix. Identifiers
+        # are double-quoted, which both shipped adapters emit the same way.
+        def self.select_sql : String
+          {{ select_sql_literal }}
         end
 
         {% for col_name, col in columns %}
@@ -532,11 +542,39 @@ module Altair
 
       # Persists the record: inserts when the id is `nil`, updates
       # otherwise. Runs validations and the save callbacks first, and
-      # returns `false` when validations fail. The insert or update and its
-      # callbacks run inside a transaction, so a raise rolls everything
-      # back.
+      # returns `false` when validations fail. A model with callbacks saves
+      # inside a transaction so a raise rolls everything back; a
+      # callback-free model saves with a single statement, skipping the
+      # transaction wrapper.
       def save : Bool
         return false unless valid?
+        if self.class.__callbacks?
+          save_transactional
+        else
+          save_plain
+        end
+      end
+
+      # Persists a callback-free record with a single statement. Without
+      # callbacks there is nothing to make atomic with the insert or update,
+      # so the transaction wrapper would only cost two extra round trips.
+      private def save_plain : Bool
+        if @id.nil?
+          apply_create_timestamps
+          insert
+        else
+          unless @dirty.empty?
+            apply_update_timestamps
+            update_row
+          end
+        end
+        clear_dirty
+        true
+      end
+
+      # Persists a record with save callbacks, wrapping them and the insert
+      # or update in a transaction so a raise rolls everything back.
+      private def save_transactional : Bool
         persisted = false
         self.class.transaction do
           _run_callbacks(:before_save)
@@ -606,6 +644,12 @@ module Altair
         @@custom_validations = [] of Proc({{@type.id}}, Nil)
         @@confirmations = {} of String => Proc({{@type.id}}, Value?)
         @@preloaders = {} of Symbol => Proc(Array({{@type.id}}), Nil)
+
+        # Whether the model registers any save callbacks; a callback-free
+        # model saves without the transaction wrapper.
+        def self.__callbacks? : Bool
+          @@callbacks.values.any?(&.any?)
+        end
 
         # The eager loader for an association, or a clear error.
         def self.__preloader_for(name : Symbol) : Proc(Array({{@type.id}}), Nil)
