@@ -47,7 +47,8 @@ describe Altair::Record::Adapters::SQLite3 do
   end
 
   it "emits an autoincrement primary key" do
-    adapter.autoincrement_pk_sql.should eq("\"id\" INTEGER PRIMARY KEY AUTOINCREMENT")
+    adapter.autoincrement_pk_sql(:integer).should eq("\"id\" INTEGER PRIMARY KEY AUTOINCREMENT")
+    adapter.autoincrement_pk_sql(:bigint).should eq("\"id\" BIGINT PRIMARY KEY AUTOINCREMENT")
   end
 
   it "maps logical column types to sqlite types" do
@@ -98,8 +99,8 @@ private class FakeAdapter
     "ROWS #{limit} FROM #{offset}"
   end
 
-  def autoincrement_pk_sql : String
-    "[id] SERIAL PRIMARY KEY"
+  def autoincrement_pk_sql(type : Symbol) : String
+    "[id] #{type == :bigint ? "BIGINT" : "SERIAL"} PRIMARY KEY"
   end
 
   def last_insert_id(result : DB::ExecResult) : Int64
@@ -116,11 +117,16 @@ private class FakeAdapter
     when :integer       then "INT"
     when :bigint        then "BIGSERIAL"
     when :float         then "DOUBLE PRECISION"
+    when :decimal       then "NUMERIC"
     when :boolean       then "BOOLEAN"
     when :datetime      then "TIMESTAMP"
     when :json          then "JSONB"
     else                     raise Altair::Error.new("Unknown column type: #{logical_type}")
     end
+  end
+
+  def read_decimal(rs : DB::ResultSet) : BigDecimal?
+    rs.read(String?).try { |text| BigDecimal.new(text) }
   end
 end
 

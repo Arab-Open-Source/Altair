@@ -12,6 +12,7 @@ class Altair::Record::Schema
     },
   }
 end
+
 Altair::Record::Schema.define do |schema|
   schema.table(:products) do |t|
     t.column :id, :integer, null: false, primary: true

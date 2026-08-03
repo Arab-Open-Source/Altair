@@ -61,6 +61,29 @@ class Altair::Record::Schema
       name: {type: :string, null: true, primary: false},
       kind: {type: :string, null: true, primary: false},
     },
+    payloads: {
+      id:   {type: :integer, null: false, primary: true},
+      name: {type: :string, null: true, primary: false},
+      data: {type: :json, null: true, primary: false},
+    },
+    events: {
+      id:   {type: :bigint, null: false, primary: true},
+      name: {type: :string, null: true, primary: false},
+    },
+    accounts: {
+      id:          {type: :integer, null: false, primary: true},
+      name:        {type: :string, null: true, primary: false},
+      balance:     {type: :decimal, null: true, primary: false},
+      min_balance: {type: :decimal, null: false, primary: false},
+    },
+    members: {
+      id:       {type: :integer, null: false, primary: true},
+      role:     {type: :string, null: true, primary: false},
+      name:     {type: :string, null: true, primary: false},
+      email:    {type: :string, null: true, primary: false},
+      password: {type: :string, null: true, primary: false},
+      age:      {type: :integer, null: true, primary: false},
+    },
   }
 end
 
@@ -138,6 +161,34 @@ class Label < Altair::Record::Model
   validates_uniqueness_of :name, scope: :kind, message: "is taken"
 end
 
+# A model with a JSON column, exercising the adapter's coercion layer.
+class Payload < Altair::Record::Model
+  table :payloads
+end
+
+# A model with a `:bigint` primary key, exercising wide-id typing end to end.
+class Event < Altair::Record::Model
+  table :events
+end
+
+# A model with a decimal column, exercising the adapter's numeric coercion.
+class Account < Altair::Record::Model
+  table :accounts
+end
+
+# A model exercising inclusion, exclusion, format and confirmation rules.
+class Member < Altair::Record::Model
+  table :members
+
+  validates_inclusion_of :role, in: %w[admin editor viewer]
+  validates_inclusion_of :age, in: 18..65
+  validates_exclusion_of :name, in: %w[root admin guest]
+  validates_format_of :email, with: /\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i
+  validates_confirmation_of :password
+
+  property password_confirmation : String?
+end
+
 class Comment < Altair::Record::Model
   table :comments
 
@@ -151,10 +202,18 @@ class Comment < Altair::Record::Model
   after_save :record_after_save
   before_create :record_before_create
   after_create :record_after_create
+  after_create :raise_if_asked_create
   before_update :record_before_update
   after_update :record_after_update
+  after_update :raise_if_asked_update
   before_destroy :record_before_destroy
   after_destroy :record_after_destroy
+  after_destroy :raise_if_asked_destroy
+
+  class_getter events : Array(Symbol) = [] of Symbol
+  class_property raise_after_create : Bool = false
+  class_property raise_after_update : Bool = false
+  class_property raise_after_destroy : Bool = false
 
   class_getter events : Array(Symbol) = [] of Symbol
 
@@ -193,12 +252,28 @@ class Comment < Altair::Record::Model
   def record_after_destroy : Nil
     Comment.events << :after_destroy
   end
+
+  def raise_if_asked_create : Nil
+    raise "boom on create" if Comment.raise_after_create
+  end
+
+  def raise_if_asked_update : Nil
+    raise "boom on update" if Comment.raise_after_update
+  end
+
+  def raise_if_asked_destroy : Nil
+    raise "boom on destroy" if Comment.raise_after_destroy
+  end
 end
 
 module RecordSpec
   def self.setup_database : Nil
     connection = Altair::Record.connection
     connection.exec("DROP TABLE IF EXISTS labels")
+    connection.exec("DROP TABLE IF EXISTS payloads")
+    connection.exec("DROP TABLE IF EXISTS events")
+    connection.exec("DROP TABLE IF EXISTS accounts")
+    connection.exec("DROP TABLE IF EXISTS members")
     connection.exec("DROP TABLE IF EXISTS tags")
     connection.exec("DROP TABLE IF EXISTS children")
     connection.exec("DROP TABLE IF EXISTS humans")
@@ -251,6 +326,22 @@ module RecordSpec
     connection.exec(
       "CREATE TABLE labels (" \
       "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, kind TEXT)"
+    )
+    connection.exec(
+      "CREATE TABLE payloads (" \
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, data JSON)"
+    )
+    connection.exec(
+      "CREATE TABLE events (" \
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)"
+    )
+    connection.exec(
+      "CREATE TABLE accounts (" \
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, balance TEXT, min_balance TEXT NOT NULL DEFAULT '0')"
+    )
+    connection.exec(
+      "CREATE TABLE members (" \
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT, name TEXT, email TEXT, password TEXT, age INTEGER)"
     )
   end
 end

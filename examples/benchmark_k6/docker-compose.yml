@@ -1,0 +1,110 @@
+# Altair benchmark — HTTP throughput comparison (Express vs Fiber vs Altair).
+#
+# The database pins 2 CPUs / 2 GB (the load-generator host supplies k6).
+# Every app service defaults to 2 CPUs so the runtimes can actually use
+# their threaded schedulers; override with BENCH_APP_CPUS in .env.
+#
+#   docker compose up -d --build
+#   ./scripts/seed.sh
+#   ./scripts/run.sh
+#
+# Results from k6 are written into ./results/ as JSON summaries.
+name: altair-bench
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: bench-postgres
+    environment:
+      POSTGRES_USER: bench
+      POSTGRES_PASSWORD: bench
+      POSTGRES_DB: bench
+    ports:
+      - "127.0.0.1:55433:5432"
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bench -d bench"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+
+  express:
+    build: ./app/express
+    pull_policy: never
+    ports:
+      - "127.0.0.1:4101:4001"
+    environment:
+      DATABASE_URL: postgres://bench:bench@postgres:5432/bench
+      BENCH_TABLE: items_express
+      PORT: "4001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: ${BENCH_APP_CPUS:-2.0}
+          memory: ${BENCH_APP_MEM:-768M}
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+
+  fiber:
+    build: ./app/fiber
+    pull_policy: never
+    ports:
+      - "127.0.0.1:4102:8080"
+    environment:
+      DATABASE_URL: postgres://bench:bench@postgres:5432/bench
+      BENCH_TABLE: items_fiber
+      # Tuned: Go scheduler pinned to the app's 2 CPUs.
+      GOMAXPROCS: "2"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: ${BENCH_APP_CPUS:-2.0}
+          memory: ${BENCH_APP_MEM:-768M}
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+
+  altair:
+    build:
+      context: ../../..
+      dockerfile: examples/benchmark_k6/app/altair/Dockerfile
+    pull_policy: never
+    ports:
+      - "127.0.0.1:4103:4000"
+    environment:
+      DATABASE_URL: postgres://bench:bench@postgres:5432/bench
+      # Tuned multi-threading: the app resizes Crystal's default execution
+      # context from this value (instead of staying single-threaded).
+      CRYSTAL_WORKERS: "2"
+      BENCH_POOL: "30"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: ${BENCH_APP_CPUS:-2.0}
+          memory: ${BENCH_APP_MEM:-768M}
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"

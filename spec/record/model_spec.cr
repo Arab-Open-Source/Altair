@@ -187,6 +187,28 @@ describe Altair::Record::Model do
       post.update(title: "This title is way too long").should be_false
       Post.find!(post.id.not_nil!).title.should eq("Valid")
     end
+
+    it "writes only the columns that actually changed" do
+      post = Post.create(title: "Before", body: "b", views: 1, published: true)
+      sql = ""
+      Altair::Record.on_query { |statement, _duration| sql = statement }
+      post.update(title: "After")
+      set_clause = sql[/SET ([^W]*)/, 1]
+      set_clause.should contain "title"
+      set_clause.should_not contain "body"
+      set_clause.should_not contain "views"
+      set_clause.should_not contain "published"
+    end
+
+    it "saves a fresh row without emitting an UPDATE" do
+      post = Post.create(title: "Fresh", views: 3)
+      reloaded = Post.find!(post.id.not_nil!)
+      updates = [] of String
+      Altair::Record.on_query { |statement, _duration| updates << statement if statement.starts_with?("UPDATE") }
+      reloaded.save
+      updates.should be_empty
+      reloaded.views.should eq(3)
+    end
   end
 
   describe "#delete" do

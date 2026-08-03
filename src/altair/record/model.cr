@@ -38,7 +38,7 @@ module Altair
     # ```
     class Model
       # The union of every value an attribute can hold.
-      alias Value = Int32 | Int64 | String | Float64 | Bool | Time?
+      alias Value = Int32 | Int64 | String | Float64 | Bool | Time? | JSON::Any? | BigDecimal?
 
       # The Crystal type name for each logical column type.
       CRYSTAL_TYPE = {
@@ -47,8 +47,10 @@ module Altair
         :integer  => "Int32",
         :bigint   => "Int64",
         :float    => "Float64",
+        :decimal  => "BigDecimal",
         :boolean  => "Bool",
         :datetime => "Time",
+        :json     => "JSON::Any",
       }
 
       # The default value expression for each logical column type.
@@ -58,8 +60,10 @@ module Altair
         :integer  => "0",
         :bigint   => "0_i64",
         :float    => "0.0",
+        :decimal  => "BigDecimal.new(\"0\")",
         :boolean  => "false",
         :datetime => "Time.utc(1970, 1, 1)",
+        :json     => "JSON::Any.new(\"null\")",
       }
 
       # Sentinel marking an argument the caller did not pass.
@@ -125,18 +129,29 @@ module Altair
         # The `scope` option of a `:uniqueness` rule.
         getter scope : Symbol?
 
+        # The allowed values (`Array` or `Range`) of an `:inclusion` /
+        # `:exclusion` rule.
+        getter possibilities : (Array(String) | Range(Int32, Int32))?
+
+        # The pattern a `:format` rule must match.
+        getter format : Regex?
+
         # A custom message replacing the default one.
         getter message : String?
 
         def initialize(@kind : Symbol, @attribute : Symbol? = nil, @method : Symbol? = nil,
                        @minimum : Int32? = nil, @maximum : Int32? = nil,
                        @greater_than : Float64? = nil, @integer : Bool? = nil,
-                       @scope : Symbol? = nil, @message : String? = nil)
+                       @scope : Symbol? = nil, @message : String? = nil,
+                       @possibilities : (Array(String) | Range(Int32, Int32))? = nil,
+                       @format : Regex? = nil)
         end
       end
 
-      # The primary key; `nil` until the record is saved.
-      @id : Int32? = nil
+      # The set of attributes changed since the last load or save. Consumed
+      # by `update_row` so a save only writes the columns that actually
+      # changed.
+      @dirty : Set(Symbol) = Set(Symbol).new
 
       # The errors of this record, populated by `valid?`.
       getter errors : Errors = Errors.new
@@ -181,6 +196,18 @@ module Altair
 
         {% columns = Altair::Record::Schema::META[name] %}
 
+        {% pk_name = "id" %}
+        {% pk_type = :integer %}
+        {% for col_name, col in columns %}
+          {% if col[:primary] %}
+            {% pk_name = col_name.id %}
+            {% pk_type = col[:type] %}
+          {% end %}
+        {% end %}
+
+        # The primary key; `nil` until the record is saved.
+        @id : {{ CRYSTAL_TYPE[pk_type].id }}? = nil
+
         def self.table_name : String
           "{{ name.id }}"
         end
@@ -210,6 +237,9 @@ module Altair
           end
 
           def {{ col_name.id }}=(value : {{ CRYSTAL_TYPE[type].id }}{% if nullable %}?{% end %}) : Nil
+            {% unless primary %}
+              @dirty << :{{ col_name.id }}
+            {% end %}
             @{{ col_name.id }} = value
           end
         {% end %}
@@ -254,7 +284,7 @@ module Altair
           {% for col_name, col in columns %}
             {% unless col[:primary] %}
               if !{{ col_name.id }}.is_a?(Unset)
-                @{{ col_name.id }} = {{ col_name.id }}
+                self.{{ col_name.id }} = {{ col_name.id }}
               end
             {% end %}
           {% end %}
@@ -266,9 +296,18 @@ module Altair
           {% for col_name, col in columns %}
             {% type = col[:type] %}
             {% nullable = col[:primary] || col[:null] %}
-          {% read_type = CRYSTAL_TYPE[type].id %}
-          record.{{ col_name.id }} = rs.read({{ read_type.id }}{% if nullable %}?{% end %})
+            {% read_type = CRYSTAL_TYPE[type].id %}
+            {% if type == :json %}
+              value = connection.adapter.read_json(rs)
+              record.{{ col_name.id }} = {% if nullable %}value{% else %}value.not_nil!{% end %}
+            {% elsif type == :decimal %}
+              value = connection.adapter.read_decimal(rs)
+              record.{{ col_name.id }} = {% if nullable %}value{% else %}value.not_nil!{% end %}
+            {% else %}
+              record.{{ col_name.id }} = rs.read({{ read_type.id }}{% if nullable %}?{% end %})
+            {% end %}
           {% end %}
+          record.clear_dirty
           record
         end
 
@@ -343,34 +382,54 @@ module Altair
           {% args = [] of String %}
           {% for col_name, col in columns %}
             {% unless col[:primary] %}
-              {% args << "@#{col_name.id}" %}
+              {% args << "connection.adapter.encode_column(@#{col_name.id}, :#{col[:type].id})" %}
             {% end %}
           {% end %}
           if conn.adapter.supports_returning?(:insert)
             conn.query_one(
               "#{sql} RETURNING #{conn.adapter.quote_identifier("id")}",
               {{ args.join(", ").id }}
-            ) { |rs| @id = rs.read(Int32) }
+            ) { |rs| @id = rs.read({{ CRYSTAL_TYPE[pk_type].id }}) }
           else
             result = conn.exec(
               sql,
               {{ args.join(", ").id }}
             )
-            @id = conn.last_insert_id(result).to_i32
+            @id = {% if pk_type == :bigint %}conn.last_insert_id(result){% else %}conn.last_insert_id(result).to_i32{% end %}
           end
+        end
+
+        protected def clear_dirty : Nil
+          @dirty.clear
         end
 
         private def update_row : Nil
           conn = connection
-          columns = self.class.column_names.reject { |column| column == "id" }
+          columns = @dirty.to_a
+          return if columns.empty?
           set = columns.map_with_index do |column, index|
-            "#{conn.adapter.quote_identifier(column)} = #{conn.adapter.placeholder(index)}"
+            "#{conn.adapter.quote_identifier(column.to_s)} = #{conn.adapter.placeholder(index)}"
           end
+          args = columns.map { |column| bind_attribute(column) } + [@id]
           conn.exec(
             "UPDATE #{conn.adapter.quote_identifier(self.class.table_name)} " \
             "SET #{set.join(", ")} WHERE #{conn.adapter.quote_identifier("id")} = #{conn.adapter.placeholder(columns.size)}",
-            {% for col_name, col in columns %}{% unless col[:primary] %}@{{ col_name.id }}, {% end %}{% end %}@id
+            args: args
           )
+        end
+
+        # The bind-ready form of a dirty attribute, encoded by the adapter
+        # (JSON columns are text on SQLite, native `JSON::Any` on
+        # PostgreSQL).
+        private def bind_attribute(attribute : Symbol) : Value
+          case attribute
+          {% for col_name, col in columns %}
+            {% unless col[:primary] %}
+            when :{{ col_name.id }}
+              connection.adapter.encode_column(@{{ col_name.id }}, :{{ col[:type].id }})
+            {% end %}
+          {% end %}
+          end
         end
 
         private def apply_create_timestamps : Nil
@@ -405,7 +464,7 @@ module Altair
       end
 
       # Finds the record with the given id, or `nil`.
-      def self.find(id : Int32) : self?
+      def self.find(id : Int32 | Int64) : self?
         connection.query_one(
           select_sql + " WHERE #{connection.adapter.quote_identifier("id")} = #{connection.adapter.placeholder(0)} LIMIT 1", id
         ) { |rs| from_row(rs) }
@@ -415,7 +474,7 @@ module Altair
 
       # Finds the record with the given id, raising `RecordNotFound` when
       # there is none.
-      def self.find!(id : Int32) : self
+      def self.find!(id : Int32 | Int64) : self
         find(id) || raise RecordNotFound.new("Couldn't find #{table_name} with id=#{id}")
       end
 
@@ -423,6 +482,11 @@ module Altair
       # batched eager loading of associations.
       def self.all : Relation(self)
         Relation(self).new
+      end
+
+      # The primary-key column name (`"id"`).
+      def self.primary_key_name : String
+        "id"
       end
 
       # The number of records.
@@ -442,7 +506,7 @@ module Altair
       end
 
       # Whether a record with the given id exists.
-      def self.exists?(id : Int32) : Bool
+      def self.exists?(id : Int32 | Int64) : Bool
         connection.query_one(
           "SELECT 1 FROM #{connection.adapter.quote_identifier(table_name)} " \
           "WHERE #{connection.adapter.quote_identifier("id")} = #{connection.adapter.placeholder(0)} LIMIT 1",
@@ -468,23 +532,32 @@ module Altair
 
       # Persists the record: inserts when the id is `nil`, updates
       # otherwise. Runs validations and the save callbacks first, and
-      # returns `false` when validations fail.
+      # returns `false` when validations fail. The insert or update and its
+      # callbacks run inside a transaction, so a raise rolls everything
+      # back.
       def save : Bool
         return false unless valid?
-        _run_callbacks(:before_save)
-        if @id.nil?
-          _run_callbacks(:before_create)
-          apply_create_timestamps
-          insert
-          _run_callbacks(:after_create)
-        else
-          _run_callbacks(:before_update)
-          apply_update_timestamps
-          update_row
-          _run_callbacks(:after_update)
+        persisted = false
+        self.class.transaction do
+          _run_callbacks(:before_save)
+          if @id.nil?
+            _run_callbacks(:before_create)
+            apply_create_timestamps
+            insert
+            _run_callbacks(:after_create)
+          else
+            _run_callbacks(:before_update)
+            unless @dirty.empty?
+              apply_update_timestamps
+              update_row
+            end
+            _run_callbacks(:after_update)
+          end
+          _run_callbacks(:after_save)
+          persisted = true
         end
-        _run_callbacks(:after_save)
-        true
+        clear_dirty if persisted
+        persisted
       end
 
       # Like `save`, raising `RecordInvalid` when validations fail.
@@ -493,18 +566,22 @@ module Altair
         self
       end
 
-      # Deletes the row, running the destroy callbacks. Returns whether a
-      # row was deleted.
+      # Deletes the row, running the destroy callbacks inside a transaction.
+      # Returns whether a row was deleted.
       def delete : Bool
         return false if @id.nil?
-        _run_callbacks(:before_destroy)
-        result = connection.exec(
-          "DELETE FROM #{connection.adapter.quote_identifier(self.class.table_name)} " \
-          "WHERE #{connection.adapter.quote_identifier("id")} = #{connection.adapter.placeholder(0)}",
-          @id
-        )
-        _run_callbacks(:after_destroy)
-        result.rows_affected > 0
+        deleted = false
+        self.class.transaction do
+          _run_callbacks(:before_destroy)
+          result = connection.exec(
+            "DELETE FROM #{connection.adapter.quote_identifier(self.class.table_name)} " \
+            "WHERE #{connection.adapter.quote_identifier("id")} = #{connection.adapter.placeholder(0)}",
+            @id
+          )
+          deleted = result.rows_affected > 0
+          _run_callbacks(:after_destroy)
+        end
+        deleted
       end
 
       # The connection this record queries through.
@@ -527,6 +604,7 @@ module Altair
         @@callbacks = {} of Symbol => Array(Proc({{@type.id}}, Nil))
         @@validations = [] of Rule
         @@custom_validations = [] of Proc({{@type.id}}, Nil)
+        @@confirmations = {} of String => Proc({{@type.id}}, Value?)
         @@preloaders = {} of Symbol => Proc(Array({{@type.id}}), Nil)
 
         # The eager loader for an association, or a clear error.
@@ -552,6 +630,10 @@ module Altair
             when :length       then check_length(rule)
             when :numericality then check_numericality(rule)
             when :uniqueness   then check_uniqueness(rule)
+            when :inclusion    then check_inclusion(rule)
+            when :exclusion    then check_exclusion(rule)
+            when :format       then check_format(rule)
+            when :confirmation then check_confirmation(rule)
             end
           end
         end
@@ -626,6 +708,31 @@ module Altair
       macro validates_uniqueness_of(*attributes, scope = nil, message = nil)
         {% for attribute in attributes %}
           @@validations << Rule.new(:uniqueness, attribute: {{ attribute }}, scope: {{ scope }}, message: {{ message }})
+        {% end %}
+      end
+
+      macro validates_inclusion_of(*attributes, message = nil, **options)
+        {% for attribute in attributes %}
+          @@validations << Rule.new(:inclusion, attribute: {{ attribute }}, possibilities: {{ options[:in] }}, message: {{ message }})
+        {% end %}
+      end
+
+      macro validates_exclusion_of(*attributes, message = nil, **options)
+        {% for attribute in attributes %}
+          @@validations << Rule.new(:exclusion, attribute: {{ attribute }}, possibilities: {{ options[:in] }}, message: {{ message }})
+        {% end %}
+      end
+
+      macro validates_format_of(*attributes, message = nil, **options)
+        {% for attribute in attributes %}
+          @@validations << Rule.new(:format, attribute: {{ attribute }}, format: {{ options[:with] }}, message: {{ message }})
+        {% end %}
+      end
+
+      macro validates_confirmation_of(*attributes, message = nil)
+        {% for attribute in attributes %}
+          @@validations << Rule.new(:confirmation, attribute: {{ attribute }}, message: {{ message }})
+          @@confirmations[{{ attribute.id.stringify }}] = ->(record : {{ @type.id }}) : Value? { record.{{ attribute.id }}_confirmation }
         {% end %}
       end
 
@@ -705,6 +812,50 @@ module Altair
           duplicate = rs.move_next
         end
         errors.add(attribute, rule.message || "has already been taken") if duplicate
+      end
+
+      private def check_inclusion(rule : Rule) : Nil
+        attribute = rule.attribute.not_nil!
+        value = attribute_value(attribute)
+        return if value.nil?
+        possibilities = rule.possibilities.not_nil!
+        included = case possibilities
+                   when Array(String)       then possibilities.includes?(value.to_s)
+                   when Range(Int32, Int32) then value.is_a?(Int32) && possibilities.includes?(value)
+                   else                          false
+                   end
+        errors.add(attribute, rule.message || "is not included in the list") unless included
+      end
+
+      private def check_exclusion(rule : Rule) : Nil
+        attribute = rule.attribute.not_nil!
+        value = attribute_value(attribute)
+        return if value.nil?
+        possibilities = rule.possibilities.not_nil!
+        excluded = case possibilities
+                   when Array(String)       then possibilities.includes?(value.to_s)
+                   when Range(Int32, Int32) then value.is_a?(Int32) && possibilities.includes?(value)
+                   else                          false
+                   end
+        errors.add(attribute, rule.message || "is reserved") if excluded
+      end
+
+      private def check_format(rule : Rule) : Nil
+        attribute = rule.attribute.not_nil!
+        value = attribute_value(attribute)
+        return unless value.is_a?(String)
+        pattern = rule.format.not_nil!
+        errors.add(attribute, rule.message || "is invalid") unless pattern.matches?(value)
+      end
+
+      private def check_confirmation(rule : Rule) : Nil
+        attribute = rule.attribute.not_nil!
+        value = attribute_value(attribute)
+        return if value.nil?
+        if getter = @@confirmations[attribute.to_s]?
+          confirmed = getter.call(self)
+          errors.add(attribute, rule.message || "isn't the same as the confirmation") unless confirmed == value
+        end
       end
     end
   end

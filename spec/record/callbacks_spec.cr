@@ -47,4 +47,42 @@ describe Altair::Record::Model, "callbacks" do
     comment.update(body: "world")
     comment.body.should eq("world!")
   end
+
+  it "rolls back the insert when an after_create callback raises" do
+    Comment.raise_after_create = true
+    begin
+      expect_raises(Exception, "boom on create") do
+        Comment.create(post_id: 1, body: "hello")
+      end
+      Comment.count.should eq(0)
+    ensure
+      Comment.raise_after_create = false
+    end
+  end
+
+  it "rolls back the update when an after_update callback raises" do
+    comment = Comment.create(post_id: 1, body: "hello")
+    Comment.raise_after_update = true
+    begin
+      expect_raises(Exception, "boom on update") do
+        comment.update(body: "world")
+      end
+      Comment.find!(comment.id.not_nil!).body.should eq("hello!")
+    ensure
+      Comment.raise_after_update = false
+    end
+  end
+
+  it "rolls back the delete when an after_destroy callback raises" do
+    comment = Comment.create(post_id: 1, body: "hello")
+    Comment.raise_after_destroy = true
+    begin
+      expect_raises(Exception, "boom on destroy") do
+        comment.delete
+      end
+      Comment.count.should eq(1)
+    ensure
+      Comment.raise_after_destroy = false
+    end
+  end
 end

@@ -12,3 +12,5 @@
 /shard.lock
 examples/*/lib/
 examples/*/shard.lock
+node_modules/
+examples/benchmark_k6/app/altair/lib/

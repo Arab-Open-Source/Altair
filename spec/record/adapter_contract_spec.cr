@@ -18,6 +18,13 @@ private def queries(&block : -> Nil) : Int32
   count
 end
 
+# Whether the backend allows several concurrent writers across connections.
+# SQLite is single-writer, so true concurrency is only possible on a server
+# database (PostgreSQL).
+private def parallel_writers? : Bool
+  !Altair::Record.connection.adapter.class.name.includes?("SQLite")
+end
+
 # Runs the shared behaviour battery as one describe with the given setup
 # and teardown. The examples are the framework's contract with any
 # adapter: CRUD, finders, validations (including uniqueness), timestamps,
@@ -57,6 +64,40 @@ private def adapter_contract(name : String, setup : Proc(Nil), teardown : Proc(N
       post = Post.create(title: "Hello", views: 0)
       post.delete.should be_true
       Post.count.should eq(0)
+    end
+
+    it "round-trips a JSON column through the adapter coercion" do
+      payload = JSON.parse(%({"a": [1, 2, 3], "nested": {"ok": true}}))
+      saved = Payload.create(name: "p", data: payload)
+      reloaded = Payload.find(saved.id.not_nil!).not_nil!
+      reloaded.data.should eq(payload)
+      reloaded.update(data: JSON.parse(%({"a": [9]}))).should be_true
+      Payload.find(saved.id.not_nil!).not_nil!.data.should eq(JSON.parse(%({"a": [9]})))
+    end
+
+    it "round-trips a bigint primary key" do
+      event = Event.create(name: "big")
+      event.id.should be_a(Int64)
+      Event.find!(event.id.not_nil!).name.should eq("big")
+      event.update(name: "bigger").should be_true
+      Event.find(event.id.not_nil!).not_nil!.name.should eq("bigger")
+    end
+
+    it "round-trips a decimal column with full precision" do
+      amount = BigDecimal.new("1234567.89")
+      account = Account.create(name: "holder", balance: amount)
+      reloaded = Account.find(account.id.not_nil!).not_nil!
+      reloaded.balance.should eq(amount)
+      account.update(balance: BigDecimal.new("20.123")).should be_true
+      Account.find(account.id.not_nil!).not_nil!.balance.should eq(BigDecimal.new("20.123"))
+    end
+
+    it "scopes the relation with bound clauses" do
+      Post.create(title: "one", views: 1, published: true)
+      Post.create(title: "two", views: 20, published: false)
+      Post.create(title: "three", views: 3, published: true)
+      Post.all.where(published: true).where(:views, :>=, 2).order(:views, :desc).limit(1)
+        .map(&.title.not_nil!).should eq(["three"])
     end
 
     it "plucks a column's values" do
@@ -169,6 +210,65 @@ private def adapter_contract(name : String, setup : Proc(Nil), teardown : Proc(N
       widget.rows_affected.should eq(1)
       connection.exec("DROP TABLE IF EXISTS #{connection.adapter.quote_identifier("widgets")}")
     end
+
+    it "isolates concurrent transactions across fibers on a server database" do
+      unless parallel_writers?
+        pending! "SQLite serializes writers — run this on a server database"
+      end
+      connection = Altair::Record.connection
+      n = 4
+      arrived = Channel(Nil).new
+      go = Channel(Nil).new
+      completed = Channel(Int32).new
+      n.times do |i|
+        spawn do
+          Post.transaction do
+            Post.create(title: "fiber-#{i}", views: 0)
+            arrived.send(nil)
+            go.receive
+          end
+          completed.send(1)
+        end
+      end
+      n.times { arrived.receive }
+      n.times { go.send(nil) }
+      total = 0
+      n.times { total += completed.receive }
+      total.should eq(n)
+      Post.count.should eq(n)
+    end
+
+    it "keeps a rolling-back fiber from rolling back another fiber's work" do
+      unless parallel_writers?
+        pending! "SQLite serializes writers — run this on a server database"
+      end
+      connection = Altair::Record.connection
+      arrived = Channel(Nil).new
+      go = Channel(Nil).new
+      done = Channel(Int32).new
+      spawn do
+        begin
+          Post.transaction do
+            Post.create(title: "doomed-A", views: 0)
+            arrived.send(nil)
+            go.receive
+            raise "rollback A"
+          end
+        rescue
+        end
+        done.send(1)
+      end
+      arrived.receive
+      spawn do
+        Post.transaction do
+          Post.create(title: "kept-B", views: 0)
+        end
+        done.send(1)
+      end
+      go.send(nil)
+      2.times { done.receive }
+      Post.count.should eq(1)
+    end
   end
 end
 
@@ -184,7 +284,7 @@ module PgContract
   end
 
   def self.setup_database(connection : Altair::Record::Connection) : Nil
-    %w[labels tags children humans articles categories profiles users comments posts].each do |table|
+    %w[accounts labels payloads events tags children humans articles categories profiles users comments posts].each do |table|
       connection.exec("DROP TABLE IF EXISTS #{connection.adapter.quote_identifier(table)}")
     end
     connection.exec(
@@ -230,6 +330,19 @@ module PgContract
     connection.exec(
       "CREATE TABLE labels (" \
       "\"id\" INTEGER GENERATED ALWAYS AS IDENTITY, \"name\" TEXT, \"kind\" TEXT)"
+    )
+    connection.exec(
+      "CREATE TABLE payloads (" \
+      "\"id\" INTEGER GENERATED ALWAYS AS IDENTITY, \"name\" TEXT, \"data\" JSONB)"
+    )
+    connection.exec(
+      "CREATE TABLE events (" \
+      "\"id\" BIGINT GENERATED ALWAYS AS IDENTITY, \"name\" TEXT)"
+    )
+    connection.exec(
+      "CREATE TABLE accounts (" \
+      "\"id\" INTEGER GENERATED ALWAYS AS IDENTITY, \"name\" TEXT, " \
+      "\"balance\" NUMERIC(20,3), \"min_balance\" NUMERIC(20,3) NOT NULL DEFAULT 0)"
     )
   end
 end

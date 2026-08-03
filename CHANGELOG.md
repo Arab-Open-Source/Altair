@@ -9,7 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Multi-database Record support**: PostgreSQL is now available through the
+- **Configurable database pool warm-up**: `db_initial_pool_size` and
+  `db_max_idle_pool_size` now control how many connections the pool opens
+  up front and how many idle connections it keeps warm. The previous fixed
+  defaults (initial 1, max idle 1) caused reconnect churn under concurrent
+  load, which showed up as a long latency tail in the k6 benchmark.
+
+- **List, range, format and confirmation validations**:
+  `validates_inclusion_of` / `validates_exclusion_of` (against an array or
+  integer range), `validates_format_of` (against a regex with `with:`), and
+  `validates_confirmation_of` (pairing a column with a
+  `#{attribute}_confirmation` accessor).
+
+- **Fiber-safe connection state**: transaction scoping and savepoint counters
+  are keyed by `Fiber.current` instead of shared singleton state, so
+  concurrent requests no longer leak a fiber's connection or collide
+  savepoint names. Proven by new concurrency specs that run for real on
+  PostgreSQL, with SQLite correctly pending (it is single-writer).
+
+- **Dirty tracking with partial updates**: `save` on a persisted record now
+  writes only the columns that changed since load or the last save, so a
+  no-op save emits no `UPDATE`. Timestamps and timestamp updates still flow
+  through the setter path.
+
+- **Transactional saves and deletes**: `save` and `delete` run inside a
+  transaction, so a callback (or a database error) raises and rolls back
+  the entire persist. Previously a raise after insert/update left the row
+  written.
+
+- **JSON columns**: `:json` is now a first-class model type mapped to
+  `JSON::Any`, flowing through an adapter coercion layer — bound as text on
+  PostgreSQL (cast into `JSONB`) and SQLite, parsed back on read.
+
+- **BigInt primary keys**: a model whose id column is `:bigint` now types
+  its primary key as `Int64` end to end (create, `find`, `exists?`, update,
+  delete). `create_table`/`schema.table` accept `id: :bigint` and the
+  adapters render the matching identity column (`BIGINT PRIMARY KEY
+  AUTOINCREMENT` / `BIGINT GENERATED ALWAYS AS IDENTITY`).
+
+- **Decimal columns**: `:decimal` maps to `BigDecimal` and flows through the
+  same coercion layer as JSON — bound as text, cast into the backend's
+  decimal type (`NUMERIC` on PostgreSQL, `TEXT` on SQLite) and parsed back
+  with full precision. `t.decimal` is part of the migration DSL.
   `will/crystal-pg` adapter with `$n` placeholders, identity primary keys,
   `TEXT` string/text columns and `INSERT ... RETURNING`. SQLite remains the
   default; the adapter contract suite runs against SQLite always and against

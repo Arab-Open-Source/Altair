@@ -45,7 +45,7 @@ What is already in place:
 | Middleware | `use`-based pipeline, request logging, static files with traversal protection |
 | Errors | `rescue_from`, smart debug pages (404 suggestions, 405 methods, 500 diagnostics), plain in production |
 | Hardening | 2 MB request-body limit, `413` before the body is read |
-| ORM (`Altair::Record`) | adapter interface + SQLite3 and PostgreSQL adapters, connection pooling, migrations DSL + runner, `db/schema.cr` generation, CRUD + finders, validations (`valid?` + errors), timestamps + callbacks, associations (`belongs_to` / `has_many` / `has_one`) with batched eager loading, `dependent:` handling, `validates_uniqueness_of`, multi-database support via `ALTAIR_DB_URL` |
+| ORM (`Altair::Record`) | adapter interface + SQLite3 and PostgreSQL adapters, connection pooling, migrations DSL + runner, `db/schema.cr` generation, CRUD + finders, validations (`valid?` + errors), timestamps + callbacks, associations (`belongs_to` / `has_many` / `has_one`) with batched eager loading, `dependent:` handling, `validates_uniqueness_of` and the list/range/format/confirmation rules, multi-database support via `ALTAIR_DB_URL` |
 
 What is still missing (in rough order): the CLI, generators and scaffolding,
 sessions/flash/CSRF, multipart parsing, `.env` / `database.yml` configuration,

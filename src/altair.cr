@@ -12,6 +12,8 @@ end
 require "http/server"
 require "uri"
 require "db"
+require "json"
+require "big"
 require "sqlite3"
 
 require "./altair/core/version"

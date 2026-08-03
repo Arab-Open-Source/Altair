@@ -73,8 +73,8 @@ module Altair
         # The table being built.
         getter table : Table
 
-        def initialize(@adapter : Adapter, @table : Table)
-          @table.columns << Column.new("id", :integer, null: false, primary: true)
+        def initialize(@adapter : Adapter, @table : Table, id_type : Symbol = :integer)
+          @table.columns << Column.new("id", id_type, null: false, primary: true)
         end
 
         # Declares a column of the given logical type.
@@ -82,7 +82,7 @@ module Altair
           @table.columns << Column.new(name.to_s, type, null, primary)
         end
 
-        {% for type in [:string, :text, :integer, :bigint, :float, :boolean, :datetime, :json] %}
+        {% for type in [:string, :text, :integer, :bigint, :float, :decimal, :boolean, :datetime, :json] %}
           # Declares a `{{ type.id }}` column: `t.{{ type.id }} :title`.
           def {{ type.id }}(name : Symbol, null : Bool = true) : Nil
             column(name, {{ type.id.symbolize }}, null)
@@ -130,16 +130,17 @@ module Altair
       end
 
       # Registers a table definition without executing SQL — the shape of
-      # a generated `db/schema.cr`.
-      def table(name : Symbol, & : TableBuilder ->) : Nil
-        builder = TableBuilder.new(@adapter, Table.new(name.to_s))
+      # a generated `db/schema.cr`. `id` selects the primary-key type.
+      def table(name : Symbol, id : Symbol = :integer, & : TableBuilder ->) : Nil
+        builder = TableBuilder.new(@adapter, Table.new(name.to_s), id)
         yield builder
         @tables << builder.table
       end
 
-      # Creates a table: records the definition and executes the DDL.
-      def create_table(name : Symbol, & : TableBuilder ->) : Nil
-        table(name) { |t| yield t }
+      # Creates a table: records the definition and executes the DDL. `id`
+      # selects the primary-key type, defaulting to `:integer`.
+      def create_table(name : Symbol, id : Symbol = :integer, & : TableBuilder ->) : Nil
+        table(name, id) { |t| yield t }
         @connection.try(&.exec(builder_sql(@tables.last)))
       end
 
@@ -203,7 +204,8 @@ module Altair
       end
 
       private def builder_sql(table : Table) : String
-        parts = [@adapter.autoincrement_pk_sql]
+        pk = table.columns.find(&.primary?)
+        parts = [@adapter.autoincrement_pk_sql(pk.try(&.type) || :integer)]
         table.columns.each do |column|
           next if column.primary? && column.name == "id"
           parts << "#{@adapter.quote_identifier(column.name)} #{@adapter.column_type_sql(column.type)}#{column.null? ? "" : " NOT NULL"}"

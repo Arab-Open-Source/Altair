@@ -1,0 +1,11 @@
+{
+  "name": "bench-express",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Express reference server for the Altair benchmark",
+  "main": "src/server.js",
+  "dependencies": {
+    "express": "^4.21.2",
+    "pg": "^8.16.0"
+  }
+}

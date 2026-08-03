@@ -47,8 +47,9 @@ module Altair
           clauses.join(" ")
         end
 
-        def autoincrement_pk_sql : String
-          "\"id\" INTEGER PRIMARY KEY AUTOINCREMENT"
+        def autoincrement_pk_sql(type : Symbol) : String
+          sql_type = type == :bigint ? "BIGINT" : "INTEGER"
+          "\"id\" #{sql_type} PRIMARY KEY AUTOINCREMENT"
         end
 
         def last_insert_id(result : DB::ExecResult) : Int64
@@ -68,8 +69,25 @@ module Altair
           when :boolean       then "BOOLEAN"
           when :datetime      then "DATETIME"
           when :json          then "JSON"
+          when :decimal       then "TEXT"
           else
             raise Altair::Error.new("Unknown column type: #{logical_type}")
+          end
+        end
+
+        # SQLite has no `JSON::Any` cursor, so JSON columns are stored as text
+        # and parsed on read.
+        def read_json(rs : DB::ResultSet) : JSON::Any?
+          if (text = rs.read(String?))
+            JSON.parse(text)
+          end
+        end
+
+        # SQLite stores decimals as text; parse them back from the stored
+        # form (`BigDecimal.new` also accepts a string).
+        def read_decimal(rs : DB::ResultSet) : BigDecimal?
+          if (text = rs.read(String?))
+            BigDecimal.new(text)
           end
         end
 

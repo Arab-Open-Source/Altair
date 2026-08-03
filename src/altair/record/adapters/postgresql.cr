@@ -50,8 +50,9 @@ module Altair
           clauses.join(" ")
         end
 
-        def autoincrement_pk_sql : String
-          "\"id\" INTEGER GENERATED ALWAYS AS IDENTITY"
+        def autoincrement_pk_sql(type : Symbol) : String
+          sql_type = type == :bigint ? "BIGINT" : "INTEGER"
+          "\"id\" #{sql_type} GENERATED ALWAYS AS IDENTITY"
         end
 
         def last_insert_id(result : DB::ExecResult) : Int64
@@ -73,8 +74,17 @@ module Altair
           when :boolean       then "BOOLEAN"
           when :datetime      then "TIMESTAMP"
           when :json          then "JSONB"
+          when :decimal       then "NUMERIC"
           else
             raise Altair::Error.new("Unknown column type: #{logical_type}")
+          end
+        end
+
+        # PostgreSQL reports `NUMERIC` values as `PG::Numeric`, whose text
+        # form round-trips into a `BigDecimal`.
+        def read_decimal(rs : DB::ResultSet) : BigDecimal?
+          if (numeric = rs.read(PG::Numeric?))
+            BigDecimal.new(numeric.to_s)
           end
         end
 

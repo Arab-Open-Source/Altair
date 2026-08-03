@@ -51,6 +51,17 @@ module Altair
     # check one out at a time; extra checks wait for a free connection.
     property db_max_pool_size : Int32 = 5
 
+    # The initial number of connections opened when the pool is created.
+    # Starting with more than one avoids connection-creation bursts under
+    # the first wave of concurrent requests.
+    property db_initial_pool_size : Int32 = 1
+
+    # The maximum number of idle connections the pool keeps open. Idle
+    # connections beyond this are closed when released, so a small value
+    # causes frequent reconnect churn under sustained load. Keep it close
+    # to `db_max_pool_size` when traffic is concurrent.
+    property db_max_idle_pool_size : Int32 = 1
+
     # How long a connection checkout waits when the pool is exhausted
     # before raising, in seconds.
     property db_checkout_timeout : Float64 = 5.0

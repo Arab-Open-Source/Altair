@@ -1,8 +1,9 @@
 # Altair — the batteries-included web framework for Crystal.
 #
-# Specs for the validation DSL of `Altair::Record::Model`: presence, length
-# and numericality rules, custom messages, custom validation methods, and
-# the save / save! behaviour around them.
+# Specs for the validation DSL of `Altair::Record::Model`: presence, length,
+# numericality, uniqueness, inclusion, exclusion, format and confirmation
+# rules, custom messages, custom validation methods, and the save / save!
+# behaviour around them.
 require "./model_fixtures_spec"
 
 describe Altair::Record::Model, "validations" do
@@ -147,6 +148,71 @@ describe Altair::Record::Model, "validations" do
     it "accepts the same value in a different scope" do
       Label.create(name: "a", kind: "x")
       Label.new(name: "a", kind: "y").valid?.should be_true
+    end
+  end
+
+  describe "#validates_inclusion_of" do
+    it "accepts a value from the list" do
+      Member.new(role: "admin").valid?.should be_true
+    end
+
+    it "rejects a value outside the list" do
+      member = Member.new(role: "root")
+      member.valid?.should be_false
+      member.errors[:role].should eq(["is not included in the list"])
+    end
+
+    it "accepts a value inside an integer range" do
+      Member.new(age: 30).valid?.should be_true
+    end
+
+    it "rejects a value outside an integer range" do
+      member = Member.new(age: 12)
+      member.valid?.should be_false
+      member.errors[:age].should eq(["is not included in the list"])
+    end
+  end
+
+  describe "#validates_exclusion_of" do
+    it "accepts a value outside the list" do
+      Member.new(name: "alice").valid?.should be_true
+    end
+
+    it "rejects a value from the list" do
+      member = Member.new(name: "root")
+      member.valid?.should be_false
+      member.errors[:name].should eq(["is reserved"])
+    end
+  end
+
+  describe "#validates_format_of" do
+    it "accepts a value matching the pattern" do
+      Member.new(email: "alice@example.com").valid?.should be_true
+    end
+
+    it "rejects a value that does not match" do
+      member = Member.new(email: "not-an-email")
+      member.valid?.should be_false
+      member.errors[:email].should eq(["is invalid"])
+    end
+  end
+
+  describe "#validates_confirmation_of" do
+    it "accepts a matching confirmation" do
+      member = Member.new(password: "secret")
+      member.password_confirmation = "secret"
+      member.valid?.should be_true
+    end
+
+    it "rejects a mismatched confirmation" do
+      member = Member.new(password: "secret")
+      member.password_confirmation = "nope"
+      member.valid?.should be_false
+      member.errors[:password].should eq(["isn't the same as the confirmation"])
+    end
+
+    it "skips the rule when the attribute is nil" do
+      Member.new.valid?.should be_true
     end
   end
 end
