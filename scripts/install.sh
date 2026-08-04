@@ -132,7 +132,7 @@ fi
 install -m 0755 "$dl/$asset" "$dest"
 echo "Installed Altair to $dest"
 echo "Digest SHA-256: $(sha256sum "$dest" | awk '{print $1}')"
-echo "Run `altair` from any directory."
+echo "Run 'altair' from any directory."
 if ! command -v altair >/dev/null 2>&1 && [ "$OS_TARGET" != "windows" ]; then
   case ":$PATH:" in
     *":$DIR:"*) : ;;

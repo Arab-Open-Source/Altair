@@ -82,7 +82,7 @@ try {
     Copy-Item $assetPath $dest -Force
     Write-Host "Installed Altair to $dest"
     Write-Host "Digest SHA-256: $computed"
-    Write-Host "Run `altair` from any directory."
+    Write-Host "Run 'altair' from any directory."
 } finally {
     Remove-Item -Recurse -Force $tmpdir -ErrorAction SilentlyContinue
 }
