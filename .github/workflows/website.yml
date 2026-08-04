@@ -33,11 +33,9 @@ jobs:
           npm run build
       - name: Stage site
         run: |
-          mkdir -p _site/docs _site/assets/css _site/assets/js
-          cp website/index.html website/favicon.png _site/
-          cp website/docs/*.html _site/docs/
-          cp website/assets/css/*.css _site/assets/css/
-          cp website/assets/js/*.js _site/assets/js/
+          mkdir -p _site
+          tar --exclude=node_modules -C website -cf - . | tar -C _site -xf -
+          rm -rf _site/node_modules
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
