@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, mkdirSync, writeFileSync } from "node:fs";
+import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { marked } from "marked";
 
@@ -16,9 +16,21 @@ const meta = {
 
 function render(page) {
   const source = readFileSync(join(root, "pages", `${page}.md`), "utf8");
-  const body = marked.parse(source);
+  const rootPrefix = page === "index" ? "" : "../";
+  const renderer = new marked.Renderer();
+  const link = renderer.link.bind(renderer);
+  renderer.link = (href, title, text) =>
+    link(String(href).startsWith("/") ? `${rootPrefix}${String(href).slice(1)}` : href, title, text);
+  const image = renderer.image.bind(renderer);
+  renderer.image = (href, title, text) =>
+    image(String(href).startsWith("/") ? `${rootPrefix}${String(href).slice(1)}` : href, title, text);
+  const body = marked.parse(source, { renderer })
+    .replaceAll('href="/', `href="${rootPrefix}`)
+    .replaceAll('src="/', `src="${rootPrefix}`);
   const m = meta[page];
   return layout
+    .replaceAll("{{home}}", rootPrefix ? rootPrefix : "index.html")
+    .replaceAll("{{root}}", rootPrefix)
     .replaceAll("{{title}}", m.title)
     .replaceAll("{{description}}", m.description)
     .replaceAll("{{content}}", body);
