@@ -23,6 +23,13 @@ class HelloWorld < Altair::Application
     root to: PagesController.index
     get "/hello/:name", to: PagesController.hello, named: :greeting
     get "/boom", to: PagesController.boom
+    get "/docs/*path", to: PagesController.docs, named: :docs
     resources :posts
+    resource :profile do
+      member do
+        get :history
+      end
+    end
+    redirect "/legacy", to: "/posts"
   end
 end

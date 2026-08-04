@@ -33,6 +33,7 @@ renaming an action fails the build:
 |--------|------|--------|-------------|
 | `GET` | `/` | `PagesController.index` | Welcome page linking to the posts index |
 | `GET` | `/hello/:name` | `PagesController.hello` | Personalised greeting from the URL parameter |
+| `GET` | `/docs/*path` | `PagesController.docs` | Built-in docs; the rest of the path arrives as one `path` parameter |
 | `GET` | `/posts` | `PostsController.index` | List all posts, each with edit and delete links |
 | `GET` | `/posts/new` | `PostsController.new` | New-post form posting to `/posts` |
 | `POST` | `/posts` | `PostsController.create` | Create a post, then redirect to `/posts` |
@@ -41,10 +42,34 @@ renaming an action fails the build:
 | `PUT` | `/posts/:id` | `PostsController.update` | Update a post, then redirect to it |
 | `PATCH` | `/posts/:id` | `PostsController.update` | Same as `PUT` |
 | `DELETE` | `/posts/:id` | `PostsController.destroy` | Delete a post, then redirect to `/posts` |
+| `GET` | `/profile` | `ProfilesController.show` | The single profile (singular resource, no id) |
+| `GET` | `/profile/new` | `ProfilesController.new` | New-profile form posting to `/profile` |
+| `POST` | `/profile` | `ProfilesController.create` | Create the profile, then redirect to it |
+| `GET` | `/profile/edit` | `ProfilesController.edit` | Edit form posting to `/profile` |
+| `PUT` | `/profile` | `ProfilesController.update` | Update the profile, then redirect to it |
+| `PATCH` | `/profile` | `ProfilesController.update` | Same as `PUT` |
+| `DELETE` | `/profile` | `ProfilesController.destroy` | Reset the profile, then redirect to it |
+| `GET` | `/profile/history` | `ProfilesController.history` | Id-less member route on the singular resource |
+| `ANY` | `/legacy` | — | 301 (Moved Permanently) to `/posts` |
 
 The `resources :posts` line alone expands to the seven RESTful routes above
 and generates the matching path helpers (`posts_path`, `new_post_path`,
-`post_path(5)`, `edit_post_path(5)`).
+`post_path(5)`, `edit_post_path(5)`). The other lines demo three more of
+the router's levers:
+
+- **Glob segments.** `get "/docs/*path"` captures everything after
+  `/docs/` into `params["path"]` — a multi-segment capture like
+  `/docs/guides/record` yields `"guides/record"`. The helper takes the
+  captured string too: `docs_path("guides/record")`.
+- **Singular resources.** `resource :profile` expands to the six actions
+  on `/profile` — no index, no `:id` — dispatching to the plural
+  `ProfilesController`, with no-argument helpers (`profile_path`,
+  `edit_profile_path`). An id-less `member { get :history }` adds
+  `history_profile_path`. Inside the block, nested `resources` hang off the
+  singular path without a parent parameter.
+- **Redirects.** `redirect "/legacy", to: "/posts"` answers every method
+  with 301 (Moved Permanently) and a `Location` header. Redirects never
+  show up in a 405 `Allow` header.
 
 ## Controllers
 
@@ -154,6 +179,24 @@ curl -X POST http://localhost:3000/posts/1 -d "title=Updated&_method=PUT"
 # Delete via the _method override (302 -> /posts)
 curl -X POST http://localhost:3000/posts/1 -d "_method=DELETE"
 
+# Docs page served by a glob route (200, multi-segment path captured)
+curl http://localhost:3000/docs/routing
+
+# Unknown docs page (404)
+curl http://localhost:3000/docs/nope
+
+# Single profile (200); no id is needed
+curl http://localhost:3000/profile
+
+# Update the profile via the _method override (302 -> /profile)
+curl -X POST http://localhost:3000/profile -d "name=Altair&bio=Updated&_method=PUT"
+
+# Member route on the singular resource (200)
+curl http://localhost:3000/profile/history
+
+# Legacy path redirects permanently (301 + Location: /posts)
+curl -i http://localhost:3000/legacy
+
 # Wrong method on an existing path (405 + "Allow: GET, PUT, PATCH, DELETE")
 curl -i -X POST http://localhost:3000/posts/1
 
@@ -182,8 +225,9 @@ hello_world/
     └── app/
         └── controllers/
             ├── application_controller.cr  # base class including HelloWorld::RouteHelpers
-            ├── pages_controller.cr        # static pages (index, hello)
-            └── posts_controller.cr        # in-memory RESTful resource
+            ├── pages_controller.cr        # static pages (index, hello) and the glob docs route
+            ├── posts_controller.cr       # in-memory RESTful resource
+            └── profiles_controller.cr    # in-memory singular resource with an id-less member route
 ```
 
 ## How it works

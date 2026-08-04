@@ -41,10 +41,25 @@ module Altair
 
       # Finds the first route matching the given method and path, returning
       # the match with its extracted parameters, or `nil` when nothing
-      # matches.
+      # matches. A path ending in a `.ext` suffix is first tried with the
+      # extension stripped, exposing it as `params["format"]` — so
+      # `/posts/5.json` exercises `GET /posts/:id` with `id` = `5` and
+      # `format` = `json`. The exact path is tried second, so a literal
+      # dotted route such as `/sitemap.xml` still matches unchanged.
       def find(method : String, path : String) : Match?
         parts = PathParts.new(path)
+        if suffix = format_suffix(parts)
+          if match = scan(method, suffix[:parts], skip_glob: true)
+            match.params["format"] = suffix[:format]
+            return match
+          end
+        end
+        scan(method, parts)
+      end
+
+      private def scan(method : String, parts : PathParts, skip_glob : Bool = false) : Match?
         @routes.each do |route|
+          next if skip_glob && route.glob?
           next unless method_matches?(route.method, method)
           if params = route.match(parts)
             return Match.new(route, params)
@@ -53,13 +68,29 @@ module Altair
         nil
       end
 
+      # Splits a trailing `.{ext}` off the last path part, returning the
+      # shortened parts and the extension value. Returns `nil` when the
+      # last part contains no dot or the extension is empty.
+      private def format_suffix(parts : PathParts) : NamedTuple(parts: PathParts, format: String)?
+        last = parts.parts.last?
+        return unless last
+        dot = last.rindex('.')
+        return unless dot
+        return if dot == last.size - 1
+        shortened = parts.parts.dup
+        shortened[-1] = last[0...dot]
+        {parts: PathParts.new(shortened.join('/')), format: last[dot + 1..]}
+      end
+
       # Returns the list of methods accepted by the given path, when the
       # path matches at least one route but the requested method does not,
-      # or `nil` when the path matches nothing.
+      # or `nil` when the path matches nothing. Routes registered under
+      # `ANY` (redirects) match every method and are never listed.
       def allowed_for(path : String) : Array(String)?
         parts = PathParts.new(path)
         methods = [] of String
         @routes.each do |route|
+          next if route.method == "ANY"
           next unless route.matches_path?(parts)
           methods << route.method unless methods.includes?(route.method)
         end
@@ -67,7 +98,9 @@ module Altair
       end
 
       private def method_matches?(route_method : String, request_method : String) : Bool
-        route_method == request_method || (route_method == "GET" && request_method == "HEAD")
+        route_method == "ANY" ||
+          route_method == request_method ||
+          (route_method == "GET" && request_method == "HEAD")
       end
 
       # Returns up to `limit` registered routes whose patterns most closely

@@ -18,18 +18,21 @@ summary is the quick orientation; read `AGENTS.md` before deep work.
 
 ## Where the project stands
 
-Phases 0–2 done (Foundation, Router, Controllers). **Phase 3 (Views) is
-next.** Smart error pages (404 route suggestions, 405 `_method` hints,
-500 diagnostics) already shipped. 155 specs passing.
+Phases 0–4 done (Foundation, Router, Controllers, Views, Record/ORM).
+Smart error pages (404 route suggestions, 405 `_method` hints, 500
+diagnostics) already shipped. The router kept growing after Phase 1 in
+three spec-first waves: `resources` blocks (`member`/`collection`/nested),
+constraints (`constraints: {id: /\d+/}`) + implicit format suffix, and
+`redirect` / glob segments / singular `resource`. `examples/blog` is the
+persistence demo. 454 specs passing (6 pending: the PostgreSQL contract
+suite on `ALTAIR_TEST_PG_URL`).
 
 | Phase | Focus | Status |
 |---|---|---|
-| 0–2 | Foundation / Router / Controllers | Completed |
-| 3 | Views (escaping, layouts, partials, helpers) | **Next** |
-| 4 | CLI (`new` / `server` / `routes`) | Planned |
-| 5 | ORM `Altair::Record` (migrations, CRUD, validations, associations) | Planned |
-| 6 | Generators (`g scaffold Post ...`) | Planned |
-| 7 | Hardening (sessions, CSRF, env config) | Planned |
+| 0–4 | Foundation / Router / Controllers / Views / ORM | Completed |
+| 5 | Generators (`g scaffold Post ...`) | Planned |
+| 6 | Hardening (sessions, CSRF, env config) | Planned |
+| 7 | CLI (`new` / `server` / `routes`) | Planned |
 | 8 | Post-release (jobs, auth, assets, rich queries) | Planned |
 
 Exit criteria per phase and golden rules are in `ROADMAP.md`.
@@ -49,9 +52,13 @@ config/      Config, Env, environments/
 support/     Inflector, utilities
 exceptions/  Exception hierarchy
 server/      HTTP server wiring
+record/      Adapter, SQLite3, Connection, Schema, migrations
+view/        ECR templates, layouts, partials, helpers, htmx layer
+rendering/   Renderers (html, json, text, fragment)
 ```
 
-`spec/` mirrors `src/altair/`; `examples/hello_world/` is the runnable demo.
+`spec/` mirrors `src/altair/`; `examples/hello_world/` is the runnable demo,
+`examples/blog/` the persistent ORM demo.
 
 ## Architecture principles
 
@@ -67,7 +74,7 @@ server/      HTTP server wiring
 ## Testing
 
 ```bash
-crystal spec                              # full suite (currently 155)
+crystal spec                              # full suite (currently 454)
 crystal tool format --check src spec examples
 crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
 ```
@@ -92,6 +99,10 @@ crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
   must respect it and report `HEAD` as `GET`.
 - `yield` + `ensure` widens return types to `| Nil` — use `.as(...)`.
 - Welcome page renders when there are no routes and the path is `/`.
+- Glob segments (`*path`) must be the last segment; the format-stripped
+  scan skips them so `/files/a.txt` stays one capture.
+- `redirect` routes register under method `ANY` and never appear in a 405
+  `Allow` header.
 - Never auto-format after a build; the workflow treats formatting as a check.
 - `pkill` is unreliable here — kill dev servers by PID.
 - Register new files in `src/altair.cr` in dependency order.

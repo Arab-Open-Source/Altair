@@ -7,6 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Singular `resource`**: `resource :profile` expands to the six
+  RESTful actions on `/profile` — no `index`, no `:id` — dispatching to
+  the plural `ProfilesController` and generating the no-argument helpers
+  `profile_path`, `new_profile_path` and `edit_profile_path`.
+  `only:` / `except:` and `constraints:` work as on `resources`. The block
+  mirrors `resources`: `member` / `collection` routes carry no id
+  (`member { get :preview }` → `GET /profile/preview` +
+  `preview_profile_path`), and nested `resources` — or another singular
+  `resource` — hang off the singular path without a parent parameter
+  (`/account/comments`, `account_comments_path`). A singular `resource`
+  can also nest under a plural `resources` (`/users/:user_id/avatar`, with
+  `:user_id` the only helper argument).
+
+- **Glob path segments**: `get "/files/*path"` matches any multi-segment
+  remainder, captured into `params["path"]` URI-decoded and joined with
+  `/` (`/files/a/b` → `"a/b"`). The glob must be the last segment and
+  needs a name. Because the glob owns the rest of the path, a format
+  suffix is never stripped from it (`/files/a.txt` → `path` = `"a.txt"`),
+  and a glob-only router answers 404 on the bare prefix. `named:` helpers
+  take the captured string (`files_path("a/b")`).
+
+- **Permanent redirects**: `redirect "/old/draft", to: "/posts"` answers
+  every method on `/old/draft` with 301 (Moved Permanently) and a
+  `Location` header. Redirects match any method (`ANY`) but never appear
+  in a 405 `Allow` header, and they nest inside `namespace` blocks.
+
+- **`resources` blocks**: `resources :posts do ... end` now accepts a block
+  with custom `member` / `collection` routes and nested `resources`. Member
+  actions expand to `/posts/:id/<action>` with a `<action>_<singular>_path`
+  helper (`get :preview` → `GET /posts/:id/preview`, `preview_post_path(id)`);
+  collection actions expand to `/posts/<action>` with a
+  `<action>_<plural>_path` helper (`get :export` → `GET /posts/export`,
+  `export_posts_path`); `named:` overrides the helper name. Nested
+  `resources :comments` expand to `/posts/:post_id/comments` (and friends)
+  with helpers like `post_comments_path(post_id)`, and nest inside
+  namespaces too. Collection routes register before the standard seven so
+  `/posts/export` is not swallowed by `/posts/:id`. `only:` / `except:` now
+  also accept a bare symbol (`resources :posts, only: :create`) in addition
+  to an array.
+
+- **Smarter pluralization for `resources`**: words whose plural is plain
+  `+s` (`notes`, `courses`, `addresses` handled correctly) no longer get
+  mangled by the `+es` rule; sibilant and `-o` stems (`boxes`,
+  `churches`, `heroes`) keep their `+es` handling.
+
+- **Implicit format suffix**: any path ending in `.{ext}` is also tried
+  with the extension stripped, and the extension lands in
+  `params["format"]` — `/posts/5.json` dispatches `GET /posts/:id` with
+  `id` = `5`, `format` = `json`. The exact path is tried second, so a
+  literal dotted route such as `/sitemap.xml` still matches unchanged.
+  Works for `HEAD` and 405 detection too.
+
+- **Route constraints**: every verb route and `resources` block accepts
+  `constraints: { id: /\d+/ }`. A route only matches when each
+  constrained parameter satisfies its regex, with the whole value
+  anchored (`/\d+/` rejects `"55x"`). Constraints propagate to
+  `member`/`collection` routes and nested `resources`, and invalid
+  parameter paths answer 404 instead of 405.
+
 ### Fixed
 
 - **Lock-free connection lookup outside transactions**:

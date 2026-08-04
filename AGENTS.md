@@ -41,7 +41,12 @@ Nothing ships unless someone can look at it, click it, and see it work.
 - **Phases 0–4 done** (Foundation, Router, Controllers, Views, Record/ORM).
   `examples/blog` is the always-running persistence demo — its posts and
   comments survive restarts.
-- 340 specs passing, formatter clean, Ameba silent.
+- 454 specs passing (6 pending: the PostgreSQL contract suite, gated on
+  `ALTAIR_TEST_PG_URL`), formatter clean, Ameba silent.
+- The router shipped three post-Phase-1 waves: `resources` blocks
+  (`member`/`collection`/nested, Phase 1 era), constraints + implicit
+  format suffix, and `redirect` / glob segments / singular `resource`
+  (Wave 3, current).
 - Smart error pages (404 with route suggestions, 405 with `_method`
   explanation, detailed 500 diagnostics) shipped early as a pre-Phase-3
   gift — they live in the framework already.

@@ -25,6 +25,9 @@
 # curl -X POST localhost:3000/posts/1 -d "title=Updated&_method=PUT"
 # curl -X POST localhost:3000/posts/1 -d "_method=DELETE"
 # curl -X POST localhost:3000/posts/5   # → 405 with the Allow header
+# curl localhost:3000/docs/routing      # → glob route, path captured
+# curl localhost:3000/profile           # → singular resource
+# curl localhost:3000/legacy            # → 301 redirect to /posts
 # curl localhost:3000/nope              # → 404
 # ```
 require "altair"
@@ -32,5 +35,6 @@ require "./config/application"
 require "./app/controllers/application_controller"
 require "./app/controllers/pages_controller"
 require "./app/controllers/posts_controller"
+require "./app/controllers/profiles_controller"
 
 HelloWorld.run!

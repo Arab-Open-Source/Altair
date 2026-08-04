@@ -23,11 +23,11 @@ module Altair
       # Registers a route and returns it. Raises
       # `Altair::ConfigurationError` when a route with the same method
       # and pattern is already registered.
-      def register(method : String, pattern : String, handler : Route::Handler, action : String? = nil, name : String? = nil) : Route
+      def register(method : String, pattern : String, handler : Route::Handler, action : String? = nil, name : String? = nil, constraints : Hash(String, Regex) = {} of String => Regex) : Route
         if @routes.any? { |route| route.method == method && route.pattern == pattern }
           raise Altair::ConfigurationError.new("duplicate route: #{method} #{pattern}")
         end
-        route = Route.new(method: method, pattern: pattern, handler: handler, action: action, name: name)
+        route = Route.new(method: method, pattern: pattern, handler: handler, action: action, name: name, constraints: constraints)
         @routes << route
         route
       end

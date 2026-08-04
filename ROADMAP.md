@@ -80,6 +80,17 @@ migrations; a wrong column is a compile error (via generated `schema.cr`);
 natural row handling (`find_by_*`); `valid?` + errors; associations work;
 automatic timestamps + safe transactions.
 
+### Router additions since Phase 1 (3 waves, shipped)
+
+The router kept growing after its Phase 1 milestone, in three spec-first
+waves:
+
+| Wave | Delivered |
+|------|-----------|
+| 1 — `resources` blocks | `member` / `collection` custom routes, nested `resources` with parent params and helpers, bare-symbol `only:`, smarter pluralization |
+| 2 — constraints & formats | Per-route `constraints: {id: /\d+/}` (anchored whole-value match, propagated to nested routes) and the implicit `.{ext}` format suffix (`/posts/5.json` → `params["format"] = "json"`) |
+| 3 — redirect, glob, singular | `redirect "/old", to: "/new"` (301 for every method, never in `Allow`), glob segments (`/files/*path` → `path` = `"a/b"`, format-safe), and singular `resource` (six id-less routes on `/profile`, plural controller, no-arg helpers, id-less member/collection, nesting in both directions) |
+
 ## Phase 5: Generators & the CLI (next)
 
 | Task | Exit criterion |

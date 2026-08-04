@@ -52,6 +52,24 @@ abstract class StubController < Altair::Controller
 
   def dashboard : Nil
   end
+
+  def preview : Nil
+  end
+
+  def publish : Nil
+  end
+
+  def export : Nil
+  end
+
+  def share : Nil
+  end
+
+  def review : Nil
+  end
+
+  def digest : Nil
+  end
 end
 
 class PagesController < StubController
@@ -81,11 +99,41 @@ end
 class StatsController < StubController
 end
 
+class AddressesController < StubController
+end
+
+class NotesController < StubController
+end
+
+class AccountsController < StubController
+end
+
+class AvatarsController < StubController
+end
+
+class SettingsController < StubController
+end
+
+class UsersController < StubController
+end
+
 module Admin
   class PostsController < StubController
   end
 
   class StatsController < StubController
+  end
+
+  class ChaptersController < StubController
+  end
+
+  class NotesController < StubController
+  end
+
+  class ProfilesController < StubController
+  end
+
+  class SettingsController < StubController
   end
 end
 

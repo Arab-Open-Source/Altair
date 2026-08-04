@@ -73,7 +73,14 @@ utilities.
   `delete`, `root`, `namespace` and `resources`; path parameters; named path
   helpers generated as real methods; 404/405 responses served by the
   router; and typed references to actions — `to: PagesController.index` —
-  so renaming an action breaks the build instead of the page.
+  so renaming an action breaks the build instead of the page. `resources`
+  accepts blocks with custom `member`/`collection` routes and nested
+  resources; per-route `constraints: { id: /\d+/ }` and the implicit
+  `.{ext}` format suffix (`/posts/5.json` → `params["format"]`) refine
+  matching; glob segments (`/files/*path` → `path` = `"a/b"`), singular
+  `resource :profile` (six id-less routes, plural controller, no-argument
+  helpers) and permanent `redirect "/old", to: "/new"` (301 for every
+  method) round out the DSL.
 - **Controllers** — per-request instances of `Altair::Controller` with
   `render` (html/text/json), `redirect_to`, `head` and a merged parameter
   bag; generated path helpers available in controllers via the

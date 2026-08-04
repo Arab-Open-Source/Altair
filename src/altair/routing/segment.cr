@@ -15,6 +15,9 @@ module Altair
         Static
         # A named placeholder, e.g. `:id` in `/posts/:id`.
         Param
+        # A catch-all placeholder that captures the rest of the path, e.g.
+        # `path` in `/files/*path`.
+        Glob
       end
 
       # The segment kind.
@@ -37,12 +40,29 @@ module Altair
         @kind.static?
       end
 
+      # Returns `true` for glob segments (`*path`).
+      def glob? : Bool
+        @kind.glob?
+      end
+
       # Parses a route pattern into segments. `/posts/:id` becomes the
-      # static segment `posts` and the parameter segment `id`.
+      # static segment `posts` and the parameter segment `id`; `/files/*path`
+      # yields the same static segment plus a glob segment that owns the rest
+      # of the path. A glob must be the last segment and needs a name.
       def self.parse(pattern : String) : Array(Segment)
-        pattern.split('/').reject(&.empty?).map do |part|
+        parts = pattern.split('/').reject(&.empty?)
+        glob_index = parts.index(&.starts_with?('*'))
+        if glob_index && glob_index != parts.size - 1
+          raise ArgumentError.new("glob segments must be the last segment of a route: #{pattern}")
+        end
+        if glob_index && parts[glob_index].size == 1
+          raise ArgumentError.new("glob segments need a name: #{pattern}")
+        end
+        parts.map do |part|
           if part.starts_with?(':')
             new(Kind::Param, part[1..])
+          elsif part.starts_with?('*')
+            new(Kind::Glob, part[1..])
           else
             new(Kind::Static, part)
           end
