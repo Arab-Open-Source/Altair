@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="The current state of the Altair framework, phase by phase.">
+  <title>What is implemented — Altair</title>
+  <link rel="icon" href="/favicon.png" type="image/png">
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+  <header class="site-header">
+    <nav class="site-nav" aria-label="Main">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true"></span>
+        Altair
+      </a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/docs/">Docs</a>
+        <a href="/docs/install.html">Install</a>
+        <a href="/docs/usage.html">Usage</a>
+        <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="site-main">
+    <h1>What is implemented</h1>
+<p>Altair is built in phases, each ending with something working and visible. Everything below is implemented, tested and shipped.</p>
+<h2>Phase 0 — Foundation</h2>
+<p>The core request/response loop: <code>Altair::Application</code>, request handling, error pages and configuration.</p>
+<h2>Phase 1 — Router</h2>
+<ul>
+<li>Segment-based routing (not regex)</li>
+<li><code>resources</code> blocks with <code>member</code>, <code>collection</code> and nested resources</li>
+<li>Constraints and implicit format suffix</li>
+<li><code>redirect</code>, glob segments and singular <code>resource</code></li>
+</ul>
+<h2>Phase 2 — Controllers</h2>
+<p>A type-checked controller base with actions, parameters and rendering hooks. A wrong method on a dispatch is a compile error, not a runtime 500.</p>
+<h2>Phase 3 — Views</h2>
+<ul>
+<li>ECR templates</li>
+<li>Auto-escaping by default — XSS-safe out of the box</li>
+<li>Layouts with <code>yield</code>, partials (<code>render &quot;form&quot;</code>)</li>
+<li>Helpers: <code>link_to</code>, <code>content_tag</code>, a basic form builder</li>
+</ul>
+<h2>Phase 4 — Record (ORM)</h2>
+<p>Three vertical waves:</p>
+<ul>
+<li><strong>Wave 1:</strong> adapter interface + SQLite3, connection pool, migrations DSL + runner, auto-regenerated <code>db/schema.cr</code></li>
+<li><strong>Wave 2:</strong> CRUD + finders (<code>find_by_*</code>), validations (<code>valid?</code> + errors), timestamps and callbacks</li>
+<li><strong>Wave 3:</strong> associations (<code>belongs_to</code>, <code>has_many</code>, <code>has_one</code>) with batched eager loading via <code>Relation#includes</code>, and <code>dependent:</code> handling</li>
+</ul>
+<h2>Phase 5 — CLI + Generators</h2>
+<ul>
+<li><code>altair new</code> generates a standard project layout</li>
+<li><code>altair g model|migration|controller|scaffold</code> generates ready-to-edit files</li>
+<li><code>bin/altair</code> runs <code>server</code>, <code>routes</code>, <code>db:migrate</code> / <code>db:rollback</code> inside a project</li>
+<li><code>altair install</code> copies a built binary onto your <code>PATH</code>, prints its SHA-256 digest, and refuses to clobber unrelated files without <code>--force</code></li>
+<li>Prebuilt binaries for Linux, macOS and Windows (amd64 + arm64) published with checksums; verified one-command installers</li>
+</ul>
+<h2>Testing and quality</h2>
+<ul>
+<li>481 specs passing (6 pending: the PostgreSQL contract suite, gated on <code>ALTAIR_TEST_PG_URL</code>)</li>
+<li>Formatter clean, linter silent on framework sources</li>
+<li>Smart error pages: 404 with route suggestions, 405 with <code>_method</code> explanation, detailed 500 diagnostics in debug mode only</li>
+</ul>
+<h2>What is planned next</h2>
+<ul>
+<li><strong>Phase 6 (Hardening):</strong> sessions + flash + CSRF, <code>database.yml</code> / <code>.env</code> config, real project quality</li>
+<li><strong>Phase 7 (Post-release):</strong> background jobs, full authentication, asset pipeline, rich query DSL, testing utilities</li>
+</ul>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>Altair — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></p>
+  </footer>
+</body>
+</html>

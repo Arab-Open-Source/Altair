@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Altair is a batteries-included web framework for Crystal: routing, controllers, views, an ORM, generators and a CLI.">
+  <title>Altair — batteries-included web framework for Crystal</title>
+  <link rel="icon" href="/favicon.png" type="image/png">
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+  <header class="site-header">
+    <nav class="site-nav" aria-label="Main">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true"></span>
+        Altair
+      </a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/docs/">Docs</a>
+        <a href="/docs/install.html">Install</a>
+        <a href="/docs/usage.html">Usage</a>
+        <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="site-main">
+    <div class="hero">
+  <div class="logo" aria-hidden="true"></div>
+  <h1>Altair</h1>
+  <p class="tagline">Batteries-included web framework for Crystal.</p>
+  <div class="button-row">
+    <a class="btn btn-primary" href="/docs/install.html">Get started</a>
+    <a class="btn btn-secondary" href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
+  </div>
+  <div class="copy-box">
+    <code>curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.sh | sh</code>
+  </div>
+</div><h2>What Altair is</h2>
+<p>Altair is a batteries-included web framework for Crystal. It ships the full stack — routing, controllers, views, an ORM, generators and a CLI — with sane defaults, so building a web app feels like the framework is working <em>for</em> you.</p>
+<pre><code class="language-sh">altair new blog
+cd blog
+shards install
+altair server
+</code></pre>
+<h2>What ships today</h2>
+<div class="feature-grid">
+  <div class="feature">
+    <h3>Routing</h3>
+    <p>Segment-based router with resources, nested routes, constraints and glob segments.</p>
+  </div>
+  <div class="feature">
+    <h3>Controllers</h3>
+    <p>Actions, parameters, filters and rendering hooks built on a type-checked base class.</p>
+  </div>
+  <div class="feature">
+    <h3>Views</h3>
+    <p>ECR templates with auto-escaping, layouts, partials and a form builder.</p>
+  </div>
+  <div class="feature">
+    <h3>Record (ORM)</h3>
+    <p>SQLite3 and PostgreSQL adapters, migrations, validations, callbacks and associations.</p>
+  </div>
+  <div class="feature">
+    <h3>CLI + Generators</h3>
+    <p><code>altair new</code>, <code>altair g scaffold</code>, <code>server</code>, <code>routes</code> and database commands.</p>
+  </div>
+  <div class="feature">
+    <h3>Install</h3>
+    <p>One-command installers for Linux, macOS and Windows with checksum verification.</p>
+  </div>
+</div><h2>Installation</h2>
+<p>Install the prebuilt binary on Linux, macOS or Windows:</p>
+<pre><code class="language-sh">curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.sh | sh
+</code></pre>
+<p>Windows PowerShell:</p>
+<pre><code class="language-powershell">iex (irm https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.ps1)
+</code></pre>
+<p>Windows command prompt:</p>
+<pre><code class="language-cmd">curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.cmd | cmd
+</code></pre>
+<h2>Documentation</h2>
+<ul>
+<li><a href="/docs/install.html">Install</a> — download and set up Altair on your platform.</li>
+<li><a href="/docs/usage.html">Usage</a> — create a project, generate a scaffold and run the server.</li>
+<li><a href="/docs/features.html">What is implemented</a> — the current state of the framework, phase by phase.</li>
+<li><a href="/docs/cli.html">CLI reference</a> — every command and generator.</li>
+</ul>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>Altair — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></p>
+  </footer>
+</body>
+</html>

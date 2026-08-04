@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Download and set up Altair on Linux, macOS or Windows with one command and checksum verification.">
+  <title>Install — Altair</title>
+  <link rel="icon" href="/favicon.png" type="image/png">
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+  <header class="site-header">
+    <nav class="site-nav" aria-label="Main">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true"></span>
+        Altair
+      </a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/docs/">Docs</a>
+        <a href="/docs/install.html">Install</a>
+        <a href="/docs/usage.html">Usage</a>
+        <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="site-main">
+    <h1>Installation</h1>
+<p>Altair ships prebuilt binaries for Linux, macOS and Windows (both amd64 and arm64). The installer downloads the right build, verifies its SHA-256 checksum against the published <code>SHA256SUMS</code>, and copies it onto your <code>PATH</code>.</p>
+<h2>Linux and macOS</h2>
+<p>The POSIX installer works with <code>sh</code> (requires <code>curl</code> and <code>sha256sum</code>):</p>
+<pre><code class="language-sh">curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.sh | sh
+</code></pre>
+<p>The binary is installed to <code>~/.local/bin</code>. If that directory is not on your <code>PATH</code>, add it:</p>
+<pre><code class="language-sh">export PATH=&quot;$HOME/.local/bin:$PATH&quot;
+</code></pre>
+<h2>Windows</h2>
+<p>PowerShell (requires <code>irm</code>):</p>
+<pre><code class="language-powershell">iex (irm https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.ps1)
+</code></pre>
+<p>Or from the classic command prompt:</p>
+<pre><code class="language-cmd">curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.cmd | cmd
+</code></pre>
+<p>The binary is installed to <code>%USERPROFILE%\.altair\bin</code>. You may need to restart your terminal for the <code>PATH</code> update to take effect.</p>
+<h2>Verify the installation</h2>
+<pre><code class="language-sh">altair version
+</code></pre>
+<p>You should see something like <code>Altair 0.1.0</code>.</p>
+<h2>Installing to a custom directory</h2>
+<pre><code class="language-sh">altair install --dir /usr/local/bin
+</code></pre>
+<p>The installer refuses to overwrite an unrelated file without <code>--force</code>:</p>
+<pre><code class="language-sh">altair install --dir /usr/local/bin --force
+</code></pre>
+<h2>Install from source</h2>
+<p>Inside a checkout of the repository:</p>
+<pre><code class="language-sh">shards install
+shards build altair
+./bin/altair version
+</code></pre>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>Altair — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></p>
+  </footer>
+</body>
+</html>

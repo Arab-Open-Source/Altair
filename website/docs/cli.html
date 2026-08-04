@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Every Altair command and generator.">
+  <title>CLI reference — Altair</title>
+  <link rel="icon" href="/favicon.png" type="image/png">
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+  <header class="site-header">
+    <nav class="site-nav" aria-label="Main">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true"></span>
+        Altair
+      </a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/docs/">Docs</a>
+        <a href="/docs/install.html">Install</a>
+        <a href="/docs/usage.html">Usage</a>
+        <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="site-main">
+    <h1>CLI reference</h1>
+<p>The <code>altair</code> command is the framework&#39;s tool. It scaffolds projects and files, runs a generated app, and installs itself onto your <code>PATH</code>.</p>
+<h2>Installing <code>altair</code></h2>
+<h3>From a GitHub release (recommended for new users)</h3>
+<p>The official installer downloads the prebuilt binary for your platform, verifies its SHA-256 digest against the published <code>SHA256SUMS</code>, and installs it onto your <code>PATH</code> — no Crystal toolchain required.</p>
+<p><strong>Linux / macOS:</strong></p>
+<pre><code class="language-bash">curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.sh | sh
+</code></pre>
+<p><strong>Windows (PowerShell):</strong></p>
+<pre><code class="language-powershell">iex (irm https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.ps1)
+</code></pre>
+<p><strong>Windows (cmd):</strong></p>
+<pre><code class="language-cmd">curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.cmd | cmd
+</code></pre>
+<p>It is fail-safe: nothing is written unless the checksum matches, an existing different binary is never overwritten without <code>--force</code> (or <code>-Force</code> on Windows), and it is idempotent over an identical install. Options: <code>--dir DIR</code> / <code>-Dir</code>, <code>--force</code> / <code>-Force</code>, <code>--version VER</code> / <code>-Version</code>.</p>
+<h3>From a source checkout</h3>
+<p>The framework builds a standalone binary from <code>src/altair_cli.cr</code>:</p>
+<pre><code class="language-bash">shards build altair
+./bin/altair install
+</code></pre>
+<p><code>altair install</code> copies the running binary into a user-owned bin directory on <code>PATH</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Platform</th>
+<th>Default target</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Unix (Linux, macOS)</td>
+<td><code>~/.local/bin/altair</code></td>
+</tr>
+<tr>
+<td>Windows</td>
+<td><code>%USERPROFILE%\.altair\bin\altair.exe</code></td>
+</tr>
+</tbody></table>
+<p>It prints the installed binary&#39;s SHA-256 digest so you can verify the copy matches its source. The install is deliberately cautious:</p>
+<ul>
+<li><strong>Idempotent</strong> — a target that already matches the source is a no-op.</li>
+<li><strong>Refuses to clobber</strong> — an existing, different file at the target aborts unless you pass <code>--force</code>.</li>
+<li><strong><code>--dir DIR</code></strong> installs somewhere explicit instead of the default.</li>
+<li><strong><code>ALTAIR_BIN</code></strong> sets the default install directory via the environment.</li>
+</ul>
+<h2>Commands</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>altair new &lt;name&gt; [--framework-path DIR]</code></td>
+<td>Scaffold a runnable project. By default it depends on the published shard; pass <code>--framework-path</code> (or set <code>ALTAIR_PATH</code>) to use a local checkout.</td>
+</tr>
+<tr>
+<td><code>altair g scaffold &lt;Name&gt; [column:type ...]</code></td>
+<td>Model + migration + RESTful controller + ECR views + <code>resources</code> route + seeded <code>db/schema.cr</code>.</td>
+</tr>
+<tr>
+<td><code>altair g model &lt;Name&gt; [column:type ...]</code></td>
+<td>A model file and its table.</td>
+</tr>
+<tr>
+<td><code>altair g migration Create&lt;Table&gt; [column:type ...]</code></td>
+<td>A timestamped migration.</td>
+</tr>
+<tr>
+<td><code>altair g controller &lt;Name&gt;</code></td>
+<td>A controller and its views.</td>
+</tr>
+<tr>
+<td><code>altair install [--dir DIR] [--force]</code></td>
+<td>Install the binary onto <code>PATH</code>.</td>
+</tr>
+<tr>
+<td><code>altair version</code></td>
+<td>Print <code>Altair &lt;version&gt;</code>.</td>
+</tr>
+<tr>
+<td><code>altair help</code></td>
+<td>Print usage.</td>
+</tr>
+</tbody></table>
+<p>Column specs take a type after a colon and default to <code>string</code>: <code>title:string body:text price:float published:boolean</code>.</p>
+<h2>Inside a generated project</h2>
+<p><code>bin/altair</code> (the project&#39;s launcher) accepts the app-context commands in addition to the generators above:</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>altair server</code></td>
+<td>Run the app.</td>
+</tr>
+<tr>
+<td><code>altair routes</code></td>
+<td>Print the compiled route table.</td>
+</tr>
+<tr>
+<td><code>altair db:migrate</code></td>
+<td>Run pending migrations.</td>
+</tr>
+<tr>
+<td><code>altair db:rollback</code></td>
+<td>Undo the latest migration.</td>
+</tr>
+</tbody></table>
+<p>When running the launcher with <code>crystal run</code> instead of the built binary, use <code>--</code> before the argument so <code>crystal run</code> does not consume it:</p>
+<pre><code class="language-bash">crystal run bin/altair.cr -- db:migrate
+</code></pre>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>Altair — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></p>
+  </footer>
+</body>
+</html>

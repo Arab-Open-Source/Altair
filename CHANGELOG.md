@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Website**: a simple documentation site at
+  `https://arab-open-source.github.io/Altair/`, generated from markdown in
+  `website/` (landing page, install, usage, features, CLI reference), styled
+  after the Altair logo palette, deployed to GitHub Pages by
+  `.github/workflows/website.yml`.
 - **CLI + generators (Phase 5)**: a standalone `altair` binary
   (`shards build altair`) that scaffolds, generates and drives projects.
   `altair new <name>` writes the standard layout — `src/app/{controllers,

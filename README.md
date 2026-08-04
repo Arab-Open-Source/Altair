@@ -21,6 +21,9 @@ deployment.
 
 > **Status:** early development (pre-alpha) — Phases 0–5 complete
 
+> **Website:** <https://arab-open-source.github.io/Altair/> — install, usage and
+> what is implemented, generated from markdown in [`website/`](website/).
+
 ## Under development
 
 Altair is built in phases, each ending with something working and visible.
