@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CLI + generators (Phase 5)**: a standalone `altair` binary
+  (`shards build altair`) that scaffolds, generates and drives projects.
+  `altair new <name>` writes the standard layout — `src/app/{controllers,
+  models,views}`, `src/config/{application,routes}.cr`, `db/schema.cr`,
+  `db/migrations/`, `public/`, and `bin/altair.cr` / `bin/altair.cmd`
+  launchers — runnable immediately. `altair g model` / `g migration` /
+  `g controller` / `g scaffold Post title:string body:text` write
+  ready-to-edit files; scaffold produces a RESTful controller + views, a
+  `resources` route (inserted into `routes do`) and a seeded
+  `db/schema.cr` so the model compiles before the first migration. Inside a
+  generated project, `bin/altair server`, `bin/altair routes`,
+  `bin/altair db:migrate` and `bin/altair db:rollback` drive the app. A
+  generated project depends on the published shard by default or a local
+  checkout via `--framework-path` (or `ALTAIR_PATH`). Windows and Linux are
+  first-class — `bin/altair.cr` runs via `crystal` (no POSIX-only launchers)
+  and `bin/altair.cmd` wraps it on Windows.
+
+- **`altair install`**: `altair install` copies the running binary onto your
+  `PATH` — `~/.local/bin` on Unix, `%USERPROFILE%\.altair\bin` on Windows —
+  so the command is available directly from any shell. It prints the
+  installed binary's SHA-256 digest for verification, is idempotent (a
+  matching copy is a no-op), refuses to silently overwrite an existing,
+  different file (pass `--force` to replace it), and honors `--dir DIR` to
+  pick a location or `ALTAIR_BIN` to set the default.
+
+- **Distributed installs**: a GitHub release pipeline
+  (`.github/workflows/release.yml`) builds the `altair` binary for Linux,
+  macOS and Windows (amd64 + arm64), publishes them with a `SHA256SUMS`
+  file, and fail-safe installers — `scripts/install.sh` (`curl ... | sh`),
+  `install.ps1` (`iex (irm ...)`) and `install.cmd` (`curl ... | cmd`) —
+  download the platform binary, verify its digest against `SHA256SUMS` and
+  install it onto `PATH`, overwriting nothing without `--force`/`-Force`.
+
 - **Singular `resource`**: `resource :profile` expands to the six
   RESTful actions on `/profile` — no `index`, no `:id` — dispatching to
   the plural `ProfilesController` and generating the no-argument helpers

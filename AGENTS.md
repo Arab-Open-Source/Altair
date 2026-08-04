@@ -38,11 +38,11 @@ Nothing ships unless someone can look at it, click it, and see it work.
 
 ## Current status
 
-- **Phases 0–4 done** (Foundation, Router, Controllers, Views, Record/ORM).
-  `examples/blog` is the always-running persistence demo — its posts and
-  comments survive restarts.
-- 454 specs passing (6 pending: the PostgreSQL contract suite, gated on
-  `ALTAIR_TEST_PG_URL`), formatter clean, Ameba silent.
+- **Phases 0–5 done** (Foundation, Router, Controllers, Views, Record/ORM,
+  CLI + Generators). `examples/blog` is the always-running persistence demo
+  — its posts and comments survive restarts.
+- 470 specs passing (6 pending: the PostgreSQL contract suite, gated on
+  `ALTAIR_TEST_PG_URL`), formatter clean, Ameba silent on framework sources.
 - The router shipped three post-Phase-1 waves: `resources` blocks
   (`member`/`collection`/nested, Phase 1 era), constraints + implicit
   format suffix, and `redirect` / glob segments / singular `resource`
@@ -58,10 +58,9 @@ Nothing ships unless someone can look at it, click it, and see it work.
 | 2 | Controllers | Completed |
 | 3 | Views | Completed |
 | 4 | Record (ORM) | Completed |
-| 5 | Generators | Planned |
+| 5 | CLI + Generators | Completed |
 | 6 | Hardening | Planned |
-| 7 | CLI | Planned |
-| 8 | Post-release | Planned |
+| 7 | Post-release | Planned |
 
 ## The phases
 
@@ -92,12 +91,27 @@ Three vertical waves, each ending green with something visible:
 - Deferred to later phases: `has_many :through`, prepared-statement
   caching, `find_each`, `explain`, migration linter
   (Phase 8); console/seeds (Phase 7); enums/JSON columns/dirty tracking
-  (Phase 5); `insert_all` (Phase 5).
+  (Phase 6); `insert_all` (Phase 6).
 
-### Phase 5: Generators
+### Phase 5: CLI + Generators
+- `altair new blog` generates the standard layout (`src/`, `db/`,
+  `public/`, `bin/altair.cr` + `bin/altair.cmd`).
 - `altair g model/migration/controller` generates ready-to-edit files.
 - `altair g scaffold Post title:string body:text` — the full magic: model +
-  migration + controller + views.
+  migration + controller + views + `resources` route + seeded
+  `db/schema.cr`.
+- Inside a project, `bin/altair` runs `server`, `routes`, `db:migrate` /
+  `db:rollback`; the framework builds a standalone `altair` binary via
+  `shards build altair`.
+- `altair install` copies the built binary onto your `PATH`
+  (`~/.local/bin` on Unix, `%USERPROFILE%\.altair\bin` on Windows), prints
+  its SHA-256 digest, is idempotent, refuses clobbering an unrelated file
+  without `--force`, and honors `--dir` / `ALTAIR_BIN`.
+- Distributed install: `release.yml` builds the binary for Linux/macOS/
+  Windows (amd64 + arm64) and publishes it with `SHA256SUMS`; the fail-safe
+  `scripts/install.sh` (`curl ... | sh`), `install.ps1` (`iex (irm ...)`)
+  and `install.cmd` (`curl ... | cmd`) download, verify and install.
+  Pushing a `v*` tag triggers it.
 - Full blog demo works out of the box: new project + scaffold + server.
 
 ### Phase 6: Hardening
@@ -105,13 +119,7 @@ Three vertical waves, each ending green with something visible:
 - `database.yml` / `.env` config — production-ready project.
 - Maintenance: Ameba + specs everywhere — real project quality.
 
-### Phase 7: CLI
-- `altair new blog` generates the standard layout (`app/`, `config/`, `db/`).
-- `altair server` runs a project with a single command.
-- `altair routes` prints the route table; `db:migrate` / `db:rollback`
-  bind the runner script the migration wave already built.
-
-### Phase 8: Post-release
+### Phase 7: Post-release
 - Background jobs, full authentication, asset pipeline, rich query DSL
   (joins/preload/scopes), testing utilities, `has_many :through` +
   polymorphic associations.
@@ -142,7 +150,7 @@ src/altair/
   record/        Adapter, SQLite3, Connection, Schema, migrations
   view/          ECR templates, layouts, partials, helpers, htmx layer
   rendering/     Renderers (html, json, text, fragment)
-  cli/           (planned — empty placeholder)
+  cli/           CLI dispatcher, per-project commands, generators
   plugins/       (planned — empty placeholder)
   concerns/      (planned — empty placeholder)
   testing/       (planned — empty placeholder)

@@ -19,18 +19,21 @@ Its goal is to provide an exceptional developer experience while taking
 advantage of Crystal's native performance, low memory usage and single-binary
 deployment.
 
-> **Status:** early development (pre-alpha) — Phases 0–4 complete
+> **Status:** early development (pre-alpha) — Phases 0–5 complete
 
 ## Under development
 
 Altair is built in phases, each ending with something working and visible.
-Phases 0–4 are complete: the application core, router, controllers, the
-view stack, and the ORM (`Altair::Record`) all ship with passing specs.
-The ORM supports SQLite3 and PostgreSQL, with migrations, schema generation,
-CRUD, validations, associations, callbacks, and a contract test suite that
-runs against both backends. The next milestone is the CLI
-(`altair new`, `altair server`, `altair routes`), followed by generators,
-sessions/flash/CSRF, and the remaining hardening work.
+Phases 0–5 are complete: the application core, router, controllers, the
+view stack, the ORM (`Altair::Record`) and the CLI with generators all ship
+with passing specs. The ORM supports SQLite3 and PostgreSQL, with migration
+runner, schema generation, CRUD, validations, associations, callbacks, and
+a contract test suite that runs against both backends. The CLI can scaffold
+a fresh project (`altair new`), generate model/migration/controller/scaffold
+files (`altair g ...`), and — inside a generated project — boot the server
+(`altair server`), print the route table (`altair routes`) and run migrations
+(`altair db:migrate` / `altair db:rollback`). Next up: sessions/flash/CSRF,
+`.env` / `database.yml` configuration, and the remaining hardening work.
 
 What is already in place:
 
@@ -46,11 +49,12 @@ What is already in place:
 | Errors | `rescue_from`, smart debug pages (404 suggestions, 405 methods, 500 diagnostics), plain in production |
 | Hardening | 2 MB request-body limit, `413` before the body is read |
 | ORM (`Altair::Record`) | adapter interface + SQLite3 and PostgreSQL adapters, connection pooling, migrations DSL + runner, `db/schema.cr` generation, CRUD + finders, validations (`valid?` + errors), timestamps + callbacks, associations (`belongs_to` / `has_many` / `has_one`) with batched eager loading, `dependent:` handling, `validates_uniqueness_of` and the list/range/format/confirmation rules, multi-database support via `ALTAIR_DB_URL` |
+| CLI | builds a standalone `altair` binary; inside a project `altair server`, `altair routes`, `altair db:migrate` / `altair db:rollback` |
+| Generators | `altair new <name>` scaffolds the standard layout; `altair g model` / `g migration` / `g controller` / `g scaffold Post title:string body:text` write ready-to-edit files (model, migration, controller, views, routes, schema) |
 
-What is still missing (in rough order): the CLI, generators and scaffolding,
-sessions/flash/CSRF, multipart parsing, `.env` / `database.yml` configuration,
-background jobs, authentication, asset pipeline, rich query DSL, testing
-utilities.
+What is still missing (in rough order): sessions/flash/CSRF, multipart
+parsing, `.env` / `database.yml` configuration, background jobs,
+authentication, asset pipeline, rich query DSL, testing utilities.
 
 ---
 
@@ -108,11 +112,10 @@ utilities.
   get a `413 Payload Too Large` before they are ever read, and the
   response never echoes the rejected body.
 - **Example applications** — `examples/hello_world`, a working demo with a RESTful resource, static assets and verified behavior over real HTTP; `examples/htmx`, showing the view stack and the htmx layer in the browser; `examples/blog`, the persistence demo with posts and comments surviving restarts (SQLite3 by default, PostgreSQL via `ALTAIR_DB_URL`); `examples/sqlite_crud` and `examples/postgresql_crud`, full MVC CRUD examples for the ORM on each backend.
+- **CLI** — a standalone `altair` binary (`shards build altair`): `altair new <name>` scaffolds a runnable project (Windows and Linux aware, with `bin/altair.cr` and `bin/altair.cmd` launchers), `altair g` generates model/migration/controller/scaffold files with a typed column DSL (`Post title:string body:text`), and inside a generated project `altair server`, `altair routes`, `altair db:migrate` and `altair db:rollback` drive the app. Generated scaffold files ship with RESTful CRUD, views, a migration, and a seeded `db/schema.cr` so the model compiles before the first migration runs.
 
 ### Planned
 
-- CLI: `altair new`, `altair server`, `altair routes`
-- Generators and scaffolding
 - Sessions, flash and CSRF protection
 - Multipart form parsing
 - `.env` / `database.yml` configuration
@@ -213,10 +216,97 @@ Each exposes full CRUD for a `Product` resource at <http://localhost:4100>
 
 ---
 
+## Getting started with the CLI
+
+**New users** — one command downloads the prebuilt binary for your platform,
+verifies its SHA-256 digest and installs it onto your `PATH` (no Crystal
+toolchain needed):
+
+**Linux / macOS:**
+
+```bash
+curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.sh | sh
+```
+
+**Windows (PowerShell):**
+
+```powershell
+iex (irm https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.ps1)
+```
+
+**Windows (cmd):**
+
+```cmd
+curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.cmd | cmd
+```
+
+Whichever platform, the installer downloads the platform binary, verifies
+its SHA-256 digest against the published `SHA256SUMS` before writing
+anything, installs it into `~/.local/bin` (Unix) or
+`%USERPROFILE%\.altair\bin` (Windows), refuses to overwrite a different
+existing binary without `--force` / `-Force`, and is idempotent over an
+identical install. Then:
+
+```bash
+altair help
+altair new blog
+cd blog && shards install && altair server
+```
+
+**From a source checkout** — build the standalone binary and install it:
+
+```bash
+shards build altair
+./bin/altair install
+altair help
+```
+
+`altair install` copies the running binary into `~/.local/bin` (Unix;
+`%USERPROFILE%\.altair\bin` on Windows) and prints its SHA-256 digest so you
+can verify the copy. It is idempotent, refuses to silently overwrite an
+existing, different file (pass `--force` to replace it), and supports
+`--dir DIR` for a custom location or `ALTAIR_BIN` to set the default.
+
+Once installed, `altair` is available directly from any directory:
+
+```bash
+altair new blog
+cd blog
+shards install
+altair server
+```
+
+Open <http://localhost:3000> for the welcome page, then generate a resource:
+
+```bash
+altair g scaffold Post title:string body:text
+altair db:migrate
+altair routes
+```
+
+`g scaffold` writes a model, a migration, a controller with RESTful actions,
+ECR views, the `resources :posts` route, and seeds `db/schema.cr` so the
+model compiles before the first migration. The other generators produce the
+same kind of ready-to-edit files:
+
+```bash
+altair g model Post title:string
+altair g migration CreatePosts
+altair g controller Posts
+altair help
+```
+
+By default a generated project depends on the published `Altair` shard. To
+point it at this development checkout instead, pass `--framework-path` (or
+set `ALTAIR_PATH`) when scaffolding.
+
+---
+
 ## Documentation
 
 Documentation is under development. The architecture is described in
-[ARCHITECTURE.md](ARCHITECTURE.md), and phase-by-phase implementation plans
+[ARCHITECTURE.md](ARCHITECTURE.md), the CLI in [docs/cli.md](docs/cli.md),
+and phase-by-phase implementation plans
 live in [docs/architecture](docs/architecture).
 
 ---

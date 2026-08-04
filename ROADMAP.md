@@ -4,11 +4,12 @@
 > vertical slices, not horizontal scaffolding. Each phase has a clear exit
 > criterion.
 
-This roadmap tracks the build in phases. **Phases 0–4 are complete and ship
+This roadmap tracks the build in phases. **Phases 0–5 are complete and ship
 with passing specs**; the remaining phases are planned. The ORM (`Altair::Record`)
 — originally a single large "Phase 5" — landed across three waves inside the
 Phase 4 milestone, so the router/controller/view/ORM stack is now usable end to
-end against both SQLite and PostgreSQL.
+end against both SQLite and PostgreSQL. Phase 5 delivered the CLI and the
+generators on top of that stack.
 
 ## Current status
 
@@ -19,15 +20,15 @@ end against both SQLite and PostgreSQL.
 | 2 | Controllers + middleware + smart errors | Completed |
 | 3 | Views (templates, layouts, partials, htmx) | Completed |
 | 4 | ORM (`Altair::Record`, 3 waves) | Completed |
-| 5 | CLI + Generators & scaffolding | Planned |
+| 5 | CLI + Generators & scaffolding | Completed |
 | 6 | Hardening (sessions, flash, CSRF, config) | Planned |
 | 7 | Post-release features | Planned |
 
 > **Note on the CLI:** the original Phase 4 plan listed `altair new` /
-> `altair server` / `altair routes`. That CLI has **not been built** — the
-> ORM was the part of Phase 4 that actually landed. Applications currently
-> boot by `crystal run` of the project's entry file (no `bin/altair` exists).
-> The CLI is now tracked as the first item of Phase 5.
+> `altair server` / `altair routes`. That CLI landed in Phase 5, together
+> with the generators and scaffolding. Applications boot via the framework's
+> standalone `altair` binary or, inside a generated project, through a
+> `bin/altair.cr` launcher (`crystal run bin/altair server`).
 
 ---
 
@@ -91,16 +92,27 @@ waves:
 | 2 — constraints & formats | Per-route `constraints: {id: /\d+/}` (anchored whole-value match, propagated to nested routes) and the implicit `.{ext}` format suffix (`/posts/5.json` → `params["format"] = "json"`) |
 | 3 — redirect, glob, singular | `redirect "/old", to: "/new"` (301 for every method, never in `Allow`), glob segments (`/files/*path` → `path` = `"a/b"`, format-safe), and singular `resource` (six id-less routes on `/profile`, plural controller, no-arg helpers, id-less member/collection, nesting in both directions) |
 
-## Phase 5: Generators & the CLI (next)
+## Phase 5: Generators & the CLI (completed)
 
-| Task | Exit criterion |
-|------|----------------|
-| `altair new <name>` | Generates the standard layout: `app/`, `config/`, `db/`, `public/` |
-| `altair server` | Single command to run the app (replaces `crystal run …`) |
-| `altair routes` | Prints the route table |
-| `altair g model/migration/controller` | Ready-to-edit files generated |
-| `altair g scaffold Post title:string body:text` | Model + migration + controller + views |
-| Full blog demo via scaffold | New project + scaffold + server works out of the box |
+| Task | Exit criterion | Delivered |
+|------|----------------|-----------|
+| `altair new <name>` | Generates the standard layout: `app/`, `config/`, `db/`, `public/` | Layout with `src/`, `db/`, `public/`, `bin/altair.cr` + `bin/altair.cmd` launchers, runnable immediately |
+| `altair server` | Single command to run the app | `bin/altair server` inside a generated project |
+| `altair routes` | Prints the route table | `bin/altair routes` renders the compiled route table |
+| `altair g model/migration/controller` | Ready-to-edit files generated | Typed column DSL, model/migration/controller + views and helper registrations |
+| `altair install` | Binary available directly on PATH | `~/.local/bin` (Unix) / `%USERPROFILE%\.altair\bin` (Windows), SHA-256 verified, idempotent, refuses clobbering without `--force`, `--dir` / `ALTAIR_BIN` override |
+| Distributed install | Prebuilt binary + one-command install for new users | `release.yml` (triggered by a `v*` tag) builds Linux/macOS/Windows (amd64+arm64) into a GitHub Release with `SHA256SUMS`; verified one-command installs on every platform — `scripts/install.sh` (`curl ... | sh`), `install.ps1` (`iex (irm ...)`) and `install.cmd` (`curl ... | cmd`) — each downloads, checksums, installs and refuses clobbering without `--force` |
+| `altair g scaffold Post title:string body:text` | Model + migration + controller + views | Full RESTful scaffold incl. `resources` route and seeded `db/schema.cr` |
+| Full blog demo via scaffold | New project + scaffold + server works out of the box | E2E-verified: `new` → `g scaffold` → `db:migrate` → `server` → POST/GET over real HTTP |
+
+The CLI is built as a standalone binary (`shards build altair`). Generated
+projects reference the published shard by default; this checkout can be used
+in place via `--framework-path` (or `ALTAIR_PATH`) at scaffold time. Windows
+and Linux are first-class end to end: the framework builds `.exe` binaries,
+the project launchers are `bin/altair.cr` + `bin/altair.cmd` (no
+POSIX-only scripts), and each platform has a native verified installer
+(`install.sh`, `install.ps1`, `install.cmd`). Distribution goes live by
+pushing a `v*` tag, which triggers `release.yml`.
 
 ## Phase 6: Hardening
 
@@ -130,10 +142,11 @@ waves:
 
 ## Realistic estimate
 
-Reaching **v0.1** (blog demo + scaffold + core ORM + CLI) was the bulk of the
-effort; the ORM consumed the largest share, as expected — it is the heart of
-the framework. The remaining phases (CLI, generators, hardening, auth, asset
-pipeline) are incremental on top of a working, spec-covered stack.
+Reaching **v0.1** (blog demo + scaffold + core ORM + CLI + generators +
+distributed installs) was the bulk of the effort; the ORM consumed the
+largest share, as expected — it is the heart of the framework. The
+remaining phases (hardening, auth, asset pipeline) are incremental on top
+of a working, spec-covered, installable stack.
 
 ## Golden rules
 

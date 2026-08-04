@@ -18,22 +18,25 @@ summary is the quick orientation; read `AGENTS.md` before deep work.
 
 ## Where the project stands
 
-Phases 0–4 done (Foundation, Router, Controllers, Views, Record/ORM).
-Smart error pages (404 route suggestions, 405 `_method` hints, 500
-diagnostics) already shipped. The router kept growing after Phase 1 in
-three spec-first waves: `resources` blocks (`member`/`collection`/nested),
-constraints (`constraints: {id: /\d+/}`) + implicit format suffix, and
-`redirect` / glob segments / singular `resource`. `examples/blog` is the
-persistence demo. 454 specs passing (6 pending: the PostgreSQL contract
-suite on `ALTAIR_TEST_PG_URL`).
+Phases 0–5 done (Foundation, Router, Controllers, Views, Record/ORM,
+CLI + Generators). Smart error pages (404 route suggestions, 405 `_method`
+hints, 500 diagnostics) already shipped. The router kept growing after
+Phase 1 in three spec-first waves: `resources` blocks
+(`member`/`collection`/nested), constraints (`constraints: {id: /\d+/}`) +
+implicit format suffix, and `redirect` / glob segments / singular
+`resource`. `examples/blog` is the persistence demo. The CLI builds a
+standalone `altair` binary; inside a generated project `bin/altair` runs
+`server`, `routes`, `db:migrate` / `db:rollback`; `altair install` copies
+the binary onto `PATH`. Distributions: `release.yml` (pushed on `v*` tags)
+builds Linux/macOS/Windows (amd64+arm64) binaries with `SHA256SUMS`, and
+`scripts/install.sh` / `install.ps1` / `install.cmd` give a verified
+one-command install on each platform. 481 specs passing (6 pending: the PostgreSQL contract suite on `ALTAIR_TEST_PG_URL`).
 
 | Phase | Focus | Status |
 |---|---|---|
-| 0–4 | Foundation / Router / Controllers / Views / ORM | Completed |
-| 5 | Generators (`g scaffold Post ...`) | Planned |
+| 0–5 | Foundation / Router / Controllers / Views / ORM / CLI + Generators | Completed |
 | 6 | Hardening (sessions, CSRF, env config) | Planned |
-| 7 | CLI (`new` / `server` / `routes`) | Planned |
-| 8 | Post-release (jobs, auth, assets, rich queries) | Planned |
+| 7 | Post-release (jobs, auth, assets, rich queries) | Planned |
 
 Exit criteria per phase and golden rules are in `ROADMAP.md`.
 
@@ -55,6 +58,7 @@ server/      HTTP server wiring
 record/      Adapter, SQLite3, Connection, Schema, migrations
 view/        ECR templates, layouts, partials, helpers, htmx layer
 rendering/   Renderers (html, json, text, fragment)
+cli/         CLI dispatcher, per-project commands, generators (incl. install)
 ```
 
 `spec/` mirrors `src/altair/`; `examples/hello_world/` is the runnable demo,
@@ -74,7 +78,7 @@ rendering/   Renderers (html, json, text, fragment)
 ## Testing
 
 ```bash
-crystal spec                              # full suite (currently 454)
+crystal spec                              # full suite (currently 481)
 crystal tool format --check src spec examples
 crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
 ```

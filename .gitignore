@@ -1,4 +1,8 @@
-/docs/
+/docs/*
+
+# The user-facing CLI reference ships with the repo; the rest of docs/ is
+# working notes.
+!/docs/cli.md
 /lib/
 /bin/
 /.shards/
