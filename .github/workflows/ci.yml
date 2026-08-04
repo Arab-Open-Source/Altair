@@ -22,5 +22,7 @@ jobs:
         run: crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
       - name: Specs
         run: crystal spec
+      - name: Build the altair binary
+        run: shards build altair
       - name: Example builds
         run: crystal build examples/hello_world/src/hello_world.cr --no-codegen

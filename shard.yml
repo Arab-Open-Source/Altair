@@ -8,6 +8,16 @@ crystal: '>= 1.21.0'
 
 license: MIT
 
+repository:
+  github: Arab-Open-Source/Altair
+
+executables:
+  - altair
+
+targets:
+  altair:
+    main: src/altair_cli.cr
+
 dependencies:
   sqlite3:
     github: crystal-lang/crystal-sqlite3

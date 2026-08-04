@@ -1,0 +1,79 @@
+# Release pipeline for Altair.
+#
+# Triggered by a `v*` tag push. Builds a standalone `altair` binary for
+# the supported platforms, computes a SHA-256 digest for each artifact and
+# publishes them together as a GitHub Release. Consumers rely on the
+# checksums file to verify what they download, and the install scripts
+# (`scripts/install.sh` / `scripts/install.ps1`) enforce that check before
+# anything is written to disk.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-amd64
+          - os: ubuntu-latest
+            target: linux-arm64
+          - os: macos-latest
+            target: macos-amd64
+          - os: macos-latest
+            target: macos-arm64
+          - os: windows-latest
+            target: windows-amd64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Crystal
+        uses: crystal-lang/install-crystal@v1
+      - name: Install shards
+        run: shards install
+      - name: Build (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          shards build altair --release
+          mkdir -p dist
+          cp "bin/altair" "dist/altair-${{ matrix.target }}"
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          shards build altair --release
+          mkdir -p dist
+          cp "bin/altair.exe" "dist/altair-${{ matrix.target }}.exe"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: altair-${{ matrix.target }}
+          if-no-files-found: error
+          path: dist/altair-*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Collect binaries and compute checksums
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp artifacts/*/altair-* dist/
+          cd dist
+          sha256sum altair-* > SHA256SUMS
+          cat SHA256SUMS
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
