@@ -63,14 +63,16 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
-      - name: Collect binaries and compute checksums
+      - name: Collect binaries, installers and checksums
         shell: bash
         run: |
           mkdir -p dist
           cp artifacts/*/altair-* dist/
+          cp scripts/install.sh scripts/install.ps1 scripts/install.cmd dist/
           cd dist
           sha256sum altair-* > SHA256SUMS
           cat SHA256SUMS
