@@ -26,7 +26,8 @@ function render(page) {
     image(String(href).startsWith("/") ? `${rootPrefix}${String(href).slice(1)}` : href, title, text);
   const body = marked.parse(source, { renderer })
     .replaceAll('href="/', `href="${rootPrefix}`)
-    .replaceAll('src="/', `src="${rootPrefix}`);
+    .replaceAll('src="/', `src="${rootPrefix}`)
+    .replaceAll("{{root}}", rootPrefix);
   const m = meta[page];
   return layout
     .replaceAll("{{home}}", rootPrefix ? rootPrefix : "index.html")
