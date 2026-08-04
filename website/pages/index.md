@@ -1,5 +1,5 @@
 <div class="hero">
-  <div class="logo" aria-hidden="true"><img src="{{root}}assets/img/logo.png" alt="Altair logo"></div>
+  <img class="logo" src="{{root}}assets/img/logo.png" alt="Altair logo">
   <h1>Altair</h1>
   <p class="tagline">Batteries-included web framework for Crystal.</p>
   <div class="button-row">

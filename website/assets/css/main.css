@@ -56,12 +56,6 @@ a:hover { text-decoration: underline; }
   gap: 0.5rem;
 }
 
-.brand img {
-  width: 1.7em;
-  height: 1.7em;
-  display: block;
-}
-
 .brand:hover { text-decoration: none; color: var(--coral-strong); }
 
 .nav-links {
@@ -134,13 +128,9 @@ img { max-width: 100%; height: auto; }
 /* Hero / landing */
 .hero { text-align: center; padding: 1rem 0 2.5rem; }
 .hero .logo {
-  width: 132px;
-  height: 132px;
+  width: 140px;
+  height: 140px;
   margin: 0 auto 1.25rem;
-}
-.hero .logo img {
-  width: 100%;
-  height: 100%;
   display: block;
 }
 .hero h1 { font-size: 2.6rem; margin: 0 0 0.4rem; }
