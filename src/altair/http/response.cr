@@ -12,11 +12,20 @@ module Altair
       # ignored so a `head` followed by rendering still answers bodyless.
       @body_suppressed = false
 
+      # True once anything was written to the response. The controller
+      # dispatcher checks it to halt the chain once a callback answered.
+      @written = false
+
       # The response status, `200 OK` by default. Reads the live status
       # from the underlying stdlib response, so it reflects every change —
       # including ones made through the stdlib object directly.
       def status : ::HTTP::Status
         @response.status
+      end
+
+      # True when the response body or a redirect has been written.
+      def written? : Bool
+        @written
       end
 
       # The response headers.
@@ -56,6 +65,7 @@ module Altair
       # Issues an HTTP redirect to `to`, defaulting to status 302 (Found),
       # the conventional redirect status.
       def redirect(to : String, status : ::HTTP::Status = ::HTTP::Status::FOUND) : Nil
+        @written = true
         @response.redirect(to, status)
       end
 
@@ -68,6 +78,7 @@ module Altair
         @headers["Content-Length"] = File.size(path).to_s
         @headers["Content-Type"] = MIME.from_extension?(path.extension) || "application/octet-stream"
         @headers["Content-Disposition"] = inline ? "inline" : %(attachment; filename="#{path.basename.gsub('\\', "\\\\").gsub('"', "\\\"")}")
+        @written = true
         File.open(path, "rb") do |file|
           IO.copy(file, @response.output)
         end
@@ -84,12 +95,16 @@ module Altair
       # ignored, so a `head` followed by rendering still answers bodyless.
       def head(status : ::HTTP::Status) : Nil
         @body_suppressed = true
+        @written = true
         @response.status = status
       end
 
       # Writes raw data to the response body.
       def print(*objects) : Nil
-        @response.print(*objects) unless @body_suppressed
+        unless @body_suppressed
+          @written = true
+          @response.print(*objects)
+        end
       end
     end
   end

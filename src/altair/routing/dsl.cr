@@ -104,7 +104,12 @@ abstract class Altair::Application
           constraints: { {% for ck, cv in constraints %}"{{ ck.id }}" => {{ cv }}, {% end %} },
         {% end %}
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-          {{ cconst.id }}.new(request, response).{{ action_ref.id }}
+          controller = {{ cconst.id }}.new(request, response)
+          controller.run_before_actions({{ action_ref.id.stringify }})
+          if !controller.responded?
+            controller.{{ action_ref.id }}
+            controller.run_after_actions({{ action_ref.id.stringify }})
+          end
         }
       )
     {% end %}
@@ -194,7 +199,12 @@ abstract class Altair::Application
           constraints: { {% for ck, cv in constraints %}"{{ ck.id }}" => {{ cv }}, {% end %} },
         {% end %}
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-          {{ cconst.id }}.new(request, response).{{ action_ref.id }}
+          controller = {{ cconst.id }}.new(request, response)
+          controller.run_before_actions({{ action_ref.id.stringify }})
+          if !controller.responded?
+            controller.{{ action_ref.id }}
+            controller.run_after_actions({{ action_ref.id.stringify }})
+          end
         }
       )
     {% end %}
@@ -284,7 +294,12 @@ abstract class Altair::Application
           constraints: { {% for ck, cv in constraints %}"{{ ck.id }}" => {{ cv }}, {% end %} },
         {% end %}
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-          {{ cconst.id }}.new(request, response).{{ action_ref.id }}
+          controller = {{ cconst.id }}.new(request, response)
+          controller.run_before_actions({{ action_ref.id.stringify }})
+          if !controller.responded?
+            controller.{{ action_ref.id }}
+            controller.run_after_actions({{ action_ref.id.stringify }})
+          end
         }
       )
     {% end %}
@@ -374,7 +389,12 @@ abstract class Altair::Application
           constraints: { {% for ck, cv in constraints %}"{{ ck.id }}" => {{ cv }}, {% end %} },
         {% end %}
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-          {{ cconst.id }}.new(request, response).{{ action_ref.id }}
+          controller = {{ cconst.id }}.new(request, response)
+          controller.run_before_actions({{ action_ref.id.stringify }})
+          if !controller.responded?
+            controller.{{ action_ref.id }}
+            controller.run_after_actions({{ action_ref.id.stringify }})
+          end
         }
       )
     {% end %}
@@ -464,7 +484,12 @@ abstract class Altair::Application
           constraints: { {% for ck, cv in constraints %}"{{ ck.id }}" => {{ cv }}, {% end %} },
         {% end %}
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-          {{ cconst.id }}.new(request, response).{{ action_ref.id }}
+          controller = {{ cconst.id }}.new(request, response)
+          controller.run_before_actions({{ action_ref.id.stringify }})
+          if !controller.responded?
+            controller.{{ action_ref.id }}
+            controller.run_after_actions({{ action_ref.id.stringify }})
+          end
         }
       )
     {% end %}
@@ -547,7 +572,12 @@ abstract class Altair::Application
         action: {{ action_label }},
         name: {{ route_name }},
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-          {{ cconst.id }}.new(request, response).{{ action_ref.id }}
+          controller = {{ cconst.id }}.new(request, response)
+          controller.run_before_actions({{ action_ref.id.stringify }})
+          if !controller.responded?
+            controller.{{ action_ref.id }}
+            controller.run_after_actions({{ action_ref.id.stringify }})
+          end
         }
       )
     {% end %}
@@ -769,7 +799,12 @@ abstract class Altair::Application
             constraints: { {% for ck, cv in constraints %}"{{ ck.id }}" => {{ cv }}, {% end %} },
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.new(request, response).index
+            controller = {{ cconst.id }}.new(request, response)
+            controller.run_before_actions("index")
+            if !controller.responded?
+              controller.index
+              controller.run_after_actions("index")
+            end
           }
         )
       {% elsif action.id.stringify == "new" %}
@@ -782,7 +817,12 @@ abstract class Altair::Application
             constraints: { {% for ck, cv in constraints %}"{{ ck.id }}" => {{ cv }}, {% end %} },
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.new(request, response).new
+            controller = {{ cconst.id }}.new(request, response)
+            controller.run_before_actions("new")
+            if !controller.responded?
+              controller.new
+              controller.run_after_actions("new")
+            end
           }
         )
       {% elsif action.id.stringify == "create" %}
@@ -795,7 +835,12 @@ abstract class Altair::Application
             constraints: { {% for ck, cv in constraints %}"{{ ck.id }}" => {{ cv }}, {% end %} },
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.new(request, response).create
+            controller = {{ cconst.id }}.new(request, response)
+            controller.run_before_actions("create")
+            if !controller.responded?
+              controller.create
+              controller.run_after_actions("create")
+            end
           }
         )
       {% elsif action.id.stringify == "show" %}
@@ -808,7 +853,12 @@ abstract class Altair::Application
             constraints: { {% for ck, cv in constraints %}"{{ ck.id }}" => {{ cv }}, {% end %} },
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.new(request, response).show
+            controller = {{ cconst.id }}.new(request, response)
+            controller.run_before_actions("show")
+            if !controller.responded?
+              controller.show
+              controller.run_after_actions("show")
+            end
           }
         )
       {% elsif action.id.stringify == "edit" %}
@@ -821,7 +871,12 @@ abstract class Altair::Application
             constraints: { {% for ck, cv in constraints %}"{{ ck.id }}" => {{ cv }}, {% end %} },
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.new(request, response).edit
+            controller = {{ cconst.id }}.new(request, response)
+            controller.run_before_actions("edit")
+            if !controller.responded?
+              controller.edit
+              controller.run_after_actions("edit")
+            end
           }
         )
       {% elsif action.id.stringify == "update" %}
@@ -834,7 +889,12 @@ abstract class Altair::Application
             constraints: { {% for ck, cv in constraints %}"{{ ck.id }}" => {{ cv }}, {% end %} },
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.new(request, response).update
+            controller = {{ cconst.id }}.new(request, response)
+            controller.run_before_actions("update")
+            if !controller.responded?
+              controller.update
+              controller.run_after_actions("update")
+            end
           }
         )
         Altair::Routing.route_set_for({{@type}}).register(
@@ -846,7 +906,12 @@ abstract class Altair::Application
             constraints: { {% for ck, cv in constraints %}"{{ ck.id }}" => {{ cv }}, {% end %} },
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.new(request, response).update
+            controller = {{ cconst.id }}.new(request, response)
+            controller.run_before_actions("update")
+            if !controller.responded?
+              controller.update
+              controller.run_after_actions("update")
+            end
           }
         )
       {% elsif action.id.stringify == "destroy" %}
@@ -859,7 +924,12 @@ abstract class Altair::Application
             constraints: { {% for ck, cv in constraints %}"{{ ck.id }}" => {{ cv }}, {% end %} },
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.new(request, response).destroy
+            controller = {{ cconst.id }}.new(request, response)
+            controller.run_before_actions("destroy")
+            if !controller.responded?
+              controller.destroy
+              controller.run_after_actions("destroy")
+            end
           }
         )
       {% end %}
@@ -1116,7 +1186,12 @@ abstract class Altair::Application
             constraints: { {% for ck, cv in constraints %}"{{ ck.id }}" => {{ cv }}, {% end %} },
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.new(request, response).new
+            controller = {{ cconst.id }}.new(request, response)
+            controller.run_before_actions("new")
+            if !controller.responded?
+              controller.new
+              controller.run_after_actions("new")
+            end
           }
         )
       {% elsif action.id.stringify == "create" %}
@@ -1129,7 +1204,12 @@ abstract class Altair::Application
             constraints: { {% for ck, cv in constraints %}"{{ ck.id }}" => {{ cv }}, {% end %} },
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.new(request, response).create
+            controller = {{ cconst.id }}.new(request, response)
+            controller.run_before_actions("create")
+            if !controller.responded?
+              controller.create
+              controller.run_after_actions("create")
+            end
           }
         )
       {% elsif action.id.stringify == "show" %}
@@ -1142,7 +1222,12 @@ abstract class Altair::Application
             constraints: { {% for ck, cv in constraints %}"{{ ck.id }}" => {{ cv }}, {% end %} },
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.new(request, response).show
+            controller = {{ cconst.id }}.new(request, response)
+            controller.run_before_actions("show")
+            if !controller.responded?
+              controller.show
+              controller.run_after_actions("show")
+            end
           }
         )
       {% elsif action.id.stringify == "edit" %}
@@ -1155,7 +1240,12 @@ abstract class Altair::Application
             constraints: { {% for ck, cv in constraints %}"{{ ck.id }}" => {{ cv }}, {% end %} },
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.new(request, response).edit
+            controller = {{ cconst.id }}.new(request, response)
+            controller.run_before_actions("edit")
+            if !controller.responded?
+              controller.edit
+              controller.run_after_actions("edit")
+            end
           }
         )
       {% elsif action.id.stringify == "update" %}
@@ -1168,7 +1258,12 @@ abstract class Altair::Application
             constraints: { {% for ck, cv in constraints %}"{{ ck.id }}" => {{ cv }}, {% end %} },
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.new(request, response).update
+            controller = {{ cconst.id }}.new(request, response)
+            controller.run_before_actions("update")
+            if !controller.responded?
+              controller.update
+              controller.run_after_actions("update")
+            end
           }
         )
         Altair::Routing.route_set_for({{@type}}).register(
@@ -1180,7 +1275,12 @@ abstract class Altair::Application
             constraints: { {% for ck, cv in constraints %}"{{ ck.id }}" => {{ cv }}, {% end %} },
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.new(request, response).update
+            controller = {{ cconst.id }}.new(request, response)
+            controller.run_before_actions("update")
+            if !controller.responded?
+              controller.update
+              controller.run_after_actions("update")
+            end
           }
         )
       {% elsif action.id.stringify == "destroy" %}
@@ -1193,7 +1293,12 @@ abstract class Altair::Application
             constraints: { {% for ck, cv in constraints %}"{{ ck.id }}" => {{ cv }}, {% end %} },
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
-            {{ cconst.id }}.new(request, response).destroy
+            controller = {{ cconst.id }}.new(request, response)
+            controller.run_before_actions("destroy")
+            if !controller.responded?
+              controller.destroy
+              controller.run_after_actions("destroy")
+            end
           }
         )
       {% end %}

@@ -28,6 +28,117 @@ module Altair
     include Altair::View::Helpers
     include Altair::Htmx::Headers
 
+    # Records this controller's superclass chain (itself first) as soon as
+    # the class is defined, so callback resolution at request time can walk
+    # the chain without runtime reflection. Modules picked up by
+    # `#ancestors` are filtered out by requiring the candidate's own
+    # ancestry to include the base controller.
+    macro inherited
+      {% names = [] of String %}
+      {% for a in @type.ancestors %}
+        {% if a.ancestors.map(&.name.stringify).includes?("Altair::Controller") %}
+          {% names << a.name.stringify %}
+        {% end %}
+      {% end %}
+      Altair::Controller::Callbacks.record_chain(
+        {{ @type.name.stringify }},
+        [{{ @type.name.stringify }}, {% for n in names %}{{ n }}, {% end %}]
+      )
+    end
+
+    # Registers a filter method to run before the action. `only:` and
+    # `except:` restrict the actions the filter applies to. A filter that
+    # writes a response (render, redirect, head) halts the chain — the
+    # action and its after callbacks are skipped:
+    #
+    # ```
+    # class PostsController < Altair::Controller
+    #   before_action :require_login, only: [:new, :create]
+    # end
+    # ```
+    macro before_action(method, only = nil, except = nil)
+      {% only_list = only ? (only.is_a?(SymbolLiteral) ? [only] : only) : [] of SymbolLiteral %}
+      {% except_list = except ? (except.is_a?(SymbolLiteral) ? [except] : except) : [] of SymbolLiteral %}
+      {% only_codes = only_list.map(&.id.stringify) %}
+      {% except_codes = except_list.map(&.id.stringify) %}
+      altair_callback = ->(controller : Altair::Controller) { controller.as({{ @type }}).{{ method.id }}
+      }
+      Altair::Controller::Callbacks.add_before(
+        {{ @type }},
+        Altair::Controller::Callbacks::Callback.new(
+          {{ method.id.stringify }},
+          {{ only_codes.empty? ? "[] of String".id : only_codes }},
+          {{ except_codes.empty? ? "[] of String".id : except_codes }},
+          altair_callback
+        )
+      )
+    end
+
+    # Registers a filter method to run after the action. Skipped when a
+    # before callback halted the chain.
+    macro after_action(method, only = nil, except = nil)
+      {% only_list = only ? (only.is_a?(SymbolLiteral) ? [only] : only) : [] of SymbolLiteral %}
+      {% except_list = except ? (except.is_a?(SymbolLiteral) ? [except] : except) : [] of SymbolLiteral %}
+      {% only_codes = only_list.map(&.id.stringify) %}
+      {% except_codes = except_list.map(&.id.stringify) %}
+      altair_callback = ->(controller : Altair::Controller) { controller.as({{ @type }}).{{ method.id }}
+      }
+      Altair::Controller::Callbacks.add_after(
+        {{ @type }},
+        Altair::Controller::Callbacks::Callback.new(
+          {{ method.id.stringify }},
+          {{ only_codes.empty? ? "[] of String".id : only_codes }},
+          {{ except_codes.empty? ? "[] of String".id : except_codes }},
+          altair_callback
+        )
+      )
+    end
+
+    # Removes a `before_action` (typically inherited from a base
+    # controller) for the selected actions:
+    #
+    # ```
+    # class Admin::PostsController < PostsController
+    #   skip_before_action :require_login
+    # end
+    # ```
+    macro skip_before_action(method, only = nil, except = nil)
+      {% only_list = only ? (only.is_a?(SymbolLiteral) ? [only] : only) : [] of SymbolLiteral %}
+      {% except_list = except ? (except.is_a?(SymbolLiteral) ? [except] : except) : [] of SymbolLiteral %}
+      {% only_codes = only_list.map(&.id.stringify) %}
+      {% except_codes = except_list.map(&.id.stringify) %}
+      altair_callback = ->(controller : Altair::Controller) { controller.as({{ @type }}).{{ method.id }}
+      }
+      Altair::Controller::Callbacks.add_skip_before(
+        {{ @type }},
+        Altair::Controller::Callbacks::Callback.new(
+          {{ method.id.stringify }},
+          {{ only_codes.empty? ? "[] of String".id : only_codes }},
+          {{ except_codes.empty? ? "[] of String".id : except_codes }},
+          altair_callback
+        )
+      )
+    end
+
+    # Removes an `after_action` for the selected actions.
+    macro skip_after_action(method, only = nil, except = nil)
+      {% only_list = only ? (only.is_a?(SymbolLiteral) ? [only] : only) : [] of SymbolLiteral %}
+      {% except_list = except ? (except.is_a?(SymbolLiteral) ? [except] : except) : [] of SymbolLiteral %}
+      {% only_codes = only_list.map(&.id.stringify) %}
+      {% except_codes = except_list.map(&.id.stringify) %}
+      altair_callback = ->(controller : Altair::Controller) { controller.as({{ @type }}).{{ method.id }}
+      }
+      Altair::Controller::Callbacks.add_skip_after(
+        {{ @type }},
+        Altair::Controller::Callbacks::Callback.new(
+          {{ method.id.stringify }},
+          {{ only_codes.empty? ? "[] of String".id : only_codes }},
+          {{ except_codes.empty? ? "[] of String".id : except_codes }},
+          altair_callback
+        )
+      )
+    end
+
     # The framework's request wrapper for this request.
     getter request : Altair::HTTP::Request
 
@@ -185,6 +296,46 @@ module Altair
     # for successful submissions that should not navigate anywhere.
     def no_content : Nil
       head ::HTTP::Status::NO_CONTENT
+    end
+
+    # Runs the action's before callbacks, in declaration order. Called by
+    # the router's dispatch wrapper before the action; a callback that
+    # writes a response halts the chain, so the dispatcher skips the
+    # action when `responded?` turns true.
+    def run_before_actions(action : String) : Nil
+      self.class.callbacks_for(:before, action).each do |callback|
+        callback.run.call(self)
+      end
+    end
+
+    # Runs the action's after callbacks, in declaration order. Called by
+    # the router's dispatch wrapper after the action, unless a before
+    # callback halted the chain.
+    def run_after_actions(action : String) : Nil
+      self.class.callbacks_for(:after, action).each do |callback|
+        callback.run.call(self)
+      end
+    end
+
+    # True when the response has been written — by a callback (render,
+    # redirect, head) or by the action itself. The router's dispatch
+    # wrapper uses it to halt the chain once the response is started.
+    def responded? : Bool
+      @response.written?
+    end
+
+    # The callbacks in effect for `action`: declarations from the whole
+    # superclass chain (base first), minus anything a `skip_*` marker
+    # removed for this action, minus callbacks whose `only:`/`except:`
+    # filters exclude it.
+    def self.callbacks_for(kind : Symbol, action : String) : Array(Altair::Controller::Callbacks::Callback)
+      names = Altair::Controller::Callbacks.chain_of(name).reverse
+      callbacks = names.flat_map { |class_name| Altair::Controller::Callbacks.list(kind, class_name) }
+      skips = names.flat_map { |class_name| Altair::Controller::Callbacks.skips(kind, class_name) }
+      callbacks.select do |callback|
+        next false if skips.any? { |skip| skip.method_name == callback.method_name && skip.applies_to?(action) }
+        callback.applies_to?(action)
+      end
     end
   end
 end

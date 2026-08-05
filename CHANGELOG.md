@@ -26,6 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`head` answers bodyless**: the response suppresses any body written
   after `head`, so an action that calls `head` and then renders still
   answers empty. `no_content` is a convenience wrapper for a bare 204.
+- **Controller callbacks**: `before_action` / `after_action` run around the
+  action, filtered by `only:` / `except:` and inherited across the
+  controller hierarchy. A before callback that writes a response (render,
+  redirect, head) halts the chain — the action and its after callbacks are
+  skipped. `skip_before_action` / `skip_after_action` remove an inherited
+  filter for selected actions without affecting sibling controllers. The
+  dispatch wrapper lives in the router, and callback ancestry is recorded
+  at class-definition time so resolution needs no runtime reflection.
 
 ### Fixed
 
