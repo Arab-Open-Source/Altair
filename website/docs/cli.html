@@ -100,6 +100,10 @@
 <td>Install the binary onto <code>PATH</code>.</td>
 </tr>
 <tr>
+<td><code>altair update [--check] [--force]</code></td>
+<td>Update the binary to the latest release.</td>
+</tr>
+<tr>
 <td><code>altair version</code></td>
 <td>Print <code>Altair &lt;version&gt;</code>.</td>
 </tr>
@@ -110,7 +114,10 @@
 </tbody></table>
 <p>Column specs take a type after a colon and default to <code>string</code>: <code>title:string body:text price:float published:boolean</code>.</p>
 <h2>Inside a generated project</h2>
-<p><code>bin/altair</code> (the project&#39;s launcher) accepts the app-context commands in addition to the generators above:</p>
+<p>App-context commands run against the project&#39;s application. From anywhere
+inside the project directory — a subfolder included — the CLI finds the
+nearest project and forwards the command to its launcher, so you never
+need to type <code>bin/</code>:</p>
 <table>
 <thead>
 <tr>
@@ -119,25 +126,42 @@
 </tr>
 </thead>
 <tbody><tr>
-<td><code>bin/altair server</code></td>
+<td><code>altair server</code></td>
 <td>Run the app.</td>
 </tr>
 <tr>
-<td><code>bin/altair routes</code></td>
+<td><code>altair routes</code></td>
 <td>Print the compiled route table.</td>
 </tr>
 <tr>
-<td><code>bin/altair db:migrate</code></td>
+<td><code>altair db:migrate</code></td>
 <td>Run pending migrations.</td>
 </tr>
 <tr>
-<td><code>bin/altair db:rollback</code></td>
+<td><code>altair db:rollback</code></td>
 <td>Undo the latest migration.</td>
 </tr>
 </tbody></table>
+<p><code>altair g scaffold ...</code> and the other generators write into the current
+project the same way. The project launcher itself (<code>bin/altair</code>, or
+<code>bin/altair.cr</code> in projects created before the executable wrapper) is
+still there and accepts the same commands — both work.</p>
 <p>When running the launcher with <code>crystal run</code> instead of the built binary, use <code>--</code> before the argument so <code>crystal run</code> does not consume it:</p>
 <pre><code class="language-bash">crystal run bin/altair.cr -- db:migrate
 </code></pre>
+<h2>Updating</h2>
+<p><code>altair update</code> checks GitHub for the latest release, downloads the binary
+for your platform, verifies its SHA-256 digest against the published
+<code>SHA256SUMS</code>, and replaces the running executable:</p>
+<pre><code class="language-bash">altair update          # update to the latest release
+altair update --check  # report whether a newer version exists, install nothing
+altair update --force  # reinstall even when already up to date
+</code></pre>
+<p><code>--check</code> is safe for automation — it exits <code>0</code> when the installed binary
+is current and <code>1</code> when an update is available, without writing anything.</p>
+<p>Updating the <code>altair</code> binary is separate from updating a project&#39;s copy of
+the framework: inside a project, <code>shards update altair</code> pulls the latest
+framework shard.</p>
 
   </main>
 

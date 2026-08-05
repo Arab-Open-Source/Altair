@@ -17,30 +17,64 @@ private def in_tempdir(&)
 end
 
 module Altair::CLI
-  describe ".project_hint" do
-    it "is empty outside a project" do
-      in_tempdir { Altair::CLI.project_hint("server").should eq "" }
-    end
-
-    it "is empty for an unknown command name" do
-      in_tempdir { Altair::CLI.project_hint("not-a-real-command").should eq "" }
-    end
-
-    {% if !flag?(:win32) %}
-      it "points at bin/altair when inside a generated project" do
-        in_tempdir do
-          Dir.mkdir_p("bin")
-          FileUtils.touch("shard.yml")
-          File.write("bin/altair", "#!/usr/bin/env sh\n")
-          File.chmod("bin/altair", 0o755)
-          hint = Altair::CLI.project_hint("server")
-          hint.should contain "bin/altair server"
-        end
+  describe ".project_command?" do
+    it "recognizes app-context commands" do
+      %w[server routes db:migrate db:rollback].each do |command|
+        Altair::CLI.project_command?(command).should be_true
       end
-    {% end %}
+    end
 
-    it "is empty when only the command matches but no project is present" do
-      in_tempdir { Altair::CLI.project_hint("db:migrate").should eq "" }
+    it "rejects non-app commands" do
+      %w[new version help g scaffold].each do |command|
+        Altair::CLI.project_command?(command).should be_false
+      end
+      Altair::CLI.project_command?(nil).should be_false
+    end
+  end
+
+  describe ".find_project_dir" do
+    it "is nil outside a project" do
+      in_tempdir { Altair::CLI.find_project_dir.should be_nil }
+    end
+
+    it "finds a project by its bin/altair.cr launcher" do
+      in_tempdir do
+        Dir.mkdir_p("bin")
+        File.write("bin/altair.cr", "require \"altair\"\n")
+        Altair::CLI.find_project_dir.should eq(Path[Dir.current])
+      end
+    end
+
+    it "finds the project from a nested directory" do
+      in_tempdir do
+        Dir.mkdir_p("bin")
+        Dir.mkdir_p("src/app/models")
+        File.write("bin/altair.cr", "require \"altair\"\n")
+        Dir.cd("src/app/models")
+        Altair::CLI.find_project_dir.should eq(Path.new("../../..").expand(Dir.current))
+      end
+    end
+  end
+
+  describe ".project_launcher" do
+    it "prefers an executable bin/altair wrapper when present" do
+      in_tempdir do
+        Dir.mkdir_p("bin")
+        File.write("bin/altair", "#!/usr/bin/env sh\n")
+        command, args = Altair::CLI.project_launcher(Path[Dir.current], ["server"])
+        command.should eq((Path[Dir.current] / "bin" / "altair").to_s)
+        args.should eq(["server"])
+      end
+    end
+
+    it "falls back to crystal run bin/altair.cr for old projects" do
+      in_tempdir do
+        Dir.mkdir_p("bin")
+        File.write("bin/altair.cr", "require \"altair\"\n")
+        command, args = Altair::CLI.project_launcher(Path[Dir.current], ["routes"])
+        command.should eq("crystal")
+        args.should eq(["run", (Path[Dir.current] / "bin" / "altair.cr").to_s, "--", "routes"])
+      end
     end
   end
 end

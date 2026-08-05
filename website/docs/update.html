@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Update the Altair binary and a project's framework copy, with checksum verification.">
+  <title>Updating — Altair</title>
+  <link rel="icon" href="../favicon.png" type="image/png">
+  <link rel="stylesheet" href="../assets/css/main.css">
+</head>
+<body>
+  <header class="site-header">
+    <nav class="site-nav" aria-label="Main">
+      <a class="brand" href="../">Altair</a>
+      <div class="nav-links">
+        <a href="../">Home</a>
+        <a href="../docs/">Docs</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/usage.html">Usage</a>
+        <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="site-main">
+    <h1>Updating Altair</h1>
+<p>The <code>altair</code> binary updates itself from the latest GitHub release, with
+checksum verification and an atomic swap — no Crystal toolchain required.</p>
+<h2>One command</h2>
+<pre><code class="language-bash">altair update
+</code></pre>
+<p>It downloads the binary for your platform, verifies its SHA-256 digest
+against the published <code>SHA256SUMS</code>, and replaces the running executable
+via a temporary file, so a failed download never leaves a broken <code>altair</code>
+behind.</p>
+<h2>Checking without installing</h2>
+<pre><code class="language-bash">altair update --check
+</code></pre>
+<p>Reports whether a newer version exists and installs nothing. Safe for
+automation: it exits <code>0</code> when the installed binary is current and <code>1</code>
+when an update is available.</p>
+<h2>Forcing a reinstall</h2>
+<pre><code class="language-bash">altair update --force
+</code></pre>
+<p>Downloads and reinstalls even when you already run the latest version —
+handy for repairing a corrupted install or re-pinning a release.</p>
+<h2>Manual paths</h2>
+<ul>
+<li><strong>Re-run the installer</strong> — <code>curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.sh | sh -s -- --force</code> (or <code>iex (irm ...)</code> / <code>curl ... | cmd</code> on Windows) downloads the prebuilt binary again.</li>
+<li><strong>From a source checkout</strong> — <code>shards build altair &amp;&amp; ./bin/altair install --force</code> builds the current source and copies it onto your <code>PATH</code>.</li>
+</ul>
+<h2>Updating a project&#39;s framework copy</h2>
+<p>Updating the <code>altair</code> binary is separate from updating the framework a
+project depends on. Inside a project:</p>
+<pre><code class="language-bash">shards update altair   # bump lib/altair to the newest release
+</code></pre>
+<p>A fresh <code>shards install</code> after removing <code>shard.lock</code> and <code>lib/</code> resolves
+from scratch. Either way, projects resolve shards to the latest published
+git tag.</p>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>Altair — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></p>
+  </footer>
+</body>
+</html>

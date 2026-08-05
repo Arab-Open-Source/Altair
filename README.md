@@ -253,8 +253,13 @@ identical install. Then:
 ```bash
 altair help
 altair new blog
-cd blog && shards install && bin/altair server
+cd blog && shards install && altair server
 ```
+
+Once installed, `altair` is available directly from any directory — and
+inside a project the app-context commands (`server`, `routes`, `db:migrate`,
+`db:rollback`) find the project automatically, so you never need to type
+`bin/`.
 
 **From a source checkout** — build the standalone binary and install it:
 
@@ -270,21 +275,25 @@ can verify the copy. It is idempotent, refuses to silently overwrite an
 existing, different file (pass `--force` to replace it), and supports
 `--dir DIR` for a custom location or `ALTAIR_BIN` to set the default.
 
-Once installed, `altair` is available directly from any directory:
+Once installed, `altair` is available directly from any directory — and
+inside a project the app-context commands (`server`, `routes`, `db:migrate`,
+`db:rollback`) find the project automatically, so you never need to type
+`bin/`. The `bin/altair` launcher is still there and accepts the same
+commands:
 
 ```bash
 altair new blog
 cd blog
 shards install
-bin/altair server
+altair server
 ```
 
 Open <http://localhost:3000> for the welcome page, then generate a resource:
 
 ```bash
-bin/altair g scaffold Post title:string body:text
-bin/altair db:migrate
-bin/altair routes
+altair g scaffold Post title:string body:text
+altair db:migrate
+altair routes
 ```
 
 `g scaffold` writes a model, a migration, a controller with RESTful actions,
@@ -293,11 +302,31 @@ model compiles before the first migration. The other generators produce the
 same kind of ready-to-edit files:
 
 ```bash
-bin/altair g model Post title:string
-bin/altair g migration CreatePosts
-bin/altair g controller Posts
-bin/altair help
+altair g model Post title:string
+altair g migration CreatePosts
+altair g controller Posts
+altair help
 ```
+
+### Updating
+
+`altair update` checks GitHub for the latest release, downloads the binary
+for your platform, verifies its SHA-256 digest against the published
+`SHA256SUMS`, and atomically replaces the running executable:
+
+```bash
+altair update          # update to the latest release
+altair update --check  # report whether a newer version exists, install nothing
+altair update --force  # reinstall even when already up to date
+```
+
+`--check` exits `0` when current and `1` when an update is available — safe
+for automation. You can also re-run the one-line installer with `--force`,
+or `shards build altair && ./bin/altair install --force` from a checkout.
+
+Updating the `altair` binary is separate from updating a project's copy of
+the framework: inside a project, `shards update altair` pulls the latest
+published shard.
 
 By default a generated project depends on the published `Altair` shard. To
 point it at this development checkout instead, pass `--framework-path` (or

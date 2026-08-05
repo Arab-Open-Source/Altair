@@ -5,6 +5,27 @@ All notable changes to Altair will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.2] — 2026-08-05
+
+### Added
+
+- **`altair update`**: the binary updates itself from the latest GitHub
+  release — it downloads the platform binary, verifies its SHA-256 digest
+  against the published `SHA256SUMS`, and swaps it in atomically via a
+  temporary file. `--check` reports whether a newer version exists without
+  installing (exit `0` when current, `1` when an update is available);
+  `--force` reinstalls even when already up to date.
+
+### Changed
+
+- **App-context delegation**: `altair server`, `altair routes`,
+  `altair db:migrate` and `altair db:rollback` no longer require the
+  `bin/` prefix. From anywhere inside a project directory (subfolders
+  included) the global binary walks up to the nearest project and forwards
+  the command to its launcher — an executable `bin/altair` when present,
+  otherwise `crystal run bin/altair.cr` for projects generated before the
+  launcher existed. The old `Unknown command` hint is gone.
+
 ## [v0.1.1] — 2026-08-05
 
 ### Fixed

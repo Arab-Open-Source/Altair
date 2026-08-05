@@ -12,6 +12,7 @@ const meta = {
   "docs/usage": { title: "Usage — Altair", description: "Create a project, generate a scaffold and run the server with the Altair CLI." },
   "docs/features": { title: "What is implemented — Altair", description: "The current state of the Altair framework, phase by phase." },
   "docs/cli": { title: "CLI reference — Altair", description: "Every Altair command and generator." },
+  "docs/update": { title: "Updating — Altair", description: "Update the Altair binary and a project's framework copy, with checksum verification." },
 };
 
 function render(page) {
@@ -41,8 +42,8 @@ const indexHtml = render("index");
 writeFileSync(join(root, "index.html"), indexHtml);
 
 mkdirSync(join(root, "docs"), { recursive: true });
-for (const page of ["index", "install", "usage", "features", "cli"]) {
+for (const page of ["index", "install", "usage", "features", "cli", "update"]) {
   writeFileSync(join(root, "docs", `${page}.html`), render(`docs/${page}`));
 }
 
-console.log("Built website/: index.html + docs/{index,install,usage,features,cli}.html");
+console.log("Built website/: index.html + docs/{index,install,usage,features,cli,update}.html");
