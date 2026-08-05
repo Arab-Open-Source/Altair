@@ -53,6 +53,14 @@ private class TestController < Altair::Controller
   def merged_params_action : Nil
     render text: params["id"]
   end
+
+  def form_action : Nil
+    io = IO::Memory.new
+    form_for(io, "/posts?from=1&to=2", method: :put) do |f|
+      io << f.text_field("title", value: "Hi")
+    end
+    render html: io.to_s
+  end
 end
 
 describe Altair::Controller do
@@ -137,6 +145,23 @@ describe Altair::Controller do
       controller.params.merge_route({"id" => "5"})
       controller.merged_params_action
       controller.params["id"].should eq("5")
+    end
+  end
+
+  describe "form_for" do
+    it "escapes the action and renders fields with the _method override" do
+      io = IO::Memory.new
+      raw_request = HTTP::Request.new("GET", "/posts/5")
+      request = Altair::HTTP::Request.new(raw_request)
+      raw_response = HTTP::Server::Response.new(io)
+      response = Altair::HTTP::Response.new(raw_response)
+      controller = TestController.new(request, response)
+      controller.form_action
+      raw_response.close
+      body = io.to_s
+      body.should contain(%(<form action="/posts?from=1&amp;to=2" method="post">))
+      body.should contain(%(<input type="hidden" name="_method" value="PUT">))
+      body.should contain(%(<input type="text" name="title" value="Hi">))
     end
   end
 end

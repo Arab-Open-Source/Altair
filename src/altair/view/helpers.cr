@@ -71,7 +71,7 @@ module Altair
       # ```
       def button_to(name : String, path : String, method : Symbol = :post, **attrs) : String
         String.build do |io|
-          io << "<form action=\"" << path << "\" method=\"post\""
+          io << "<form action=\"" << Altair::View.escape(path) << "\" method=\"post\""
           attrs.each do |key, value|
             io << ' ' << attribute_name(key) << "=\"" << Altair::View.escape(value.to_s) << '"'
           end

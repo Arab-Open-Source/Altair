@@ -120,7 +120,7 @@ class Altair::Core::RequestHandler
   # written through the registration's status or handler. Registrations
   # are checked in declaration order.
   private def handle_rescued(exception : Exception, request : Altair::HTTP::Request?, context : ::HTTP::Server::Context) : Bool
-    Altair::Core::ErrorHandlers.registrations.each do |registration|
+    Altair::Core::ErrorHandlers.registrations(@app.class).each do |registration|
       klass = registration.exception_class
       next unless exception.class <= klass
       if status = registration.status

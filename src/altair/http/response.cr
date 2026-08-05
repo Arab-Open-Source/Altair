@@ -63,7 +63,7 @@ module Altair
       def send_file(path : Path, *, inline : Bool = true) : Nil
         @headers["Content-Length"] = File.size(path).to_s
         @headers["Content-Type"] = MIME.from_extension?(path.extension) || "application/octet-stream"
-        @headers["Content-Disposition"] = inline ? "inline" : %(attachment; filename="#{path.basename}")
+        @headers["Content-Disposition"] = inline ? "inline" : %(attachment; filename="#{path.basename.gsub('\\', "\\\\").gsub('"', "\\\"")}")
         File.open(path, "rb") do |file|
           IO.copy(file, @response.output)
         end

@@ -133,11 +133,15 @@ module Altair
         self
       end
 
-      # Returns a hash of only the given keys, raising `KeyError` when any
-      # of them is missing. Route and query values take precedence over
-      # body values, like `to_h`.
+      # Returns a hash of only the given keys. Permitted keys that are
+      # absent are simply omitted — pair `require` with `permit` to enforce
+      # presence first:
+      #
+      # ```
+      # params.require("title").permit("title", "optional_field")
+      # ```
+      # Route and query values take precedence over body values, like `to_h`.
       def permit(*keys : String) : Hash(String, String)
-        keys.each { |key| self[key] }
         to_h.select { |key, _| keys.includes?(key) }
       end
 

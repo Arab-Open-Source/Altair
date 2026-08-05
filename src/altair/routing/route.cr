@@ -55,7 +55,7 @@ module Altair
       # requires at least one.
       def match(parts : PathParts) : Hash(String, String)?
         return unless shape_ok?(parts)
-        params = {} of String => String
+        params = nil
         @segments.each_with_index do |segment, index|
           case segment.kind
           when Segment::Kind::Static
@@ -63,14 +63,14 @@ module Altair
           when Segment::Kind::Param
             value = URI.decode(parts[index])
             return unless constraint_ok?(segment.value, value)
-            params[segment.value] = value
+            (params ||= {} of String => String)[segment.value] = value
           when Segment::Kind::Glob
             value = parts.parts[index..].map { |part| URI.decode(part) }.join("/")
             return unless constraint_ok?(segment.value, value)
-            params[segment.value] = value
+            (params ||= {} of String => String)[segment.value] = value
           end
         end
-        params
+        params || {} of String => String
       end
 
       # Returns `true` when the route's segments match the given path

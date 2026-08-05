@@ -52,6 +52,12 @@ describe Altair::View::Helpers do
     )
   end
 
+  it "escapes the button action like the link path" do
+    HelpersProbe.new.button_to("Go", %(/posts?x=1&y=2)).should eq(
+      %(<form action="/posts?x=1&amp;y=2" method="post"><button>Go</button></form>)
+    )
+  end
+
   it "translates hx_, data_ and aria_ attributes" do
     HelpersProbe.new.attribute_name(:hx_target).should eq("hx-target")
     HelpersProbe.new.attribute_name(:data_id).should eq("data-id")

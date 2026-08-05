@@ -110,6 +110,7 @@ abstract class Altair::Application
         {% raise "rescue_from: block handlers must declare exactly three parameters — |exception, request, response|" %}
       {% end %}
       Altair::Core::ErrorHandlers.register(
+        {{@type}},
         {{ exception_class.id }},
         nil,
         ->(app : Altair::Application, {{ block.args[0].id }} : Exception, {{ block.args[1].id }} : Altair::HTTP::Request?, {{ block.args[2].id }} : Altair::HTTP::Response) {
@@ -120,9 +121,10 @@ abstract class Altair::Application
       {% if to && handler %}
         {% raise "rescue_from: give either `to:` or `handler:`, not both" %}
       {% elsif to %}
-        Altair::Core::ErrorHandlers.register({{ exception_class.id }}, ::HTTP::Status.new({{ to }}), nil)
+        Altair::Core::ErrorHandlers.register({{@type}}, {{ exception_class.id }}, ::HTTP::Status.new({{ to }}), nil)
       {% elsif handler %}
         Altair::Core::ErrorHandlers.register(
+          {{@type}},
           {{ exception_class.id }},
           nil,
           ->(app : Altair::Application, exception : Exception, request : Altair::HTTP::Request?, response : Altair::HTTP::Response) {

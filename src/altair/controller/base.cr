@@ -118,7 +118,7 @@ module Altair
     # <% end %>
     # ```
     def form_for(io : IO, action : String, method : Symbol = :post, **attrs, & : Altair::View::FormBuilder -> Nil) : Nil
-      io << "<form action=\"" << action << "\" method=\"post\""
+      io << "<form action=\"" << Altair::View.escape(action) << "\" method=\"post\""
       attrs.each do |key, value|
         io << ' ' << attribute_name(key) << "=\"" << Altair::View.escape(value.to_s) << '"'
       end

@@ -108,15 +108,25 @@ describe Altair::HTTP::Params do
       params.permit("title", "body").should eq({"title" => "Altair", "body" => "Hello"})
     end
 
-    it "raises KeyError from permit for missing keys" do
+    it "omits permitted keys that are absent instead of raising" do
       params = Altair::HTTP::Params.new(URI::Params.parse("title=Altair"))
-      expect_raises(KeyError) { params.permit("title", "nope") }
+      params.permit("title", "nope").should eq({"title" => "Altair"})
+    end
+
+    it "returns an empty hash when no permitted key is present" do
+      params = Altair::HTTP::Params.new(URI::Params.new)
+      params.permit("title").should eq({} of String => String)
     end
 
     it "chains require with permit for the strong params pattern" do
       params = Altair::HTTP::Params.new(URI::Params.parse("post[title]=Altair&post[body]=Hi&admin=1"))
       filtered = params.require("post[title]").permit("post[title]", "post[body]")
       filtered.should eq({"post[title]" => "Altair", "post[body]" => "Hi"})
+    end
+
+    it "permits an optional field next to a required one" do
+      params = Altair::HTTP::Params.new(URI::Params.parse("title=Altair"))
+      params.require("title").permit("title", "optional").should eq({"title" => "Altair"})
     end
   end
 end
@@ -214,5 +224,21 @@ describe Altair::HTTP::Response do
     response.print("raw")
     raw.close
     io.to_s.should contain("raw")
+  end
+
+  it "escapes the filename in the Content-Disposition header" do
+    dir = File.tempname("altair-send-file")
+    Dir.mkdir(dir)
+    path = File.join(dir, %(we"ird name.txt))
+    File.write(path, "x")
+    io = IO::Memory.new
+    raw = HTTP::Server::Response.new(io)
+    response = Altair::HTTP::Response.new(raw)
+    response.send_file(Path.new(path), inline: false)
+    response.headers["Content-Disposition"].should eq("attachment; filename=\"we\\\"ird name.txt\"")
+  ensure
+    raw.try(&.close)
+    File.delete(path) if path
+    Dir.delete(dir) if dir && Dir.exists?(dir)
   end
 end

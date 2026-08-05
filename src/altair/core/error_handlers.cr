@@ -3,9 +3,11 @@
 # `Altair::Core::ErrorHandlers` is the registry behind the `rescue_from`
 # application DSL. Every registration pairs an exception class with a
 # response: a fixed status, a handler method on the application, or a
-# block. The registry is class-level and global to the process — one
-# application runs per process — and is read by the request handler when
-# an unhandled exception reaches the application boundary.
+# block. Registrations are stored **per application class** — one
+# application runs per process, but the isolation means several application
+# classes (as in the test suite) never leak handlers into each other. The
+# request handler reads its own application's registrations when an
+# unhandled exception reaches the application boundary.
 module Altair
   module Core
     module ErrorHandlers
@@ -18,6 +20,7 @@ module Altair
       # A single `rescue_from` registration. Exactly one of `status` or
       # `handler` is set.
       record Registration,
+        app_class : Altair::Application.class,
         exception_class : Exception.class,
         status : ::HTTP::Status?,
         handler : Handler?
@@ -25,16 +28,24 @@ module Altair
       @@registrations = [] of Registration
 
       # Registers an exception class to be handled by `status` or by
-      # `handler`. Called by the `rescue_from` macro at class-load time.
-      def self.register(exception_class : Exception.class, status : ::HTTP::Status? = nil, handler : Handler? = nil) : Nil
-        @@registrations << Registration.new(exception_class, status, handler)
+      # `handler`, scoped to the given application class. Called by the
+      # `rescue_from` macro at class-load time.
+      def self.register(klass : Altair::Application.class, exception_class : Exception.class, status : ::HTTP::Status? = nil, handler : Handler? = nil) : Nil
+        @@registrations << Registration.new(klass, exception_class, status, handler)
       end
 
-      # All registered handlers, in declaration order. Registrations are
-      # checked from first to last, so applications list the most specific
-      # exceptions first.
-      def self.registrations : Array(Registration)
-        @@registrations
+      # The application's registered handlers, in declaration order.
+      # Registrations are checked from first to last, so applications list
+      # the most specific exceptions first.
+      def self.registrations(klass : Altair::Application.class) : Array(Registration)
+        @@registrations.select { |registration| registration.app_class == klass }
+      end
+
+      # Removes every registration the application class holds. Test-only
+      # helper for re-defining an application between specs without
+      # leaking registrations.
+      def self.reset(klass : Altair::Application.class) : Nil
+        @@registrations.reject! { |registration| registration.app_class == klass }
       end
     end
   end

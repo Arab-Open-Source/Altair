@@ -80,9 +80,11 @@ describe "routing integration" do
     end
   end
 
-  it "matches HEAD requests against GET routes" do
+  it "matches HEAD requests against GET routes, dropping the body" do
     with_routing_server do |port|
-      HTTP::Client.head("http://127.0.0.1:#{port}/posts").status_code.should eq(200)
+      response = HTTP::Client.head("http://127.0.0.1:#{port}/posts")
+      response.status_code.should eq(200)
+      response.body.should be_empty
     end
   end
 
@@ -91,6 +93,17 @@ describe "routing integration" do
       response = HTTP::Client.post(
         "http://127.0.0.1:#{port}/posts/5",
         form: "title=updated&_method=PUT",
+        headers: HTTP::Headers{"Content-Type" => "application/x-www-form-urlencoded"}
+      )
+      response.status_code.should eq(200)
+    end
+  end
+
+  it "routes a `_method=DELETE` form to the destroy action" do
+    with_routing_server do |port|
+      response = HTTP::Client.post(
+        "http://127.0.0.1:#{port}/posts/5",
+        form: "_method=DELETE",
         headers: HTTP::Headers{"Content-Type" => "application/x-www-form-urlencoded"}
       )
       response.status_code.should eq(200)

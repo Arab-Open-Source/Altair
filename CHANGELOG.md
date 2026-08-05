@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`_method` override end-to-end**: a `_method=DELETE` form now reaches the
+  destroy action, verified over real HTTP in the routing integration suite.
+- **HEAD answers keep their body dropped on the wire**: the integration spec
+  now asserts the body is empty, not just the status, so the framework's
+  behavior is pinned against the stdlib.
+- **`rescue_from` registrations are isolated per application class.** The
+  registry no longer keys on a `Hash` of class metaclasses — Crystal's exact
+  key-type check rejected subclass metaclasses, silently downgrading every
+  debug 500 to a plain error — and instead filters a flat list by
+  application class, so several application classes in one process never
+  leak handlers into each other.
+- **`send_file` quotes special characters in the filename** for the
+  `Content-Disposition` header, so a file named `we"ird name.txt` is served
+  with a valid header instead of an unparseable one.
+
+### Changed
+
+- **`Params#permit` drops absent keys instead of raising.** Strong params
+  now compose: `params.require("title").permit("title", "optional")` keeps
+  the required-field enforcement while optional fields simply vanish when
+  missing. `require` remains the presence gate.
+- **`button_to` and `form_for` escape their actions**, so a
+  `"/posts?from=1&to=2"` path renders as `from=1&amp;to=2` in the HTML
+  markup instead of an ambiguous raw ampersand.
+- **`Route#match` builds its params hash lazily**, avoiding an allocation
+  on the hot path when the route has no dynamic segments; a matched static
+  route still reports empty params.
+
 ### Chore
 
 - **Lint green again**: the `.ameba.yml` exclusion now covers the nested
