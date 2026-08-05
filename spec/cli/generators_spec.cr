@@ -192,7 +192,7 @@ module Altair::CLI
         File.read("blog/bin/altair.cr").should start_with("require \"altair\"")
         File.read("blog/bin/altair.cmd").should contain "crystal run bin\\altair.cr -- %*"
         unless {{ flag?(:win32) }}
-          File.executable?("blog/bin/altair").should be_true
+          File::Info.executable?("blog/bin/altair").should be_true
         end
         File.read("blog/src/blog.cr").should contain "Blog.run!"
         File.read("blog/src/config/application.cr").should contain "class Blog < Altair::Application"
