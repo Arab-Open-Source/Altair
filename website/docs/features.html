@@ -37,7 +37,17 @@
 <li><code>redirect</code>, glob segments and singular <code>resource</code></li>
 </ul>
 <h2>Phase 2 — Controllers</h2>
-<p>A type-checked controller base with actions, parameters and rendering hooks. A wrong method on a dispatch is a compile error, not a runtime 500.</p>
+<p>A type-checked controller base with actions, parameters and rendering hooks. A wrong method on a dispatch is a compile error, not a runtime 500. The controller layer gained a hardening wave:</p>
+<ul>
+<li><code>render json:</code> serializes any JSON-able object, <code>redirect_back</code> with open-redirect protection</li>
+<li><code>request.format</code> (path suffix, then <code>Accept</code>, then <code>:html</code>) and JSON request bodies merged into <code>params</code></li>
+<li><code>head</code> answers bodyless; <code>no_content</code> for a bare 204</li>
+<li><code>respond_to</code> — one action, several format handlers, undeclared formats answer 406</li>
+<li><code>before_action</code> / <code>after_action</code> with <code>only:</code> / <code>except:</code>, <code>skip_before_action</code> / <code>skip_after_action</code>, inheritance across the hierarchy</li>
+<li><code>rescue_from</code> maps exceptions to handler responses (inherited, <code>only:</code>-filtered, subclass-aware)</li>
+<li><code>stream</code> opens chunked bodies for large responses and server-sent events</li>
+<li>A segment-based route index buckets routes by their first segment so matching only tests viable candidates</li>
+</ul>
 <h2>Phase 3 — Views</h2>
 <ul>
 <li>ECR templates</li>
@@ -63,7 +73,7 @@
 </ul>
 <h2>Testing and quality</h2>
 <ul>
-<li>495 specs passing (6 pending: the PostgreSQL contract suite, gated on <code>ALTAIR_TEST_PG_URL</code>)</li>
+<li>542 specs passing (6 pending: the PostgreSQL contract suite, gated on <code>ALTAIR_TEST_PG_URL</code>)</li>
 <li>Formatter clean, linter silent on framework sources</li>
 <li>Smart error pages: 404 with route suggestions, 405 with <code>_method</code> explanation, detailed 500 diagnostics in debug mode only</li>
 </ul>

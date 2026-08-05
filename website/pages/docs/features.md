@@ -15,7 +15,16 @@ The core request/response loop: `Altair::Application`, request handling, error p
 
 ## Phase 2 — Controllers
 
-A type-checked controller base with actions, parameters and rendering hooks. A wrong method on a dispatch is a compile error, not a runtime 500.
+A type-checked controller base with actions, parameters and rendering hooks. A wrong method on a dispatch is a compile error, not a runtime 500. The controller layer gained a hardening wave:
+
+- `render json:` serializes any JSON-able object, `redirect_back` with open-redirect protection
+- `request.format` (path suffix, then `Accept`, then `:html`) and JSON request bodies merged into `params`
+- `head` answers bodyless; `no_content` for a bare 204
+- `respond_to` — one action, several format handlers, undeclared formats answer 406
+- `before_action` / `after_action` with `only:` / `except:`, `skip_before_action` / `skip_after_action`, inheritance across the hierarchy
+- `rescue_from` maps exceptions to handler responses (inherited, `only:`-filtered, subclass-aware)
+- `stream` opens chunked bodies for large responses and server-sent events
+- A segment-based route index buckets routes by their first segment so matching only tests viable candidates
 
 ## Phase 3 — Views
 
@@ -43,7 +52,7 @@ Three vertical waves:
 
 ## Testing and quality
 
-- 495 specs passing (6 pending: the PostgreSQL contract suite, gated on `ALTAIR_TEST_PG_URL`)
+- 542 specs passing (6 pending: the PostgreSQL contract suite, gated on `ALTAIR_TEST_PG_URL`)
 - Formatter clean, linter silent on framework sources
 - Smart error pages: 404 with route suggestions, 405 with `_method` explanation, detailed 500 diagnostics in debug mode only
 

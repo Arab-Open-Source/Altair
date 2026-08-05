@@ -41,12 +41,17 @@ Nothing ships unless someone can look at it, click it, and see it work.
 - **Phases 0–5 done** (Foundation, Router, Controllers, Views, Record/ORM,
   CLI + Generators). `examples/blog` is the always-running persistence demo
   — its posts and comments survive restarts.
-- 495 specs passing (6 pending: the PostgreSQL contract suite, gated on
+- 542 specs passing (6 pending: the PostgreSQL contract suite, gated on
   `ALTAIR_TEST_PG_URL`), formatter clean, Ameba silent on framework sources.
 - The router shipped three post-Phase-1 waves: `resources` blocks
   (`member`/`collection`/nested, Phase 1 era), constraints + implicit
   format suffix, and `redirect` / glob segments / singular `resource`
   (Wave 3, current).
+- The controller layer shipped a post-Phase-2 hardening wave: JSON-object
+  rendering, `redirect_back`, `request.format`, JSON request bodies, clean
+  `head`, `respond_to`, callbacks (`before_action` / `after_action` /
+  `skip_*` with inheritance), controller-level `rescue_from`, chunked
+  `stream`, and a segment-based route index.
 - Smart error pages (404 with route suggestions, 405 with `_method`
   explanation, detailed 500 diagnostics) shipped early as a pre-Phase-3
   gift — they live in the framework already.
@@ -225,7 +230,7 @@ crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
 
 ## Testing
 
-The suite is `crystal spec` (currently 314 examples). Run it before and
+The suite is `crystal spec` (currently 542 examples). Run it before and
 after every change:
 
 ```bash

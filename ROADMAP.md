@@ -61,6 +61,14 @@ generators on top of that stack.
 | Middleware pipeline | `Logger` + `Static` (path-traversal protected) |
 | Smart error pages | Dev 404/405/500 pages with route suggestions + diagnostics |
 
+### Controller additions since Phase 2 (hardening wave, shipped)
+
+| Wave | Delivered |
+|------|-----------|
+| W1 — hardening | `permit` drops absent keys, `button_to`/`form_for` escape actions, quoted `send_file` filenames, lazy route params, per-application-class error handler isolation, HEAD-body and `_method` integration specs |
+| W2 — request/response DX | `render json:` serializes any JSON-able object, `redirect_back(fallback:)` with same-host protection, `request.format` (suffix > `Accept` > `:html`), JSON request bodies merged into `params`, bodyless `head` + `no_content` |
+| W3 — action machinery | `before_action`/`after_action` + `skip_*` with `only:`/`except:` and inheritance, controller-level `rescue_from` (compiled matching, subclass-aware), `respond_to` with 406 fallback, chunked `stream`, and a segment-based route index for candidate-only matching |
+
 ## Phase 3: Views (completed)
 
 | Task | Exit criterion |

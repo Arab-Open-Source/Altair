@@ -35,7 +35,7 @@ executable (`--check` / `--force` supported). Distributions: `release.yml`
 (pushed on `v*` tags)
 builds Linux/macOS/Windows (amd64+arm64) binaries with `SHA256SUMS`, and
 `scripts/install.sh` / `install.ps1` / `install.cmd` give a verified
-one-command install on each platform. 495 specs passing (6 pending: the PostgreSQL contract suite on `ALTAIR_TEST_PG_URL`).
+one-command install on each platform. 542 specs passing (6 pending: the PostgreSQL contract suite on `ALTAIR_TEST_PG_URL`).
 
 | Phase | Focus | Status |
 |---|---|---|
@@ -83,7 +83,7 @@ cli/         CLI dispatcher, per-project commands, generators (incl. install)
 ## Testing
 
 ```bash
-crystal spec                              # full suite (currently 495)
+crystal spec                              # full suite (currently 542)
 crystal tool format --check src spec examples
 crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
 ```

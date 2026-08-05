@@ -57,19 +57,94 @@ params.fetch?(&quot;id&quot;, Int32)    # Integer?, or nil on bad input
 params.permit(&quot;title&quot;, &quot;body&quot;)
 params.require(&quot;post&quot;).permit(&quot;title&quot;, &quot;body&quot;)
 </code></pre>
+<p>An <code>application/json</code> request body joins the same params: <code>request.json</code>
+holds the parsed body, and its top-level scalar values are merged (query and
+form values win on conflicts):</p>
+<pre><code class="language-crystal">request.json            # JSON::Any? — nil when the body is not JSON
+params[&quot;name&quot;]?         # a top-level JSON value, as a String
+</code></pre>
+<p><code>request.format</code> reports the format the client asked for — the path suffix
+(<code>/posts.json</code>), else the <code>Accept</code> header, else <code>:html</code>:</p>
+<pre><code class="language-crystal">case request.format
+when :json then render json: post
+when :text then render text: &quot;…&quot;
+else            render :show
+end
+</code></pre>
 <h2>Rendering</h2>
 <p>An action ends by rendering something. Plain strings and helpers:</p>
 <pre><code class="language-crystal">render html: &quot;&lt;h1&gt;Hello&lt;/h1&gt;&quot;
 render text: &quot;plain&quot;, status: ::HTTP::Status::NOT_FOUND
 render json: %({&quot;ok&quot;: true})
+render json: {ok: true, id: 42}   # any JSON-able object is serialized
 redirect_to posts_path
-head ::HTTP::Status::NO_CONTENT
+redirect_back fallback: posts_path   # honors Referer, same-host only
+head ::HTTP::Status::NO_CONTENT      # bodyless answer; later writes ignored
+no_content                           # shorthand for 204
 </code></pre>
 <p>When the controller declares templates, <code>render</code> takes the action name plus
 its locals:</p>
 <pre><code class="language-crystal">render :index, locals: {posts: Post.all.to_a}
 render :index, layout: false, locals: {posts: Post.all.to_a}
 render &quot;form&quot;, locals: {post: post}   # a partial, returns a String
+</code></pre>
+<h2>Callbacks</h2>
+<p>Filters run around the action. <code>only:</code> / <code>except:</code> restrict the actions a
+filter applies to, and a before callback that writes a response (render,
+redirect, head) halts the chain — the action and its after callbacks are
+skipped:</p>
+<pre><code class="language-crystal">class Admin::PostsController &lt; PostsController
+  before_action :require_login, only: [:new, :create]
+  after_action :audit_action
+
+  skip_before_action :require_login   # inherited filters can be removed
+end
+</code></pre>
+<p>Filters are inherited across the controller hierarchy, and a skip declared
+in one subclass does not affect its siblings. A filter is a plain public
+method; any response it writes answers the request.</p>
+<h2>respond_to</h2>
+<p>One action, several format handlers. The block declares a handler per
+format; the one matching <code>request.format</code> runs, and a request for an
+undeclared format answers 406:</p>
+<pre><code class="language-crystal">def show : Nil
+  post = Post.find(params.fetch(&quot;id&quot;, Int32))
+  respond_to do |format|
+    format.html { render :show, locals: {post: post} }
+    format.json { render json: post }
+    format.text { render text: post.to_s }
+  end
+end
+</code></pre>
+<h2>Streaming</h2>
+<p><code>stream</code> opens a chunked response body — every write to the yielded <code>IO</code>
+reaches the client as it happens, with the content type set first:</p>
+<pre><code class="language-crystal">def events : Nil
+  stream(&quot;text/event-stream&quot;) do |io|
+    io &lt;&lt; &quot;data: hello\n\n&quot;
+    io.flush
+  end
+end
+</code></pre>
+<h2>Exceptions to responses</h2>
+<p>A controller can map a raised exception to a response. The handler method
+receives the exception (cast to the registered type), and subclass
+exceptions match:</p>
+<pre><code class="language-crystal">class PostsController &lt; Altair::Controller
+  rescue_from MissingPost, handle_with: :render_missing
+
+  def render_missing(e : MissingPost) : Nil
+    render text: &quot;No such post&quot;, status: ::HTTP::Status::NOT_FOUND
+  end
+end
+</code></pre>
+<p><code>only:</code> / <code>except:</code> restrict the actions a handler answers for, handlers
+inherit across the hierarchy, and an unhandled exception re-raises to the
+application&#39;s error pages. At the application level, <code>rescue_from</code> maps an
+exception to a fixed status:</p>
+<pre><code class="language-crystal">class Blog &lt; Altair::Application
+  rescue_from KeyError, to: 404
+end
 </code></pre>
 <h2>Templates</h2>
 <p>The <code>templates</code> macro declares the view files and compiles them into typed
@@ -84,14 +159,6 @@ end
 </code></pre>
 <p>This renders <code>views/posts/index.ecr</code> and <code>views/posts/show.ecr</code>, each
 receiving exactly the declared locals. See the <a href="../docs/views.html">Views guide</a>.</p>
-<h2>Exceptions to responses</h2>
-<p><code>rescue_from</code> maps a raised exception to a response instead of a bare 500:</p>
-<pre><code class="language-crystal">class Blog &lt; Altair::Application
-  rescue_from KeyError, to: 404
-end
-</code></pre>
-<p><code>KeyError</code> (a missing param or a missing record raised with <code>raise KeyError</code>)
-now answers 404.</p>
 
   </main>
 
