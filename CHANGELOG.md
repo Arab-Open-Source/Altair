@@ -5,11 +5,13 @@ All notable changes to Altair will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v0.1.1] — 2026-08-05
 
 ### Fixed
 
 - **`shards install` inside a generated project**: the framework no longer
+
+
   declares `executables` in `shard.yml`, which made Shards look for a
   prebuilt `lib/altair/bin/altair` in the fetched checkout and abort with
   `Could not find executable "altair" for "altair"`. `shards build altair`
