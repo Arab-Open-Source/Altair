@@ -78,7 +78,7 @@ module Altair
         # SQLite has no `JSON::Any` cursor, so JSON columns are stored as text
         # and parsed on read.
         def read_json(rs : DB::ResultSet) : JSON::Any?
-          if (text = rs.read(String?))
+          if text = rs.read(String?)
             JSON.parse(text)
           end
         end
@@ -86,7 +86,7 @@ module Altair
         # SQLite stores decimals as text; parse them back from the stored
         # form (`BigDecimal.new` also accepts a string).
         def read_decimal(rs : DB::ResultSet) : BigDecimal?
-          if (text = rs.read(String?))
+          if text = rs.read(String?)
             BigDecimal.new(text)
           end
         end

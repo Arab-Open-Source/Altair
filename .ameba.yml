@@ -7,8 +7,8 @@
 # as written), `not_nil!` where the compiler cannot narrow (route helpers,
 # persisted record ids), and the router's large compile-time macros.
 Excluded:
-  - "examples/*/lib/**/*.cr"
-  - "examples/*/lib/**/*.ecr"
+  - "examples/**/lib/**/*.cr"
+  - "examples/**/lib/**/*.ecr"
   - "**/*.ecr"
 
 Lint/WhitespaceAroundMacroExpression:

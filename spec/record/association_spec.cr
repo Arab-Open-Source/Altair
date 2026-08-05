@@ -101,13 +101,13 @@ describe Altair::Record::Model do
       posts.each { |post| Comment.create(post_id: post.id, body: "a child") }
       count = queries do
         loaded = Post.all.includes(:comments).to_a
-        loaded.each { |post| post.comments.size.should eq(1) }
+        loaded.each(&.comments.size.should(eq(1)))
       end
       count.should eq(2)
     end
 
     it "eager loads empty collections without extra queries" do
-      post = Post.create(title: "Alone", views: 0)
+      Post.create(title: "Alone", views: 0)
       count = queries do
         loaded = Post.all.includes(:comments).to_a
         loaded.first.comments.should be_empty
@@ -190,8 +190,7 @@ describe Altair::Record::Model do
     it "behaves like an enumerable" do
       Post.create(title: "B", views: 0)
       Post.create(title: "A", views: 0)
-      Post.all.map(&.title).compact.sort.should eq(["A", "B"])
-      Post.all.compact_map(&.title).sort.should eq(["A", "B"])
+      Post.all.compact_map(&.title).sort!.should eq(["A", "B"])
       Post.all.size.should eq(2)
     end
 

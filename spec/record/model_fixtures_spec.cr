@@ -211,11 +211,9 @@ class Comment < Altair::Record::Model
   after_destroy :raise_if_asked_destroy
 
   class_getter events : Array(Symbol) = [] of Symbol
-  class_property raise_after_create : Bool = false
-  class_property raise_after_update : Bool = false
-  class_property raise_after_destroy : Bool = false
-
-  class_getter events : Array(Symbol) = [] of Symbol
+  class_property? raise_after_create : Bool = false
+  class_property? raise_after_update : Bool = false
+  class_property? raise_after_destroy : Bool = false
 
   def shout : Nil
     self.body = "#{body}!"
@@ -254,15 +252,15 @@ class Comment < Altair::Record::Model
   end
 
   def raise_if_asked_create : Nil
-    raise "boom on create" if Comment.raise_after_create
+    raise "boom on create" if Comment.raise_after_create?
   end
 
   def raise_if_asked_update : Nil
-    raise "boom on update" if Comment.raise_after_update
+    raise "boom on update" if Comment.raise_after_update?
   end
 
   def raise_if_asked_destroy : Nil
-    raise "boom on destroy" if Comment.raise_after_destroy
+    raise "boom on destroy" if Comment.raise_after_destroy?
   end
 end
 

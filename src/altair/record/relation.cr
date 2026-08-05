@@ -34,7 +34,7 @@ module Altair
           T.connection.query(T.select_sql + clause_sql, values: @binds) do |rs|
             rs.each { rows << T.from_row(rs) }
           end
-          @preloaders.each { |preloader| preloader.call(rows) }
+          @preloaders.each(&.call(rows))
           rows
         end
       end

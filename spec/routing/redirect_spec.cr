@@ -72,12 +72,10 @@ private def with_redirect_server(&)
   end
 
   100.times do
-    begin
-      HTTP::Client.get("http://127.0.0.1:#{port}/about")
-      break
-    rescue IO::Error
-      sleep 10.milliseconds
-    end
+    HTTP::Client.get("http://127.0.0.1:#{port}/about")
+    break
+  rescue IO::Error
+    sleep 10.milliseconds
   end
 
   yield port

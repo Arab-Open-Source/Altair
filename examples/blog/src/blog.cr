@@ -27,6 +27,5 @@ require "./app/controllers/application_controller"
 require "./app/controllers/comments_controller"
 require "./app/controllers/posts_controller"
 require "./config/application"
-require "./app/controllers/comments_controller"
 
 Blog.run!

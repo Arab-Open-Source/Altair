@@ -83,7 +83,7 @@ module Altair
         # PostgreSQL reports `NUMERIC` values as `PG::Numeric`, whose text
         # form round-trips into a `BigDecimal`.
         def read_decimal(rs : DB::ResultSet) : BigDecimal?
-          if (numeric = rs.read(PG::Numeric?))
+          if numeric = rs.read(PG::Numeric?)
             BigDecimal.new(numeric.to_s)
           end
         end

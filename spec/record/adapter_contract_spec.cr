@@ -103,7 +103,7 @@ private def adapter_contract(name : String, setup : Proc(Nil), teardown : Proc(N
     it "plucks a column's values" do
       Post.create(title: "A", views: 0)
       Post.create(title: "B", views: 0)
-      Post.pluck(:title).compact.map(&.to_s).sort.should eq(["A", "B"])
+      Post.pluck(:title).compact.map(&.to_s).sort!.should eq(["A", "B"])
     end
 
     it "rejects invalid records" do
@@ -161,7 +161,7 @@ private def adapter_contract(name : String, setup : Proc(Nil), teardown : Proc(N
       posts.each { |post| Comment.create(post_id: post.id, body: "a nice body") }
       count = queries do
         loaded = Post.all.includes(:comments).to_a
-        loaded.each { |post| post.comments.size.should eq(1) }
+        loaded.each(&.comments.size.should(eq(1)))
       end
       count.should eq(2)
     end
@@ -215,7 +215,6 @@ private def adapter_contract(name : String, setup : Proc(Nil), teardown : Proc(N
       unless parallel_writers?
         pending! "SQLite serializes writers — run this on a server database"
       end
-      connection = Altair::Record.connection
       n = 4
       arrived = Channel(Nil).new
       go = Channel(Nil).new
@@ -242,7 +241,6 @@ private def adapter_contract(name : String, setup : Proc(Nil), teardown : Proc(N
       unless parallel_writers?
         pending! "SQLite serializes writers — run this on a server database"
       end
-      connection = Altair::Record.connection
       arrived = Channel(Nil).new
       go = Channel(Nil).new
       done = Channel(Int32).new
@@ -281,14 +279,13 @@ private def adapter_contract(name : String, setup : Proc(Nil), teardown : Proc(N
         max:     app.config.db_max_pool_size,
         idle:    app.config.db_max_idle_pool_size,
       }
-      conn : Altair::Record::Connection? = nil
+      app.config.db_initial_pool_size = 50
+      app.config.db_max_pool_size = 50
+      app.config.db_max_idle_pool_size = 50
+      conn = Altair::Record::Connection.for(app)
       begin
         Fiber::ExecutionContext.default.resize(maximum: Math.max(original, 8))
-        app.config.db_initial_pool_size = 50
-        app.config.db_max_pool_size = 50
-        app.config.db_max_idle_pool_size = 50
-        conn = Altair::Record::Connection.for(app)
-        cnn = conn.not_nil!
+        cnn = conn
         placeholder = cnn.adapter.placeholder(0)
         cnn.exec("DROP TABLE IF EXISTS churn_widgets")
         cnn.exec(
@@ -300,18 +297,16 @@ private def adapter_contract(name : String, setup : Proc(Nil), teardown : Proc(N
           n = 200
           n.times do |i|
             spawn do
-              begin
-                if i.even?
-                  cnn.transaction do
-                    cnn.exec("INSERT INTO churn_widgets (name) VALUES (#{placeholder})", "row")
-                  end
-                else
+              if i.even?
+                cnn.transaction do
                   cnn.exec("INSERT INTO churn_widgets (name) VALUES (#{placeholder})", "row")
                 end
-                failures.send(nil)
-              rescue ex
-                failures.send(ex)
+              else
+                cnn.exec("INSERT INTO churn_widgets (name) VALUES (#{placeholder})", "row")
               end
+              failures.send(nil)
+            rescue ex
+              failures.send(ex)
             end
           end
           n.times do

@@ -190,7 +190,7 @@ module Altair
       # path reads an atomic counter instead of the mutex: when no
       # transaction is active anywhere the answer is always `nil`.
       private def active_connection : DB::Connection?
-        return nil if @active_transactions.get == 0
+        return if @active_transactions.get == 0
         @lock.synchronize { @active_connections[Fiber.current]? }
       end
 

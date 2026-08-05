@@ -14,7 +14,7 @@ describe Altair::Record::Relation do
   end
 
   it "filters by column equality" do
-    Post.all.where(published: true).map(&.title.not_nil!).sort.should eq(["alpha", "gamma"])
+    Post.all.where(published: true).map(&.title.not_nil!).sort!.should eq(["alpha", "gamma"])
   end
 
   it "filters by multiple keyword pairs" do
@@ -22,7 +22,7 @@ describe Altair::Record::Relation do
   end
 
   it "filters with a comparison operator" do
-    Post.all.where(:views, :>=, 15).map(&.title.not_nil!).sort.should eq(["beta", "delta"])
+    Post.all.where(:views, :>=, 15).map(&.title.not_nil!).sort!.should eq(["beta", "delta"])
   end
 
   it "orders by a column" do
@@ -41,7 +41,7 @@ describe Altair::Record::Relation do
   it "keeps the relation lazy and caches after iteration" do
     relation = Post.all.where(published: true)
     Post.create(title: "epsilon", views: 1, published: true)
-    relation.map(&.title.not_nil!).sort.should eq(["alpha", "epsilon", "gamma"])
+    relation.map(&.title.not_nil!).sort!.should eq(["alpha", "epsilon", "gamma"])
   end
 
   it "yields every row in bounded batches" do
