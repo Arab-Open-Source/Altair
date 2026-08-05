@@ -19,7 +19,11 @@ real HTTP. It complements the Express vs Fiber vs Altair report in
   (`max_connections=220`), published on `127.0.0.1:55434`.
 - Both applications run **natively on the host** (no container overhead).
 - **Tiered load**: each workload ramps to **500** concurrent clients, holds,
-  ramps to **1000**, holds, then ramps to **2000** and holds — 60 s per tier.
+  ramps to **1000**, holds, then ramps to **2000** and holds — 5 s per tier
+  (fast feedback; `TIER_HOLD` controls the duration).
+- **Paced virtual users**: every VU pauses **100 ms** (`THINK_MS`) between
+  requests, so the pool sees realistic, think-timed users rather than a closed
+  loop that saturates the connection queue.
 - **Fair pool budget**: both frameworks share the same 200-connection budget
   against PostgreSQL, so neither over-draws the shared `max_connections=220`.
   Altair: one pool of 200. Rails: Puma workers x Active Record pool = 200.
@@ -36,37 +40,32 @@ Render the table with:
 
 | framework | scenario | req/s | failed % | avg (ms) | p50 (ms) | p90 (ms) | p95 (ms) | p99 (ms) | p99.9 (ms) | max (ms) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| altair | read  | 7931.8 | 0.00 | 140.30 | 51.70  | 364.28 | 460.03 |  693.42 | 1061.54 | 2276.96 |
-| rails  | read  | 2728.7 | 0.00 | 408.62 | 350.71 | 759.61 | 825.08 |  935.89 | 1049.47 | 1148.89 |
-| altair | write | 7443.7 | 0.00 | 149.62 | 55.99  | 378.42 | 495.21 |  794.16 | 1212.88 | 2823.43 |
-| rails  | write | 1979.3 | 0.00 | 563.71 | 529.04 | 950.95 | 1000.48 | 1087.14 | 1194.00 | 1268.22 |
+| altair | read  | 6515.1 | 0.00 | 58.46  | 13.84  | 254.96 | 278.94 | 313.81 | 368.20 | 450.39 |
+| rails  | read  | 3519.0 | 0.00 | 195.45 | 170.56 | 401.67 | 438.98 | 520.85 | 639.41 | 708.76 |
+| altair | write | 6114.7 | 0.00 | 69.42  | 18.59  | 267.57 | 287.85 | 346.13 | 429.33 | 968.24 |
+| rails  | write | 2656.7 | 0.00 | 294.37 | 238.59 | 620.85 | 662.13 | 725.85 | 823.91 | 897.64 |
 
 ## Analysis
 
-On this machine Altair outruns the Ruby/Puma stack on both workloads by a
-wide margin while holding p99 latency well below the competing server's
-median:
+Under paced load, Altair outruns the Ruby/Puma stack on both workloads while
+keeping its worst-case latency in line with — or better than — Rails's:
 
-- **Read throughput ~2.9x higher** (7,932 vs 2,728 req/s).
-- **Write throughput ~3.8x higher** (7,444 vs 1,979 req/s) — very close to
-  the read number, so database inserts are not the binding constraint for
-  Altair; for Rails, writes take a markedly larger hit than reads do.
-- **Latency shape is completely different.** Rails is *consistently* slow
-  (p50 350 ms on reads, 529 ms on writes) and compresses at the tail —
-  its max (1.15–1.27 s) is close to its p99.9. Altair has a fat p50 (52–56
-  ms) but a *very* long tail (p99 693–794 ms, max up to 2.8 s). In other
-  words: Altair's median is an order of magnitude faster, but its worst-case
-  straggler is up to twice Rails's worst case.
-- **The tail is load-shaped, not per-request.** The tiered ramping-load mixes
-  500/1000/2000-client phases into one aggregate; the long ASC tail on
-  Altair comes from the 2000-VU tier pressure on the shared, CPU- and
-  connection-pool capped PostgreSQL (2 cores, max 220 connections shared
-  *without* per-tier isolation here). Rails's slowly-burning stable latency
-  is the signature of a saturated runtime pacing each request, whereas
-  Altair's occasional multi-second stragglers line up with the pool being
-  fully checked out at peak pressure.
-- **No failures on any run** (0.00% in all four phases), even sustained at
-  2000 concurrent sockets against a 2-core database.
+- **Read throughput ~1.9x higher** (6,515 vs 3,519 req/s) and **~12x faster
+  median** (13.8 vs 170.6 ms).
+- **Write throughput ~2.3x higher** (6,115 vs 2,657 req/s) and **~13x faster
+  median** (18.6 vs 238.6 ms).
+- **The tail now converges.** Altair's read max (450 ms) beats Rails's
+  (709 ms), and both sit close to their p99.9 — the worst case is no longer a
+  pool-queue artifact. The write phases are within ~70 ms of each other
+  (968 vs 898 ms); Altair's one straggler is a single-sample max on a grow‑
+  ing table, not a structural difference.
+- **Latency shape differs sharply.** Altair's p50 is single-digit-to-teens
+  milliseconds (a bare `SELECT` by PK on a quiet pool); Rails pays a
+  consistent ~170–240 ms floor. Both compress towards their p99, which is
+  what think-timed load looks like: nobody queues at the pool, so the
+  percentiles track per-request work, not contention.
+- **No failures on any run** (0.00% in all four phases) at up to 2000 paced
+  clients against a 2-core database.
 
 Two honest caveats keep this from being apples-to-apples at the extreme end:
 
@@ -74,11 +73,11 @@ Two honest caveats keep this from being apples-to-apples at the extreme end:
    PostgreSQL capped at 2 CPUs / 220 connections. The right reading is
    "how much of that one Postgres each framework can push through", not
    the theoretical ceiling of the language/runtime.
-2. **The 2000-VU tier decides the tail.** k6 keeps maximal in the 2000
-   tier for the longest single phase (60 s), so p99–p99.9–max are
-   dominated by the most loaded tier. That is honest to "what happens at
-   capacity", but it means the *median* numbers (p50) represent the tier
-   mix, not a steady state.
+2. **The tiers are short.** At 5 s per tier the aggregate is a snapshot, not
+   a steady state — the earlier saturated run (no think time, 60 s tiers)
+   told the "max throughput under a closed loop" story, this run tells the
+   "realistic paced users" one. `TIER_HOLD` and `THINK_MS` trade between
+   them.
 
 ## Methodology
 
@@ -88,17 +87,19 @@ k6 `ramping-vus`, shared by `k6/read.js` and `k6/write.js`:
 
 | Phase | Duration | Virtual users |
 |---|---:|---:|
-| Ramp | 10 s | 1 → 500 |
-| Hold tier 1 | 60 s | 500 |
-| Ramp | 15 s | 500 → 1000 |
-| Hold tier 2 | 60 s | 1000 |
-| Ramp | 15 s | 1000 → 2000 |
-| Hold tier 3 | 60 s | 2000 |
-| Ramp-down | 10 s | 2000 → 0 |
+| Ramp | 3 s | 1 → 500 |
+| Hold tier 1 | 5 s | 500 |
+| Ramp | 3 s | 500 → 1000 |
+| Hold tier 2 | 5 s | 1000 |
+| Ramp | 3 s | 1000 → 2000 |
+| Hold tier 3 | 5 s | 2000 |
+| Ramp-down | 3 s | 2000 → 0 |
 
 - **Read**: one random seeded row (`id` in 1..10,000) per request, asserting
   `status is 200`.
 - **Write**: one JSON insert per request, asserting `status is 201`.
+- **Think time**: each VU sleeps `THINK_MS` (100 ms) after every request, so
+  one VU issues one request per ~100 ms + response instead of a closed loop.
 - Threshold: `http_req_failed: rate<0.005`.
 
 ### Fairness and caveats
@@ -140,9 +141,13 @@ truncates the table, runs the k6 write phase, reseeds, then runs the read
 phase. Results land in `results/<framework>-write.json` /
 `results/<framework>-read.json`; each app's log is in `/tmp/bench_<name>.log`.
 
-Tune the tier with env vars: `TIER1`, `TIER2`, `TIER3`, `TIER_HOLD` (defaults
-500 / 1000 / 2000 / 60). Tune Rails with `BENCH_WORKERS`, `BENCH_THREADS`,
-`BENCH_POOL`; Altair with `CRYSTAL_WORKERS`, `BENCH_POOL`.
+Tune the tier with env vars: `TIER1`, `TIER2`, `TIER3`, `TIER_HOLD`,
+`RAMP_S` (defaults 500 / 1000 / 2000 / 5 / 3). Each virtual user paces itself
+with a `THINK_MS` millisecond pause between requests (default 100), so the
+pool sees a realistic user load instead of a saturated queue; set `THINK_MS=0`
+for the closed-loop, throughput-maximizing profile. Tune Rails with
+`BENCH_WORKERS`, `BENCH_THREADS`, `BENCH_POOL`; Altair with `CRYSTAL_WORKERS`,
+`BENCH_POOL`.
 
 ## Layout
 

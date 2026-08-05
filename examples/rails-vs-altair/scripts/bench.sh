@@ -18,11 +18,14 @@ cd "$(dirname "$0")/.."
 # files or accept() fails with EMFILE. Raised here so the app inherits it.
 ulimit -n 65535
 
-# Tiered load: hold 60 s at 500, 1000, then 2000 concurrent clients.
-TIER_HOLD="${TIER_HOLD:-60}"
+# Tiered load: hold TIER_HOLD s at 500, 1000, then 2000 concurrent clients.
+TIER_HOLD="${TIER_HOLD:-5}"
 TIER1="${TIER1:-500}"
 TIER2="${TIER2:-1000}"
 TIER3="${TIER3:-2000}"
+
+# Think time between a virtual user's requests, in milliseconds.
+THINK_MS="${THINK_MS:-100}"
 
 # Latency stats captured so the tail is comparable across frameworks.
 TREND_STATS="avg,med,p(90),p(95),p(99),p(99.9),max"
@@ -106,7 +109,7 @@ PG() { docker compose exec -T postgres psql -U bench -d bench "$@"; }
 # Write phase: empty table, POSTs add rows.
 PG -c "TRUNCATE $TABLE RESTART IDENTITY;" > /dev/null
 k6 run -e "BASE_URL=http://127.0.0.1:$PORT" \
-  -e "TIER_HOLD=$TIER_HOLD" -e "TIER1=$TIER1" -e "TIER2=$TIER2" -e "TIER3=$TIER3" \
+  -e "TIER_HOLD=$TIER_HOLD" -e "TIER1=$TIER1" -e "TIER2=$TIER2" -e "TIER3=$TIER3" -e "THINK_MS=$THINK_MS" \
   --summary-trend-stats "$TREND_STATS" --summary-export "results/$FRAMEWORK-write.json" k6/write.js 2>&1 | tee "results/$FRAMEWORK-write.out"
 
 # Read phase: reseed 10,000 rows then GET them.
@@ -119,7 +122,7 @@ FROM generate_series(1, 10000) AS g;
 SELECT setval('${TABLE}_id_seq', 10000);
 SQL
 k6 run -e "BASE_URL=http://127.0.0.1:$PORT" \
-  -e "TIER_HOLD=$TIER_HOLD" -e "TIER1=$TIER1" -e "TIER2=$TIER2" -e "TIER3=$TIER3" \
+  -e "TIER_HOLD=$TIER_HOLD" -e "TIER1=$TIER1" -e "TIER2=$TIER2" -e "TIER3=$TIER3" -e "THINK_MS=$THINK_MS" \
   --summary-trend-stats "$TREND_STATS" --summary-export "results/$FRAMEWORK-read.json" k6/read.js 2>&1 | tee "results/$FRAMEWORK-read.out"
 
 echo "== done: results/$FRAMEWORK-write.json, results/$FRAMEWORK-read.json =="
