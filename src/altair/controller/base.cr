@@ -324,6 +324,26 @@ module Altair
       redirect_to(fallback, status)
     end
 
+    # Answers the request in the format it asked for. The block declares one
+    # handler per format; the one matching `request.format` (path suffix,
+    # then `Accept`, then `:html`) runs, and a request for an undeclared
+    # format answers 406 Not Acceptable:
+    #
+    # ```
+    # def show : Nil
+    #   @post = Post.find(params["id"])
+    #   respond_to do |format|
+    #     format.html { render "posts.show" }
+    #     format.json { render json: @post }
+    #   end
+    # end
+    # ```
+    def respond_to(& : Altair::Controller::FormatResponder ->) : Nil
+      responder = Altair::Controller::FormatResponder.new(@request, @response)
+      yield responder
+      responder.answer
+    end
+
     # Sends an empty response with only the given status, e.g.
     # `head ::HTTP::Status::NO_CONTENT`. Any body written afterwards is
     # ignored.

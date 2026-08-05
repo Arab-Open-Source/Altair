@@ -42,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   actions, handlers inherit across the hierarchy, and unmatched exceptions
   re-raise. Matching is compiled per declaration (`e.is_a?(Foo)`), never
   runtime reflection.
+- **`respond_to`**: one action, several format handlers. The block declares
+  `format.html { }`, `format.json { }` and `format.text { }`; the handler
+  matching `request.format` (path suffix, then `Accept`, then `:html`) runs,
+  and a request for an undeclared format answers 406 Not Acceptable.
 
 ### Fixed
 
