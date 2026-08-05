@@ -87,6 +87,8 @@ module Altair
         start = Time.instant if Altair::Record.query_handlers?
         result = if conn = active_connection
                    conn.fetch_or_build_prepared_statement(sql).exec(*db_args, args: args)
+                 elsif Altair::Record.checkout_hooks?
+                   run_checkout { @database.exec(sql, *db_args, args: args) }
                  else
                    @database.exec(sql, *db_args, args: args)
                  end
@@ -99,15 +101,21 @@ module Altair
       # Runs a query with bound parameters, yielding each row to the
       # block. `values:` binds a variable-length collection, for
       # `IN (...)` clauses.
-      def query(sql : String, *args, values : Enumerable? = nil, & : DB::ResultSet ->) : Nil
+      def query(sql : String, *args, values : Enumerable? = nil, &block : DB::ResultSet ->) : Nil
         start = Time.instant if Altair::Record.query_handlers?
         if conn = active_connection
           conn.fetch_or_build_prepared_statement(sql).query(*args, args: values) do |rs|
-            yield rs
+            block.call(rs)
+          end
+        elsif Altair::Record.checkout_hooks?
+          run_checkout do
+            @database.query(sql, *args, args: values) do |rs|
+              block.call(rs)
+            end
           end
         else
           @database.query(sql, *args, args: values) do |rs|
-            yield rs
+            block.call(rs)
           end
         end
         if started = start
@@ -116,15 +124,19 @@ module Altair
       end
 
       # Runs a query expecting a single row, yielded to the block.
-      def query_one(sql : String, *args, & : DB::ResultSet -> U) : U forall U
+      def query_one(sql : String, *args, &block : DB::ResultSet -> U) : U forall U
         start = Time.instant if Altair::Record.query_handlers?
         result = if conn = active_connection
                    conn.fetch_or_build_prepared_statement(sql).query(*args) do |rs|
                      rs.move_next || raise DB::NoResultsError.new("No results")
-                     yield rs
+                     block.call(rs)
+                   end
+                 elsif Altair::Record.checkout_hooks?
+                   run_checkout do
+                     @database.query_one(sql, *args) { |rs| block.call(rs) }
                    end
                  else
-                   @database.query_one(sql, *args) { |rs| yield rs }
+                   @database.query_one(sql, *args) { |rs| block.call(rs) }
                  end
         if started = start
           notify(sql, Time.instant - started)
@@ -148,6 +160,17 @@ module Altair
         fiber = Fiber.current
         if active?(fiber)
           savepoint_transaction(fiber) { block.call }
+        elsif Altair::Record.checkout_hooks?
+          run_checkout do
+            @database.transaction do |tx|
+              register_active(fiber, tx.connection)
+              begin
+                block.call
+              ensure
+                clear_active(fiber)
+              end
+            end
+          end
         else
           @database.transaction do |tx|
             register_active(fiber, tx.connection)
@@ -229,6 +252,12 @@ module Altair
 
       private def notify(sql : String, duration : Time::Span) : Nil
         Altair::Record.notify_query(sql, duration)
+      end
+
+      # Runs the registered checkout hooks around a connection acquisition,
+      # preserving the block's return value.
+      private def run_checkout(&block : -> U) : U forall U
+        Altair::Record.run_checkout_hooks(&block)
       end
     end
   end

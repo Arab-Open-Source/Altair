@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Database admission control**: `config.db_max_active_queries` caps how
+  many fibers may hold a pooled connection at once. Requests past the
+  limit wait on a FIFO permit gate outside the pool, so under overload the
+  tail latency degrades gracefully instead of stacking on the pool's deep
+  wait queue. `0` (the default) disables the gate and costs nothing. The
+  generic `Altair::Record.on_checkout` hook it subscribes to is also
+  available for tracing and query profiling.
+- **benchmark_k6 example upgraded to admission control**: the Altair server
+  reads `BENCH_ACTIVE` (`db_max_active_queries`) and `scripts/bench.sh`
+  wires it through, so the same 200-connection budget now parks excess VUs
+  on the gate's FIFO. Under the committed profile this collapsed the tail
+  (read max 991 → 617 ms, write max 1,782 → 918 ms) with no throughput
+  loss.
 - **`render json:` accepts any JSON-able object** — hashes, named tuples,
   arrays and `JSON::Serializable` models are serialized with `to_json`
   before the response is written; a pre-serialized JSON string still passes

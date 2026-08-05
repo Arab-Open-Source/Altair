@@ -41,7 +41,7 @@ Nothing ships unless someone can look at it, click it, and see it work.
 - **Phases 0–5 done** (Foundation, Router, Controllers, Views, Record/ORM,
   CLI + Generators). `examples/blog` is the always-running persistence demo
   — its posts and comments survive restarts.
-- 561 specs passing (6 pending: the PostgreSQL contract suite, gated on
+- 574 specs passing (6 pending: the PostgreSQL contract suite, gated on
   `ALTAIR_TEST_PG_URL`), formatter clean, Ameba silent on framework sources.
 - The router shipped three post-Phase-1 waves: `resources` blocks
   (`member`/`collection`/nested, Phase 1 era), constraints + implicit
@@ -59,7 +59,13 @@ Nothing ships unless someone can look at it, click it, and see it work.
   on boot (`CRYSTAL_WORKERS` honored, `config.parallel_execution` opt-out);
   pool defaults are warm (`initial 2 / idle 2 / max 10`); and a
   development-mode N+1 detector counts identical SQL per request and warns
-  past `config.n_plus_one_threshold` (3). The audit and attribution live in
+  past `config.n_plus_one_threshold` (3); and a database admission-control
+  gate (`config.db_max_active_queries`, off by default) parks excess
+  request fibers on a FIFO `Altair::Concurrency::Semaphore` outside the
+  pool, bounding tail latency under saturation. The generic
+  `Altair::Record.on_checkout` seam it subscribes to wraps each connection
+  acquisition (one per transaction, never per statement inside one). The
+  audit and attribution live in
   `docs/architecture/performance-audit.md`.
 - Smart error pages (404 with route suggestions, 405 with `_method`
   explanation, detailed 500 diagnostics) shipped early as a pre-Phase-3
@@ -171,6 +177,7 @@ src/altair/
   exceptions/    The exception hierarchy
   server/        HTTP server wiring
   record/        Adapter, SQLite3, Connection, Schema, migrations, N+1 detector
+  concurrency/   Semaphore (FIFO permit gate primitive)
   view/          ECR templates, layouts, partials, helpers, htmx layer
   rendering/     Renderers (html, json, text, fragment)
   cli/           CLI dispatcher, per-project commands, generators

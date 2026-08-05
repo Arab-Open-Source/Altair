@@ -18,6 +18,9 @@ class Bench < Altair::Application
   # ramp in the k6 write phase.
   config.db_initial_pool_size = ENV["BENCH_INITIAL_POOL"]?.try(&.to_i?) || 10
   config.db_max_idle_pool_size = ENV["BENCH_MAX_IDLE"]?.try(&.to_i?) || 30
+  # Optional admission control: cap concurrent pooled connections so the
+  # tail latency stays bounded under overload. 0 (default) disables it.
+  config.db_max_active_queries = ENV["BENCH_ACTIVE"]?.try(&.to_i?) || 0
 
   routes do
     get "/health", to: ItemsController.health

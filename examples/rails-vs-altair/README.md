@@ -67,6 +67,53 @@ keeping its worst-case latency in line with — or better than — Rails's:
 - **No failures on any run** (0.00% in all four phases) at up to 2000 paced
   clients against a 2-core database.
 
+## Why admission control exists
+
+This is not a tuning knob — it is a structural difference from every framework
+that uses `crystal-db` as-is. Without a gate, a burst of requests all pile onto
+the pool's wait queue, and the tail latency grows with the depth of that queue:
+
+```
+Without
+  2000 Requests
+        │
+        ▼
+      DB Pool
+        │
+     Long Tail
+```
+
+With admission control, excess requests wait on the gate's FIFO channel
+*outside* the pool — a short, fair line instead of a wall — so the tail stays
+bounded under overload:
+
+```
+With
+  2000 Requests
+        │
+        ▼
+  FIFO Admission
+        │
+        ▼
+      DB Pool
+        │
+    Predictable Tail
+```
+
+The numbers below are the proof of that shape, not the point in itself.
+
+## Admission control
+
+A follow-up sweep ([`results/ADMISSION-SWEEP.md`](results/ADMISSION-SWEEP.md))
+measured Altair's database admission-control gate (`config.db_max_active_queries`).
+At saturation (`THINK_MS=0`), arming the gate at `N` from 30 up cuts the
+worst-case latency from ~1.9 s (write) / ~1.6 s (read) with the gate off down
+to ~900 ms / ~340 ms — excess fibers wait on the gate's FIFO channel outside
+the pool instead of stacking on the pool's wait queue. The gate helps even at
+`N = pool size` (it relocates overload off the single pool queue onto the
+fair channel); `N = 50` keeps the full throughput while bounding the tail. See
+the sweep for the full table and tuning guidance.
+
 Two honest caveats keep this from being apples-to-apples at the extreme end:
 
 1. The **database is the shared bottleneck.** Both stacks contend for one
@@ -124,7 +171,7 @@ docker compose up -d postgres
 ./scripts/seed.sh
 
 # 2. build the servers once
-crystal build --release --no-debug app/altair/src/bench.cr -o /tmp/bench_altair
+(cd app/altair && crystal build --release --no-debug src/bench.cr -o /tmp/bench_altair)
 (cd app/rails && bundle install)   # vendor/bundle, no system gems touched
 
 # 3. run each framework's write + read in isolation (tiered 500/1000/2000)
@@ -147,7 +194,8 @@ with a `THINK_MS` millisecond pause between requests (default 100), so the
 pool sees a realistic user load instead of a saturated queue; set `THINK_MS=0`
 for the closed-loop, throughput-maximizing profile. Tune Rails with
 `BENCH_WORKERS`, `BENCH_THREADS`, `BENCH_POOL`; Altair with `CRYSTAL_WORKERS`,
-`BENCH_POOL`.
+`BENCH_POOL`. Altair's admission-control gate is tuned with `BENCH_ACTIVE`
+(`db_max_active_queries`; `0` disables it, ~50 recommended for a 2-core DB).
 
 ## Layout
 

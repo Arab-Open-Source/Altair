@@ -7,16 +7,16 @@ real HTTP.
 The current committed results live in [`results/`](results/) as k6 summary
 exports. The short version:
 
-- **Write** (POST `/items`): Altair sustains **11,889 req/s** — the fastest of
-  the three (**1.68x Express**, **2.18x Fiber**).
-- **Read** (GET `/items/:id`): Altair sustains **14,096 req/s** — **1.85x
-  Express**, 0.84x Fiber. Altair's median read latency (42 ms) is the lowest
-  of the three; its p95 (379 ms) lands between Fiber's tight 171 ms and
-  Express's 371 ms.
+- **Write** (POST `/items`): Altair sustains **11,209 req/s** — the fastest of
+  the three (**1.64x Express**, **2.05x Fiber**), with the tightest write tail
+  (max 918 ms; Express's max is 5.2 s).
+- **Read** (GET `/items/:id`): Altair sustains **14,105 req/s** — **1.89x
+  Express**, 0.86x Fiber. Altair's read p95 (215 ms) beats Express's 369 ms;
+  Fiber's tight 177 ms keeps the top spot.
 - **Zero failed requests** across all six runs; every `status is 200/201` check
   passed.
 
-These numbers were produced after three fixes. First, the ORM/DB-layer hardening
+These numbers were produced after four fixes. First, the ORM/DB-layer hardening
 described in [`CHANGELOG.md`](../../CHANGELOG.md): the query path no longer
 pays a global mutex per statement outside transactions, per-statement timing is
 skipped when no instrumentation hook is registered, and the `SELECT` prefix is
@@ -29,7 +29,10 @@ all three frameworks now share the **same 200-connection budget** (up to
 PostgreSQL's `max_connections=220`) instead of Altair running 200 while
 Express and Fiber each ran 8×50. Giving Altair the same headroom took read p95
 from 900 ms → 379 ms, read max from 4.4 s → 991 ms, and read throughput from
-8,200 → 14,096 req/s.
+8,200 → 14,096 req/s. Fourth and final, **admission control** (the
+`db_max_active_queries` gate) parks the excess virtual users on a FIFO queue
+*outside* the pool, so the remaining pool-queueing tail collapsed too: read
+max 991 → 617 ms and write max 1,782 → 918 ms with no throughput loss.
 
 **Status: this benchmark is experimental.** Altair is still under active
 development, and these numbers are a snapshot of where the framework stands
@@ -51,14 +54,15 @@ Primary-key lookups against 10,000 seeded rows.
 
 | Framework | Requests | Throughput | Avg | p50 | p90 | p95 | p99 | p99.9 | Max | Failed |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Fiber | 1,674,709 | 16,747 req/s | 113.1 ms | 109.3 ms | 144.6 ms | 170.8 ms | 198.8 ms | 243.2 ms | 335.7 ms | 0% |
-| **Altair** | **1,409,623** | **14,096 req/s** | **126.8 ms** | **41.8 ms** | 329.3 ms | 379.4 ms | 488.8 ms | 640.8 ms | 991.4 ms | 0% |
-| Express | 761,609 | 7,616 req/s | 245.0 ms | 246.7 ms | 320.8 ms | 371.3 ms | 485.3 ms | 643.0 ms | 1,302.3 ms | 0% |
+| Fiber | 1,643,563 | 16,435 req/s | 115.4 ms | 112.6 ms | 144.1 ms | 177.3 ms | 196.0 ms | 220.3 ms | 286.8 ms | 0% |
+| **Altair** | **1,410,579** | **14,105 req/s** | **122.7 ms** | **118.6 ms** | 186.7 ms | 214.8 ms | 279.2 ms | 369.3 ms | 617.1 ms | 0% |
+| Express | 748,101 | 7,481 req/s | 250.2 ms | 251.1 ms | 314.9 ms | 369.0 ms | 481.1 ms | 1,296.4 ms | 2,285.8 ms | 0% |
 
 The p90 column shows a structural difference: Altair and Express keep a tight
-body of requests (p50 in the tens of ms) and a tail that begins at p90, while
-Fiber's whole body sits higher and flatter. Altair now shows its two-part shape
-clearly: the shared pool serves most requests in ~20-50 ms, then a queue builds.
+body of requests and a tail that begins at p90, while Fiber's whole body sits
+higher and flatter. Altair's two-part shape is the shared pool: most requests
+finish on a warm pooled connection, then a queue builds as 2000 VUs contend for
+200 slots.
 
 ### Write workload — `POST /items`
 
@@ -66,46 +70,46 @@ One row inserted and committed per request (JSON body).
 
 | Framework | Requests | Throughput | Avg | p50 | p90 | p95 | p99 | p99.9 | Max | Failed |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| **Altair** | **1,188,983** | **11,889 req/s** | **159.4 ms** | **36.9 ms** | 394.7 ms | 472.7 ms | 649.5 ms | 918.5 ms | 1,781.8 ms | 0% |
-| Express | 705,949 | 7,059 req/s | 260.0 ms | 251.8 ms | 355.3 ms | 399.8 ms | 500.9 ms | 3,610.6 ms | 4,734 ms | 0% |
-| Fiber | 546,313 | 5,463 req/s | 348.0 ms | 363.1 ms | 390.3 ms | 395.4 ms | 408.0 ms | 443.7 ms | 449.6 ms | 0% |
+| **Altair** | **1,121,006** | **11,209 req/s** | **169.0 ms** | **170.5 ms** | 212.4 ms | 231.8 ms | 256.6 ms | 397.0 ms | 918.3 ms | 0% |
+| Express | 682,283 | 6,822 req/s | 268.7 ms | 258.3 ms | 377.8 ms | 429.9 ms | 545.0 ms | 3,600.5 ms | 5,249.5 ms | 0% |
+| Fiber | 545,519 | 5,455 req/s | 348.5 ms | 362.7 ms | 390.7 ms | 394.0 ms | 399.5 ms | 406.5 ms | 407.8 ms | 0% |
 
-Write again favors Altair's throughput: it writes nearly 2.2x Fiber and 1.7x
-Express at the same pool budget. Fiber's write median (363 ms) is the highest
-of the batch; Altair's write median stays low (37 ms) with the tail carrying
-the load.
+Write again favors Altair's throughput: it writes 2.05x Fiber and 1.64x Express
+at the same pool budget. Fiber's write median (363 ms) is the highest of the
+batch; Altair's write median stays the lowest (170 ms) with the admission gate
+keeping the worst-case tail (918 ms) well below Express's 5.2 s.
 
 ### Relative throughput
 
 | Comparison | Read | Write |
-|---|---|---:|---:|
-| Altair vs Express | 1.85x | 1.68x |
-| Altair vs Fiber | 0.84x | 2.18x |
-| Fiber vs Express | 2.20x | 0.77x |
+|---|---:|---:|
+| Altair vs Express | 1.89x | 1.64x |
+| Altair vs Fiber | 0.86x | 2.05x |
+| Fiber vs Express | 2.20x | 0.80x |
 
 ### Data moved
 
 | Framework | Scenario | Received | Sent |
 |---|---|---:|---:|
-| Altair | read | 207.8 MB / 2.08 MiB/s | 107.4 MB / 1.07 MiB/s |
-| Altair | write | 145.2 MB / 1.45 MiB/s | 188.3 MB / 1.88 MiB/s |
-| Express | read | 203.1 MB / 2.03 MiB/s | 58.0 MB / 0.58 MiB/s |
-| Express | write | 169.6 MB / 1.70 MiB/s | 111.6 MB / 1.12 MiB/s |
-| Fiber | read | 243.6 MB / 2.44 MiB/s | 127.6 MB / 1.28 MiB/s |
-| Fiber | write | 65.5 MB / 0.66 MiB/s | 86.3 MB / 0.86 MiB/s |
+| Altair | read | 218.0 MB / 2.08 MiB/s | 112.7 MB / 1.07 MiB/s |
+| Altair | write | 143.5 MB / 1.37 MiB/s | 186.1 MB / 1.77 MiB/s |
+| Express | read | 209.1 MB / 1.99 MiB/s | 59.8 MB / 0.57 MiB/s |
+| Express | write | 171.8 MB / 1.64 MiB/s | 113.1 MB / 1.08 MiB/s |
+| Fiber | read | 250.7 MB / 2.39 MiB/s | 131.3 MB / 1.25 MiB/s |
+| Fiber | write | 68.6 MB / 0.65 MiB/s | 90.3 MB / 0.86 MiB/s |
 
 ---
 
 ## Analysis
 
-**Altair leads on writes (11,889 req/s) and reads (14,096 req/s), beating
+**Altair leads on writes (11,209 req/s) and reads (14,105 req/s), beating
 Express on both and trailing Fiber only on reads.** The write path is dominated
 by the INSERT + commit round-trip to PostgreSQL, so all three runtimes converge
-on latency, and throughput is where they separate: Altair sustains **2.18x
-Fiber** and 1.68x Express on writes. The read path is the reverse — Fiber's
-scheduler sustains the most requests (16,747 req/s) — but Altair's read median
-(42 ms) is the lowest of the three, and its p95 (379 ms) is on par with
-Express's 371 ms, both behind Fiber's tight 171 ms.
+on latency, and throughput is where they separate: Altair sustains **2.05x
+Fiber** and 1.64x Express on writes. The read path is the reverse — Fiber's
+scheduler sustains the most requests (16,435 req/s) — but Altair's read median
+(119 ms) is roughly half Express's (251 ms), and its p95 (215 ms) comfortably
+beats Express's 369 ms, both behind Fiber's tight 177 ms.
 
 ### The tail-latency investigation
 
@@ -141,34 +145,59 @@ single-pool design should be documented for users.
 The next step was making the benchmark honest: the first "fair" run gave Altair
 200 and left Express/Fiber at 50, which over-drew Altair. Every figure in this
 document now comes from **the same 200-connection budget for all three**. The
-tail-latency budget at that equal cap:
+tail-latency budget at that equal cap, and how admission control closed it:
 
-- **Every remaining slow request is the pool checkout.** In-request timing
+- **Every remaining slow request was the pool checkout.** In-request timing
   instrumented during the read load showed the request, pool-checkout+query,
   and query histograms moving identically — the DB path is one blocked span.
-  The profile is bimodal: ~60% of reads finish in <20 ms on a warm pooled
-  connection, then ~35% land in a 200–500 ms band with almost nothing between
-  — the signature of 2000 simultaneous requests queuing on 200 shared slots.
-  The no-database probe stays under ~100 ms at p99.
+  ~2000 simultaneous requests queue on 200 shared slots, so the profile is the
+  signature of pool saturation, not a code bug.
 
-- The pool budget is now the real trade. 200 slots under 2000 VUs leaves a
-  sub-second worst case (read p99.9 641 ms, write p99.9 918 ms). Fiber's 8
-  processes never contend on one wait queue, which is its whole advantage here;
-  Express's cluster does the same but at Node's higher per-contention cost.
+- **Admission control removed the queue from the pool.** Altair's
+  `db_max_active_queries` gate (see the admission-control section below) parks
+  the ~1800 excess VUs on a FIFO queue *outside* the pool instead of letting
+  them contend on the pool's own wait list. Fewer fibers ever race for a slot,
+  so the queueing is single and fair. The same 200-connection budget, now
+  admission-controlled, took read p99.9 641 → 369 ms and read max 991 → 617 ms;
+  write p99.9 919 → 397 ms and write max 1,782 → 918 ms — with no throughput
+  loss (read 14,096 → 14,105, write 11,889 → 11,209 req/s).
 
 Notable observations:
 
-- Altair still shows a heavier max than Fiber (read 991 vs 336 ms, write 1,782
-  vs 450 ms). At the same 200-connection ceiling the remaining tail is the same
-  queueing physics, only shorter: 2000 VUs against 200 shared slots. Fiber
-  sidesteps part of this by splitting the load across 8 processes that never
-  share a slot wait.
-- Altair's read distribution is now mildly bimodal: the fast path around 40 ms
-  (warm pooled connections) and the waiting fraction in the hundreds of
-  milliseconds. The multi-second wall from the 50-pool runs is gone.
-- Fiber's write latencies are remarkably tight (p95 398 ms, max 450 ms); it
-  sustains the fewest writes but never stalls. Express sits in the middle on
-  read latency and trails on throughput in both phases.
+- Altair's read distribution is now a single tight band (p90 187 ms, max 617
+  ms) instead of the bimodal fast-path-plus-long-tail shape from the 50-pool
+  runs. Fiber's max on reads (287 ms) still tops it, and Express's read max
+  (2.3 s) is 3.7x Altair's.
+- On writes Altair has the best throughput (11,209 req/s) *and* the second-best
+  worst case (918 ms, vs Express's 5.2 s); Fiber's tight 45-vs-400 ms write
+  band is the price of its 8-process split and the fewest writes.
+- Express's write tail is the worst of the group (max 5.2 s, p99.9 3.6 s) — a
+  200-connection `pg` pool across 8 Node workers queues poorly at 2000 VUs.
+
+---
+
+## Admission control
+
+This benchmark is deliberately stress test: 2000 concurrent requests against a
+**single** Altair process and one shared pool. Any single-pool runtime at that
+concurrency queues requests at the pool checkout. Altair's answer is a
+database **admission gate** (`config.db_max_active_queries`): a FIFO semaphore
+that sits *between* the web handler and the pool, so only a bounded number of
+fibers ever reach the pool at once and the rest wait on one fair queue.
+
+It is disabled by default (0). To turn it on for this example the server reads
+`BENCH_ACTIVE` in `app/altair/src/application.cr`, and `scripts/bench.sh`
+passes it on the altair start line. The committed figures above were produced
+with `BENCH_ACTIVE=200` — the same connection budget as the other two
+frameworks — so the gate does not cap throughput, only replaces the pool's
+queue with a single fair one. You can tighten it (e.g. `BENCH_ACTIVE=50`) to
+trade a little peak throughput for an even flatter tail; the admission-control
+sweep and the design rationale live in
+[`docs/architecture/performance-audit.md`](../../docs/architecture/performance-audit.md).
+
+```bash
+BENCH_ACTIVE=200 ./scripts/bench.sh altair
+```
 
 ---
 
@@ -190,14 +219,18 @@ Notable observations:
   |---|---|---|
   | **Express** | 4101 | Node cluster: 1 primary + 8 workers; `pg` pool max 200 (25 per worker). |
   | **Fiber** | 4102 | `GOMAXPROCS=8`; `pgxpool` max 200 / min 200. |
-  | **Altair** | 4103 | `CRYSTAL_WORKERS=8` (execution context resized); DB pool 200, initial 200, max idle 200. |
+  | **Altair** | 4103 | `CRYSTAL_WORKERS=8` (execution context resized); DB pool 200, initial 200, max idle 200; admission gate `db_max_active_queries=200` (`BENCH_ACTIVE`). |
 
 - The pool sizing is deliberate and is the tail-latency fix documented above:
   with 2000 concurrent virtual users, a 50-slot single pool kept ~1950 requests
   queued behind 50 busy connections (multi-second max latencies). Altair's pool
   is 200 so its single pool reaches the same PostgreSQL `max_connections=220`
   headroom the other two get via 8 pools. The same binary at pool 50 produced
-  read max 4,374 ms / p95 900 ms / 8,200 req/s.
+  read max 4,374 ms / p95 900 ms / 8,200 req/s. The admission gate then caps
+  how many fibers may *wait* on that pool at once: with `BENCH_ACTIVE=200` the
+  budget is unchanged and the tail still collapses (read max 991 → 617 ms,
+  write max 1,782 → 918 ms) because excess fibers park on the gate's FIFO
+  instead of contending on the pool.
 
 - Every app is started with `ulimit -n 65535`. The default soft limit of 1024
   file descriptors is fatal here: Altair logged 9.5 million
@@ -249,18 +282,18 @@ Requires Crystal, Go, Node.js, [k6](https://k6.io), `docker compose`, and
 docker compose up -d postgres
 ./scripts/seed.sh            # 10,000 rows per framework table
 
-# 2. build the servers once
-crystal build --release --no-debug app/altair/src/bench.cr -o /tmp/bench_altair
+# 2. build the servers once (run the crystal build from the app dir so the
+#    relative altair shard resolves)
+cd app/altair
+crystal build --release --no-debug src/bench.cr -o /tmp/bench_altair
+cd ../..
 go build -o /tmp/bench_fiber app/fiber/main.go
 # Express needs no build: node app/express/src/server.js
 
 # 3. run each framework's write + read in isolation
 ./scripts/bench.sh express   # stops the other apps, starts this one if needed
 ./scripts/bench.sh fiber
-./scripts/bench.sh altair
-
-# 4. render the summary tables
-./scripts/summary.sh
+BENCH_ACTIVE=200 ./scripts/bench.sh altair   # admission gate on the 200 budget
 ```
 
 `scripts/bench.sh <express|fiber|altair>` stops the other two apps, starts the

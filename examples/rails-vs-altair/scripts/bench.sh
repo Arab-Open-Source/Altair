@@ -36,7 +36,7 @@ mkdir -p results
 # Build Altair once so the runner is start-or-exercise, not build-or-fail.
 if [ ! -x /tmp/bench_altair ]; then
   echo "building altair -> /tmp/bench_altair"
-  crystal build --release --no-debug app/altair/src/bench.cr -o /tmp/bench_altair
+  ( cd app/altair && crystal build --release --no-debug src/bench.cr -o /tmp/bench_altair )
 fi
 
 FRAMEWORK="${1:-}"
@@ -71,8 +71,10 @@ start_target() {
       ;;
     altair)
       # Altair is one process with one shared pool, sized to the same ceiling
-      # (200) the other side gets.
+      # (200) the other side gets. BENCH_ACTIVE optionally caps how many
+      # fibers may hold a connection at once (admission control).
       setsid env PORT=4203 DATABASE_URL="$DB_URL" BENCH_POOL=200 BENCH_INITIAL_POOL=200 BENCH_MAX_IDLE=200 \
+        BENCH_ACTIVE="${BENCH_ACTIVE:-0}" \
         CRYSTAL_WORKERS="$(nproc)" /tmp/bench_altair > "$LOG" 2>&1 < /dev/null &
       ;;
   esac

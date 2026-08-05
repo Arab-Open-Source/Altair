@@ -256,4 +256,57 @@ describe Altair::Record::Connection do
       conn.close
     end
   end
+
+  it "runs checkout hooks around a connection acquisition, preserving its value" do
+    conn = spec_connection
+    around = 0
+    handler = ->(run : Proc(Nil)) {
+      around += 1
+      run.call
+    }
+    Altair::Record.on_checkout(&handler)
+    count = conn.query_one("SELECT COUNT(*) FROM widgets") { |rs| rs.read(Int64) }
+    count.should eq(0)
+    around.should eq(1)
+    conn.close
+  end
+
+  it "wraps a transaction once as a single acquisition, not once per statement" do
+    conn = spec_connection
+    around = 0
+    handler = ->(run : Proc(Nil)) {
+      around += 1
+      run.call
+    }
+    Altair::Record.on_checkout(&handler)
+    begin
+      conn.transaction do
+        conn.exec("INSERT INTO widgets (name) VALUES (?)", "one")
+        conn.exec("INSERT INTO widgets (name) VALUES (?)", "two")
+      end
+    ensure
+      conn.close
+    end
+    around.should eq(1)
+  end
+
+  it "does not re-wrap statements inside an active transaction" do
+    conn = spec_connection
+    around = 0
+    handler = ->(run : Proc(Nil)) {
+      around += 1
+      run.call
+    }
+    Altair::Record.on_checkout(&handler)
+    begin
+      conn.transaction do
+        conn.exec("INSERT INTO widgets (name) VALUES (?)", "one")
+        count = conn.query_one("SELECT COUNT(*) FROM widgets") { |rs| rs.read(Int64) }
+        count.should eq(1)
+      end
+    ensure
+      conn.close
+    end
+    around.should eq(1)
+  end
 end

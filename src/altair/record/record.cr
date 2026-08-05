@@ -47,7 +47,48 @@ module Altair
       @@query_handlers.each &.call(sql, duration)
     end
 
+    # Registers a hook run around every connection acquisition. The hook
+    # receives a continuation proc it must call to perform the actual work:
+    #
+    # ```
+    # Altair::Record.on_checkout do |run|
+    #   acquire
+    #   run.call
+    #   release
+    # end
+    # ```
+    #
+    # Hooks run inside out in registration order. The connection skips the
+    # seam entirely when no hook is registered.
+    def self.on_checkout(&handler : Proc(Proc(Nil), Nil)) : Nil
+      @@checkout_handlers << handler
+    end
+
+    # Whether any checkout hook is registered. The connection takes its
+    # zero-cost path when this is false.
+    def self.checkout_hooks? : Bool
+      !@@checkout_handlers.empty?
+    end
+
+    # Runs the registered checkout hooks around the block, preserving the
+    # block's return value. The first registered hook runs first.
+    def self.run_checkout_hooks(&block : -> U) : U forall U
+      if @@checkout_handlers.empty?
+        block.call
+      else
+        value = uninitialized U
+        inner = -> { value = block.call; nil }
+        @@checkout_handlers.reverse_each do |handler|
+          prev = inner
+          inner = -> { handler.call(prev); nil }
+        end
+        inner.call
+        value
+      end
+    end
+
     @@query_handlers = [] of Proc(String, Time::Span, Nil)
+    @@checkout_handlers = [] of Proc(Proc(Nil), Nil)
     @@connection : Connection? = nil
     @@connection_lock = Mutex.new
 

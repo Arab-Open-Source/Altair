@@ -24,6 +24,7 @@ class Altair::Core::RequestHandler
     @router = Altair::Routing::Router.new(Altair::Routing.route_set_for(@app.class).routes)
     @chain = build_chain
     Altair::Record::NDetector.enable(Altair.env, @app.config.detect_n_plus_one?, @app.config.n_plus_one_threshold)
+    Altair::Record::PermitGate.enable(@app.config.db_max_active_queries)
   end
 
   def call(context : ::HTTP::Server::Context) : Nil

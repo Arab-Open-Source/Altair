@@ -58,9 +58,13 @@ start_target() {
     altair)
       # Altair is one process with one shared pool, sized to the same ceiling
       # Express and Fiber get via their 8 workers (200 total, at PostgreSQL's
-      # max_connections=220). Smaller pools queue ~1950 of 2000 VUs behind a
-      # handful of busy connections and the tail latency explodes.
-      setsid env PORT=4103 DATABASE_URL="$DB_URL" BENCH_POOL=200 BENCH_INITIAL_POOL=200 BENCH_MAX_IDLE=200 \
+      # max_connections=220). The pool is seeded warm so connection setup is
+      # not part of the steady-state cost. Admission control (BENCH_ACTIVE)
+      # parks the ~1780 excess VUs on a FIFO gate *outside* the pool, so the
+      # tail stays bounded under 2000 VUs. 0 = off (classic pool-only).
+      : "${BENCH_ACTIVE:=200}"
+      setsid env PORT=4103 DATABASE_URL="$DB_URL" BENCH_POOL=200 BENCH_ACTIVE="$BENCH_ACTIVE" \
+        BENCH_INITIAL_POOL=200 BENCH_MAX_IDLE=200 \
         CRYSTAL_WORKERS=8 /tmp/bench_altair > "$LOG" 2>&1 < /dev/null &
       ;;
   esac

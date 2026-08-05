@@ -59,6 +59,11 @@ module Altair
     # check one out at a time; extra checks wait for a free connection.
     property db_max_pool_size : Int32 = 10
 
+    # How many fibers may hold a pooled connection at once. Requests past
+    # the limit wait on a FIFO permit gate before entering the pool, which
+    # keeps tail latency bounded under overload. `0` disables the gate.
+    property db_max_active_queries : Int32 = 0
+
     # The initial number of connections opened when the pool is created.
     # Starting warm avoids connection-creation bursts under the first wave
     # of concurrent requests.
