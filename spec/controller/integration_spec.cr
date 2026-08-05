@@ -14,6 +14,7 @@ class BooksApp < Altair::Application
     get "/ping", to: "books#ping"
     get "/file", to: "books#file"
     get "/stream", to: "books#stream"
+    get "/chunked", to: "books#chunked"
   end
 end
 
@@ -77,6 +78,13 @@ class BooksController < Altair::Controller
     io << "chunk one, "
     io << "chunk two"
     io.close
+  end
+
+  def chunked : Nil
+    stream("text/plain") do |io|
+      io << "alpha, "
+      io << "beta"
+    end
   end
 end
 
@@ -164,6 +172,15 @@ describe "controller integration" do
       response = HTTP::Client.get("http://127.0.0.1:#{port}/stream")
       response.status_code.should eq(200)
       response.body.should eq("chunk one, chunk two")
+    end
+  end
+
+  it "streams through the controller stream helper with a content type" do
+    with_books_server do |port|
+      response = HTTP::Client.get("http://127.0.0.1:#{port}/chunked")
+      response.status_code.should eq(200)
+      response.body.should eq("alpha, beta")
+      response.headers["Content-Type"].should contain("text/plain")
     end
   end
 

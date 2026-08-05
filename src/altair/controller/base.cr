@@ -344,6 +344,22 @@ module Altair
       responder.answer
     end
 
+    # Streams the response body chunk by chunk: writes to the yielded `IO`
+    # reach the client as they happen, over chunked transfer encoding.
+    # Sets the content type before the first chunk:
+    #
+    # ```
+    # def events : Nil
+    #   stream("text/event-stream") do |io|
+    #     io << "data: hello\n\n"
+    #     io.flush
+    #   end
+    # end
+    # ```
+    def stream(content_type : String = "text/html; charset=utf-8", &block : IO ->) : Nil
+      @response.stream(content_type, &block)
+    end
+
     # Sends an empty response with only the given status, e.g.
     # `head ::HTTP::Status::NO_CONTENT`. Any body written afterwards is
     # ignored.

@@ -91,6 +91,16 @@ module Altair
         @response.output
       end
 
+      # Streams the response body through the block: every write to the
+      # yielded `IO` is delivered to the client immediately over chunked
+      # transfer encoding. Sets the content type and marks the response as
+      # written.
+      def stream(content_type : String = "text/html; charset=utf-8", &block : IO ->) : Nil
+        @headers["Content-Type"] = content_type
+        @written = true
+        block.call(@response.output)
+      end
+
       # Answers with the given status and no body. Later body writes are
       # ignored, so a `head` followed by rendering still answers bodyless.
       def head(status : ::HTTP::Status) : Nil

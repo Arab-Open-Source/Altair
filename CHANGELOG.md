@@ -53,6 +53,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   segment (literal, parameter, glob, root) at registration time, so a
   request only tests the routes that can match it. Definition-order
   precedence is preserved by merging the buckets by registration index.
+- **Streaming bodies**: the controller `stream(content_type)` helper opens
+  a chunked response body — writes to the yielded `IO` reach the client as
+  they happen, with the content type set first. The building block of large
+  responses and server-sent events.
 
 ### Fixed
 
