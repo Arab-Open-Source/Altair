@@ -82,4 +82,54 @@ describe Altair::Server do
       server.http_server.closed?.should be_true
     end
   end
+
+  it "resizes the execution context to CRYSTAL_WORKERS on boot" do
+    prior_workers = ENV["CRYSTAL_WORKERS"]?
+    app = SpecApp.instance
+    app.config.parallel_execution = true
+    server = Altair::Server.new(app, Altair::Core::RequestHandler.new(app))
+    server.bind("127.0.0.1", 0)
+    begin
+      ENV["CRYSTAL_WORKERS"] = "4"
+      done = Channel(Nil).new
+      spawn do
+        server.start
+        done.send(nil)
+      end
+
+      wait_until_ready(server.port)
+      Fiber::ExecutionContext.default.capacity.should eq(4)
+      server.http_server.close
+      done.receive
+    ensure
+      if prior_workers
+        ENV["CRYSTAL_WORKERS"] = prior_workers
+      else
+        ENV.delete("CRYSTAL_WORKERS")
+      end
+      app.config.parallel_execution = true
+    end
+  end
+
+  it "leaves the execution context untouched when parallel execution is disabled" do
+    app = SpecApp.instance
+    app.config.parallel_execution = false
+    server = Altair::Server.new(app, Altair::Core::RequestHandler.new(app))
+    server.bind("127.0.0.1", 0)
+    before_capacity = Fiber::ExecutionContext.default.capacity
+    begin
+      done = Channel(Nil).new
+      spawn do
+        server.start
+        done.send(nil)
+      end
+
+      wait_until_ready(server.port)
+      Fiber::ExecutionContext.default.capacity.should eq(before_capacity)
+      server.http_server.close
+      done.receive
+    ensure
+      app.config.parallel_execution = true
+    end
+  end
 end

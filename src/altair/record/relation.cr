@@ -112,12 +112,38 @@ module Altair
         self
       end
 
+      # The number of rows the scoped query returns, without materializing
+      # them. Uses the cached records once the relation has been loaded.
+      # `order`, `limit` and `offset` do not affect the count.
+      def count : Int64
+        if records = @records
+          records.size.to_i64
+        else
+          sql = "SELECT COUNT(*) FROM #{T.connection.adapter.quote_identifier(T.table_name)}"
+          sql += " WHERE #{@where.join(" AND ")}" unless @where.empty?
+          count = 0_i64
+          T.connection.query(sql, values: @binds) do |rs|
+            rs.move_next
+            count = rs.read(Int64)
+          end
+          count
+        end
+      end
+
+      # The number of records: the cached rows once loaded, otherwise a
+      # `COUNT(*)` query — never materializes the table.
+      def size : Int32
+        count.to_i32
+      end
+
       # Yields every record in bounded batches ordered by primary key,
-      # running one query per batch. Unlike `to_a`, memory stays bounded
-      # regardless of the table size.
+      # running one query per batch, fetching one extra row per batch to
+      # detect the end of the scan. Unlike `to_a`, memory stays bounded
+      # regardless of the table size. The scoped `where` filters, bound
+      # values and `includes` preloaders carry over to every batch.
       #
       # ```
-      # Post.all.find_each do |post|
+      # Post.all.where(published: true).includes(:comments).find_each do |post|
       #   post.touch
       # end
       # ```
@@ -125,14 +151,32 @@ module Altair
         pk = T.primary_key_name
         last_id = nil
         loop do
-          scoped = Relation(T).new
-          scoped.order(pk, :asc).limit(batch_size)
+          scoped = scoped_state
+          scoped.order(pk, :asc).limit(batch_size + 1)
           scoped.where(pk, :>, last_id) if last_id
-          batch = scoped.to_a
-          break if batch.empty?
-          batch.each(&block)
-          last_id = batch.last.id.not_nil!.to_i64
+          rows = scoped.to_a
+          break if rows.empty?
+          more = rows.size > batch_size
+          rows = rows.first(batch_size) if more
+          rows.each(&block)
+          break unless more
+          last_id = rows.last.id.not_nil!.to_i64
         end
+      end
+
+      # A fresh relation carrying this relation's scoped filters, bound
+      # values and scheduled preloaders, used by `find_each` batches.
+      private def scoped_state : Relation(T)
+        Relation(T).new.adopt_state(@where.dup, @binds.dup, @preloaders.dup)
+      end
+
+      # Copies the scoped state of another relation onto this one.
+      protected def adopt_state(where : Array(String), binds : Array(Model::Value),
+                                preloaders : Array(Proc(Array(T), Nil))) : self
+        @where = where
+        @binds = binds
+        @preloaders = preloaders
+        self
       end
 
       # Schedules eager loading of the given associations — one batched

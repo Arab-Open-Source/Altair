@@ -138,7 +138,10 @@ pushing a `v*` tag, which triggers `release.yml`.
 
 > Note: "beautiful error pages in development" and the compile-time view
 > safety already shipped early as pre-Phase-3 gifts and are live in the
-> framework.
+> framework. Performance hardening also shipped early as a pre-Phase-6
+> wave: parallel execution and warm pool defaults, `find_each` with
+> scoped filters + preloaders, `Relation#count`, and the development N+1
+> detector — see `docs/architecture/performance-audit.md`.
 
 ## Phase 7: Post-release
 
@@ -147,7 +150,7 @@ pushing a `v*` tag, which triggers `release.yml`.
 | Background jobs | Scheduled work runs |
 | Full authentication | Registration, login, logout |
 | Asset pipeline | CSS/JS bundling and serving |
-| Rich query DSL (joins, preload, scopes) | Complex data access is natural |
+| Rich query DSL (joins, preload, scopes, nested `includes`) | Complex data access is natural |
 | Testing utilities | First-class spec helpers |
 | `has_many :through` + polymorphic associations | Advanced model relationships |
 

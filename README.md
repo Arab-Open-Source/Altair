@@ -51,7 +51,7 @@ What is already in place:
 | Middleware | `use`-based pipeline, request logging, static files with traversal protection |
 | Errors | `rescue_from`, smart debug pages (404 suggestions, 405 methods, 500 diagnostics), plain in production |
 | Hardening | 2 MB request-body limit, `413` before the body is read |
-| ORM (`Altair::Record`) | adapter interface + SQLite3 and PostgreSQL adapters, connection pooling, migrations DSL + runner, `db/schema.cr` generation, CRUD + finders, validations (`valid?` + errors), timestamps + callbacks, associations (`belongs_to` / `has_many` / `has_one`) with batched eager loading, `dependent:` handling, `validates_uniqueness_of` and the list/range/format/confirmation rules, multi-database support via `ALTAIR_DB_URL` |
+| ORM (`Altair::Record`) | adapter interface + SQLite3 and PostgreSQL adapters, connection pooling (warm defaults 2/2/10), migrations DSL + runner, `db/schema.cr` generation, CRUD + finders, validations (`valid?` + errors), timestamps + callbacks, associations (`belongs_to` / `has_many` / `has_one`) with batched eager loading, `dependent:` handling, `validates_uniqueness_of` and the list/range/format/confirmation rules, multi-database support via `ALTAIR_DB_URL`, `find_each` batching that keeps filters and preloaders, `COUNT(*)` relation counting, parallel execution on boot, and a development N+1 detector |
 | CLI | builds a standalone `altair` binary; inside a project `bin/altair server`, `bin/altair routes`, `bin/altair db:migrate` / `bin/altair db:rollback` |
 | Generators | `altair new <name>` scaffolds the standard layout; `altair g model` / `g migration` / `g controller` / `g scaffold Post title:string body:text` write ready-to-edit files (model, migration, controller, views, routes, schema) |
 

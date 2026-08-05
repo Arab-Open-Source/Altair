@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   arrays and `JSON::Serializable` models are serialized with `to_json`
   before the response is written; a pre-serialized JSON string still passes
   through untouched.
+- **`Relation#count` and `Relation#size`** run `COUNT(*)` with the scoped
+  `where` clauses instead of materializing the table — and reuse the
+  cached rows once the relation is loaded. Counting a relation is one
+  query and no row loading.
+- **Development N+1 detector**: in the Development environment the
+  framework counts identical SQL within each request and logs a warning
+  when a statement fires more than `config.n_plus_one_threshold` (3)
+  times — the signature of lazy association access in a loop. Production
+  never registers the hook; disable with `config.detect_n_plus_one =
+  false`.
+- **Parallel execution by default**: the server resizes Crystal's
+  execution context to the available workers on boot instead of running
+  on the runtime's single default OS thread. Honors `CRYSTAL_WORKERS`
+  (set it to your CPU limit in containers); disable with
+  `config.parallel_execution = false`.
 - **`redirect_back(fallback:)`** redirects to the `Referer` header when it
   points at the same host, falling back to the given path otherwise —
   open-redirect protection built in.
@@ -53,12 +68,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Warmer connection-pool defaults**: `db_initial_pool_size 2`,
+  `db_max_idle_pool_size 2`, `db_max_pool_size 10` (was 1/1/5) — the pool
+  no longer reconnects after every burst, and concurrent reads have room
+  to run.
 - **Segment-based route index**: the router buckets routes by their first
   segment (literal, parameter, glob, root) at registration time, so a
   request only tests the routes that can match it. Definition-order
   precedence is preserved by merging the buckets by registration index.
 
 ### Fixed
+
+- **`find_each` keeps the scoped filters and eager loading across
+  batches**: batches now inherit `where` clauses, bound values and
+  `includes` preloaders, and the scan stops without a trailing probe
+  query. Previously the filters were silently dropped — `where`
+  conditions were ignored entirely and `includes` degraded into one query
+  per record inside the loop.
 
 - **`_method` override end-to-end**: a `_method=DELETE` form now reaches the
   destroy action, verified over real HTTP in the routing integration suite.

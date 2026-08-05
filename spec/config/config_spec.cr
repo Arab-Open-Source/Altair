@@ -12,6 +12,14 @@ describe Altair::Config do
     config.name.should eq("Altair Application")
   end
 
+  it "defaults to parallel execution and a warm database pool" do
+    config = Altair::Config.new
+    config.parallel_execution?.should be_true
+    config.db_max_pool_size.should eq(10)
+    config.db_initial_pool_size.should eq(2)
+    config.db_max_idle_pool_size.should eq(2)
+  end
+
   it "ships sensible per-environment defaults" do
     config = Altair::Config.new
     config.environments.development.debug?.should be_true

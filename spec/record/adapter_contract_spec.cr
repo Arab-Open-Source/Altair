@@ -106,6 +106,15 @@ private def adapter_contract(name : String, setup : Proc(Nil), teardown : Proc(N
       Post.pluck(:title).compact.map(&.to_s).sort!.should eq(["A", "B"])
     end
 
+    it "counts scoped rows without materializing them" do
+      Post.create(title: "A", views: 1, published: true)
+      Post.create(title: "B", views: 2, published: false)
+      Post.create(title: "C", views: 3, published: true)
+      Post.all.where(published: true).count.should eq(2_i64)
+      Post.all.count.should eq(3_i64)
+      Post.all.where(published: true).size.should eq(2)
+    end
+
     it "rejects invalid records" do
       post = Post.new
       post.save.should be_false

@@ -23,9 +23,11 @@ class Altair::Core::RequestHandler
   def initialize(@app : Altair::Application)
     @router = Altair::Routing::Router.new(Altair::Routing.route_set_for(@app.class).routes)
     @chain = build_chain
+    Altair::Record::NDetector.enable(Altair.env, @app.config.detect_n_plus_one?, @app.config.n_plus_one_threshold)
   end
 
   def call(context : ::HTTP::Server::Context) : Nil
+    Altair::Record::NDetector.begin_request
     request = nil
     begin
       request = Altair::HTTP::Request.new(context.request, max_body_size: @app.config.max_body_size)
@@ -33,6 +35,8 @@ class Altair::Core::RequestHandler
       @chain.call(request, response)
     rescue exception
       handle_error(context, request, exception)
+    ensure
+      Altair::Record::NDetector.end_request
     end
   end
 

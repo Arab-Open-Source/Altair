@@ -1,13 +1,9 @@
 # Altair benchmark - application wiring.
 require "altair/record/adapters/postgresql"
 
-# Tune multi-threading: Crystal 1.21 runs fibers on a parallel execution
-# context that defaults to a single OS thread. Respecting CRYSTAL_WORKERS
-# (set to the app's 2 CPUs by the compose file) lets the HTTP server and DB
-# pool actually fan out across cores instead of staying single-threaded.
-Fiber::ExecutionContext.default.resize(
-  maximum: Fiber::ExecutionContext.default_workers_count
-)
+# The framework resizes the execution context to the available workers on
+# boot (honoring CRYSTAL_WORKERS), so the HTTP server and DB pool fan out
+# across cores by default.
 
 class Bench < Altair::Application
   config.name = "Altair benchmark"

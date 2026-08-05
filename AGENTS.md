@@ -41,7 +41,7 @@ Nothing ships unless someone can look at it, click it, and see it work.
 - **Phases 0–5 done** (Foundation, Router, Controllers, Views, Record/ORM,
   CLI + Generators). `examples/blog` is the always-running persistence demo
   — its posts and comments survive restarts.
-- 542 specs passing (6 pending: the PostgreSQL contract suite, gated on
+- 561 specs passing (6 pending: the PostgreSQL contract suite, gated on
   `ALTAIR_TEST_PG_URL`), formatter clean, Ameba silent on framework sources.
 - The router shipped three post-Phase-1 waves: `resources` blocks
   (`member`/`collection`/nested, Phase 1 era), constraints + implicit
@@ -52,6 +52,15 @@ Nothing ships unless someone can look at it, click it, and see it work.
   `head`, `respond_to`, callbacks (`before_action` / `after_action` /
   `skip_*` with inheritance), controller-level `rescue_from`, chunked
   `stream`, and a segment-based route index.
+- The record layer shipped a post-Phase-4 performance wave: `find_each`
+  streams batches that keep scoped `where` filters and `includes`
+  preloaders; `Relation#count`/`size` run `COUNT(*)` without materializing
+  rows; the server resizes the execution context to the available workers
+  on boot (`CRYSTAL_WORKERS` honored, `config.parallel_execution` opt-out);
+  pool defaults are warm (`initial 2 / idle 2 / max 10`); and a
+  development-mode N+1 detector counts identical SQL per request and warns
+  past `config.n_plus_one_threshold` (3). The audit and attribution live in
+  `docs/architecture/performance-audit.md`.
 - Smart error pages (404 with route suggestions, 405 with `_method`
   explanation, detailed 500 diagnostics) shipped early as a pre-Phase-3
   gift — they live in the framework already.
@@ -94,9 +103,11 @@ Three vertical waves, each ending green with something visible:
   `has_one`) with batched eager loading via `Relation#includes`;
   `dependent:` handling.
 - Deferred to later phases: `has_many :through`, prepared-statement
-  caching, `find_each`, `explain`, migration linter
+  caching, `explain`, migration linter
   (Phase 8); console/seeds (Phase 7); enums/JSON columns/dirty tracking
-  (Phase 6); `insert_all` (Phase 6).
+  (Phase 6); `insert_all` (Phase 6). `find_each` is implemented in the
+  tree (keeps scoped `where` filters and `includes` preloaders across
+  batches).
 
 ### Phase 5: CLI + Generators
 - `altair new blog` generates the standard layout (`src/`, `db/`,
@@ -159,7 +170,7 @@ src/altair/
   support/       Inflector and other utilities
   exceptions/    The exception hierarchy
   server/        HTTP server wiring
-  record/        Adapter, SQLite3, Connection, Schema, migrations
+  record/        Adapter, SQLite3, Connection, Schema, migrations, N+1 detector
   view/          ECR templates, layouts, partials, helpers, htmx layer
   rendering/     Renderers (html, json, text, fragment)
   cli/           CLI dispatcher, per-project commands, generators
@@ -230,7 +241,7 @@ crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
 
 ## Testing
 
-The suite is `crystal spec` (currently 542 examples). Run it before and
+The suite is `crystal spec` (currently 561 examples). Run it before and
 after every change:
 
 ```bash

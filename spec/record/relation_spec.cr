@@ -4,6 +4,13 @@
 # `limit`, `offset` and `find_each`. Queries run lazily on iteration.
 require "./model_fixtures_spec"
 
+private def queries(&block : -> Nil) : Int32
+  count = 0
+  Altair::Record.on_query { |_sql, _duration| count += 1 }
+  block.call
+  count
+end
+
 describe Altair::Record::Relation do
   before_each do
     RecordSpec.setup_database
@@ -48,5 +55,51 @@ describe Altair::Record::Relation do
     yielded = [] of String
     Post.all.find_each(batch_size: 3) { |post| yielded << post.title.not_nil! }
     yielded.sort.should eq(["alpha", "beta", "delta", "gamma"])
+  end
+
+  it "applies the scoped where filters to every batch" do
+    yielded = [] of String
+    Post.all.where(published: true).find_each(batch_size: 2) { |post| yielded << post.title.not_nil! }
+    yielded.sort.should eq(["alpha", "gamma"])
+  end
+
+  it "keeps the eager loading across batches" do
+    posts = Post.all.to_a
+    posts.each { |post| Comment.create(post_id: post.id, body: "a nice body") }
+    count = queries do
+      touched = 0
+      Post.all.includes(:comments).find_each(batch_size: 2) do |post|
+        touched += post.comments.size
+      end
+      touched.should eq(4)
+    end
+    count.should eq(4)
+  end
+
+  it "yields every row with a batch size of one" do
+    yielded = [] of String
+    Post.all.find_each(batch_size: 1) { |post| yielded << post.title.not_nil! }
+    yielded.sort.should eq(["alpha", "beta", "delta", "gamma"])
+  end
+
+  it "yields an exact multiple of the batch size" do
+    yielded = [] of String
+    Post.all.find_each(batch_size: 2) { |post| yielded << post.title.not_nil! }
+    yielded.sort.should eq(["alpha", "beta", "delta", "gamma"])
+  end
+
+  it "counts the scoped rows with a single query" do
+    count = queries { Post.all.where(published: true).count.to_i.should eq(2) }
+    count.should eq(1)
+  end
+
+  it "uses the cached records once loaded, without another query" do
+    count = queries do
+      relation = Post.all.where(published: true)
+      relation.to_a.size.should eq(2)
+      relation.count.should eq(2_i64)
+      relation.size.should eq(2)
+    end
+    count.should eq(1)
   end
 end

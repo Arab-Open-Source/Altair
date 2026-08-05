@@ -35,7 +35,15 @@ executable (`--check` / `--force` supported). Distributions: `release.yml`
 (pushed on `v*` tags)
 builds Linux/macOS/Windows (amd64+arm64) binaries with `SHA256SUMS`, and
 `scripts/install.sh` / `install.ps1` / `install.cmd` give a verified
-one-command install on each platform. 542 specs passing (6 pending: the PostgreSQL contract suite on `ALTAIR_TEST_PG_URL`).
+one-command install on each platform. 561 specs passing (6 pending: the PostgreSQL contract suite on `ALTAIR_TEST_PG_URL`).
+The record layer shipped a post-Phase-4 performance wave: `find_each`
+keeps scoped `where` filters + `includes` preloaders across batches,
+`Relation#count`/`size` run `COUNT(*)` without materializing rows, the
+server resizes the execution context to the available workers on boot
+(`CRYSTAL_WORKERS` honored, `config.parallel_execution` opt-out), pool
+defaults are warm (`initial 2 / idle 2 / max 10`), and a development-mode
+N+1 detector warns on identical SQL past `config.n_plus_one_threshold`
+(3) — see `docs/architecture/performance-audit.md`.
 
 | Phase | Focus | Status |
 |---|---|---|
@@ -60,7 +68,7 @@ config/      Config, Env, environments/
 support/     Inflector, utilities
 exceptions/  Exception hierarchy
 server/      HTTP server wiring
-record/      Adapter, SQLite3, Connection, Schema, migrations
+record/      Adapter, SQLite3, Connection, Schema, migrations, N+1 detector
 view/        ECR templates, layouts, partials, helpers, htmx layer
 rendering/   Renderers (html, json, text, fragment)
 cli/         CLI dispatcher, per-project commands, generators (incl. install)
@@ -83,7 +91,7 @@ cli/         CLI dispatcher, per-project commands, generators (incl. install)
 ## Testing
 
 ```bash
-crystal spec                              # full suite (currently 542)
+crystal spec                              # full suite (currently 561)
 crystal tool format --check src spec examples
 crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
 ```

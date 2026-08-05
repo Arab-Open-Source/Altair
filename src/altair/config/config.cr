@@ -19,6 +19,14 @@ module Altair
     # conventional web development port.
     property port : Int32 = 3000
 
+    # Whether the server resizes Crystal's execution context to the
+    # available workers on boot, so requests fan out across cores instead
+    # of running on the single OS thread the runtime starts with. Honors
+    # the `CRYSTAL_WORKERS` environment variable; set it to your CPU limit
+    # when running inside a container. Disable to keep the runtime's
+    # default parallelism.
+    property? parallel_execution : Bool = true
+
     # The logger used by the framework for boot messages, requests and
     # errors. Applications may swap it for their own `Log` instance.
     property logger : Log = Log.for("altair")
@@ -49,18 +57,18 @@ module Altair
 
     # The maximum number of pooled database connections. Each request may
     # check one out at a time; extra checks wait for a free connection.
-    property db_max_pool_size : Int32 = 5
+    property db_max_pool_size : Int32 = 10
 
     # The initial number of connections opened when the pool is created.
-    # Starting with more than one avoids connection-creation bursts under
-    # the first wave of concurrent requests.
-    property db_initial_pool_size : Int32 = 1
+    # Starting warm avoids connection-creation bursts under the first wave
+    # of concurrent requests.
+    property db_initial_pool_size : Int32 = 2
 
     # The maximum number of idle connections the pool keeps open. Idle
     # connections beyond this are closed when released, so a small value
-    # causes frequent reconnect churn under sustained load. Keep it close
-    # to `db_max_pool_size` when traffic is concurrent.
-    property db_max_idle_pool_size : Int32 = 1
+    # causes frequent reconnect churn under sustained load. Kept close to
+    # `db_max_pool_size` so the pool stays warm.
+    property db_max_idle_pool_size : Int32 = 2
 
     # How long a connection checkout waits when the pool is exhausted
     # before raising, in seconds.
@@ -68,6 +76,16 @@ module Altair
 
     # The per-query timeout applied to statements.
     property db_query_timeout : Time::Span = 5.seconds
+
+    # Whether the development-mode N+1 detector is active. It counts
+    # identical queries within a request and logs a warning above
+    # `n_plus_one_threshold`; only armed in the Development environment,
+    # so production never pays its per-statement timing.
+    property? detect_n_plus_one : Bool = true
+
+    # How many times the same SQL may fire within one request before the
+    # detector warns. `0` disables the detector regardless of the flag.
+    property n_plus_one_threshold : Int32 = 3
 
     # The middleware stack, run in order on every request before routing.
     # Each entry is a factory proc that builds one middleware for the

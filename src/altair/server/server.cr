@@ -40,7 +40,20 @@ class Altair::Server
   def start : Nil
     bind unless bound?
     install_signal_handlers
+    resize_execution_context
     @http_server.listen
+  end
+
+  # Grows Crystal's default execution context to the available workers so
+  # the HTTP server and database pool can fan out across cores by default.
+  # `default_workers_count` honors `CRYSTAL_WORKERS` and falls back to the
+  # logical CPUs; resizing to the same size is a no-op, so repeated starts
+  # are safe. Skipped when `config.parallel_execution?` is false.
+  private def resize_execution_context : Nil
+    return unless @app.config.parallel_execution?
+    Fiber::ExecutionContext.default.resize(
+      maximum: Fiber::ExecutionContext.default_workers_count
+    )
   end
 
   # Renders the boot banner: a boxed summary of the environment, the
