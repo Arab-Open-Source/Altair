@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`render json:` accepts any JSON-able object** — hashes, named tuples,
+  arrays and `JSON::Serializable` models are serialized with `to_json`
+  before the response is written; a pre-serialized JSON string still passes
+  through untouched.
+- **`redirect_back(fallback:)`** redirects to the `Referer` header when it
+  points at the same host, falling back to the given path otherwise —
+  open-redirect protection built in.
+- **`request.format`** reports the requested format as a `Symbol` — the
+  path's format suffix (`/posts.json` → `:json`) wins over the `Accept`
+  header, which wins over the `:html` default.
+- **JSON request bodies**: an `application/json` body is parsed into
+  `request.json` (`JSON::Any`), and its top-level scalar values join
+  `params` alongside query and form values (query wins on conflicts).
+  Malformed JSON bodies are ignored instead of crashing the request.
+- **`head` answers bodyless**: the response suppresses any body written
+  after `head`, so an action that calls `head` and then renders still
+  answers empty. `no_content` is a convenience wrapper for a bare 204.
+
 ### Fixed
 
 - **`_method` override end-to-end**: a `_method=DELETE` form now reaches the

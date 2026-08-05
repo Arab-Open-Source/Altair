@@ -26,6 +26,14 @@ private class TestController < Altair::Controller
     render json: %({"ok": true})
   end
 
+  def json_object_action : Nil
+    render json: {ok: true}
+  end
+
+  def json_result_action : Nil
+    render json: ["a", "b", 3]
+  end
+
   def status_action : Nil
     render html: "created", status: ::HTTP::Status::CREATED
   end
@@ -46,6 +54,19 @@ private class TestController < Altair::Controller
     redirect_to "/posts", status: ::HTTP::Status::SEE_OTHER
   end
 
+  def back_action : Nil
+    redirect_back(fallback: "/posts")
+  end
+
+  def no_content_action : Nil
+    no_content
+  end
+
+  def head_then_render_action : Nil
+    head ::HTTP::Status::CREATED
+    render text: "late body"
+  end
+
   def head_action : Nil
     head ::HTTP::Status::NO_CONTENT
   end
@@ -56,8 +77,8 @@ private class TestController < Altair::Controller
 
   def form_action : Nil
     io = IO::Memory.new
-    form_for(io, "/posts?from=1&to=2", method: :put) do |f|
-      io << f.text_field("title", value: "Hi")
+    form_for(io, "/posts?from=1&to=2", method: :put) do |builder|
+      io << builder.text_field("title", value: "Hi")
     end
     render html: io.to_s
   end
@@ -81,6 +102,26 @@ describe Altair::Controller do
       controller = build_controller
       controller.json_action
       controller.response.headers["Content-Type"].should start_with("application/json")
+    end
+
+    it "serializes any JSON-able object passed to json:" do
+      io = IO::Memory.new
+      raw = HTTP::Server::Response.new(io)
+      response = Altair::HTTP::Response.new(raw)
+      controller = TestController.new(Altair::HTTP::Request.new(HTTP::Request.new("GET", "/")), response)
+      controller.json_object_action
+      raw.close
+      io.to_s.should contain(%({"ok":true}))
+    end
+
+    it "serializes arrays passed to json:" do
+      io = IO::Memory.new
+      raw = HTTP::Server::Response.new(io)
+      response = Altair::HTTP::Response.new(raw)
+      controller = TestController.new(Altair::HTTP::Request.new(HTTP::Request.new("GET", "/")), response)
+      controller.json_result_action
+      raw.close
+      io.to_s.should contain(%(["a","b",3]))
     end
 
     it "honours an explicit status" do
@@ -125,10 +166,54 @@ describe Altair::Controller do
     end
   end
 
+  describe "redirect_back" do
+    it "redirects to the referer when present" do
+      controller = build_controller(headers: HTTP::Headers{"Referer" => "http://example.com/posts/5"})
+      controller.back_action
+      controller.response.headers["Location"].should eq("/posts/5")
+    end
+
+    it "falls back when there is no referer" do
+      controller = build_controller
+      controller.back_action
+      controller.response.headers["Location"].should eq("/posts")
+    end
+
+    it "falls back on a cross-host referer" do
+      controller = build_controller(headers: HTTP::Headers{"Referer" => "http://evil.com/steal", "Host" => "example.com"})
+      controller.back_action
+      controller.response.headers["Location"].should eq("/posts")
+    end
+
+    it "redirects to a relative referer on the same host" do
+      controller = build_controller(headers: HTTP::Headers{"Referer" => "http://example.com/posts/new", "Host" => "example.com"})
+      controller.back_action
+      controller.response.headers["Location"].should eq("/posts/new")
+    end
+  end
+
   describe "head" do
     it "sets the status without a body" do
       controller = build_controller
       controller.head_action
+      controller.response.status.should eq(::HTTP::Status::NO_CONTENT)
+    end
+
+    it "suppresses a body rendered after head" do
+      io = IO::Memory.new
+      raw_request = HTTP::Request.new("GET", "/posts")
+      request = Altair::HTTP::Request.new(raw_request)
+      raw_response = HTTP::Server::Response.new(io)
+      response = Altair::HTTP::Response.new(raw_response)
+      controller = TestController.new(request, response)
+      controller.head_then_render_action
+      raw_response.close
+      io.to_s.should end_with("\r\n\r\n")
+    end
+
+    it "answers no_content with a 204 status" do
+      controller = build_controller
+      controller.no_content_action
       controller.response.status.should eq(::HTTP::Status::NO_CONTENT)
     end
   end

@@ -26,6 +26,9 @@ module Altair
       # The request body as a `String`, or `nil` when the request has none.
       getter body : String?
 
+      # The parsed JSON body, or `nil` when the request has no JSON body.
+      getter json : JSON::Any?
+
       # The raw query-string parameters.
       getter query_params : URI::Params
 
@@ -57,8 +60,22 @@ module Altair
         @full_path = @request.resource
         @headers = @request.headers
         @body = read_body(@request.body, max_body_size)
+        @json = parse_json_body
         @query_params = @request.query_params
-        @params = Altair::HTTP::Params.new(@query_params, form_params)
+        @params = Altair::HTTP::Params.new(@query_params, form_params, json_params)
+      end
+
+      # The format the client asked for, as a `Symbol`: the path's format
+      # suffix (`/posts.json`) when present, else the `Accept` header, else
+      # `:html`.
+      def format : Symbol
+        case @params["format"]?
+        when "json"        then :json
+        when "text", "txt" then :text
+        when "html"        then :html
+        else
+          accept_format || :html
+        end
       end
 
       # Reads the request body up to `limit` bytes, raising
@@ -83,6 +100,47 @@ module Altair
         URI::Params.parse(body)
       rescue URI::Error
         URI::Params.new
+      end
+
+      # Parses the body as JSON when the request carries an
+      # `application/json` content type. A malformed JSON body is ignored,
+      # leaving `json` `nil` rather than crashing the request.
+      private def parse_json_body : JSON::Any?
+        return unless body = @body
+        content_type = @headers["Content-Type"]?
+        return unless content_type.try(&.starts_with?("application/json"))
+        JSON.parse(body)
+      rescue JSON::ParseException
+        nil
+      end
+
+      # The top-level scalar values of the JSON body, stringified so they
+      # sit alongside form parameters; nested objects and arrays are left
+      # out — use `request.json` for those.
+      private def json_params : Hash(String, String)
+        return {} of String => String unless json = @json
+        object = json.as_h?
+        return {} of String => String unless object
+        params = {} of String => String
+        object.each do |key, value|
+          next if value.as_h? || value.as_a?
+          raw = value.raw
+          next if raw.nil?
+          params[key] = raw.to_s
+        end
+        params
+      end
+
+      # The format implied by the `Accept` header, or `nil` when it names
+      # no specific Altair content type.
+      private def accept_format : Symbol?
+        accept = @headers["Accept"]?
+        return unless accept
+        if accept.includes?("application/json")
+          :json
+        elsif accept.includes?("text/plain")
+          :text
+        end
       end
     end
   end

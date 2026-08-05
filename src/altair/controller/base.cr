@@ -44,14 +44,27 @@ module Altair
 
     # Renders a response body with an explicit content type. Exactly one of
     # `html:`, `text:` or `json:` must be given; the status defaults to
-    # `200 OK` and can be overridden:
+    # `200 OK` and can be overridden. The `json:` value may be a
+    # pre-serialized JSON string or any JSON-able object:
     #
     # ```
     # render html: "<h1>Hello</h1>"
     # render json: %({"ok": true}), status: ::HTTP::Status::CREATED
+    # render json: {ok: true}
     # render text: "plain"
     # ```
     def render(html : String? = nil, text : String? = nil, json : String? = nil, status : ::HTTP::Status = ::HTTP::Status::OK) : Nil
+      write_render(html, text, json, status)
+    end
+
+    # Serializes any JSON-able object (`Hash`, `NamedTuple`, `Array`,
+    # `JSON::Serializable`, ...) with `to_json` before rendering.
+    def render(html : String? = nil, text : String? = nil, json : T = nil, status : ::HTTP::Status = ::HTTP::Status::OK) : Nil forall T
+      payload = json.try { |obj| obj.is_a?(String) ? obj : obj.to_json }
+      write_render(html, text, payload, status)
+    end
+
+    private def write_render(html : String?, text : String?, json : String?, status : ::HTTP::Status) : Nil
       kinds = [] of Symbol
       kinds << :html unless html.nil?
       kinds << :text unless text.nil?
@@ -142,10 +155,36 @@ module Altair
       @response.redirect(path, status)
     end
 
+    # Redirects back to the page the request came from — the `Referer`
+    # header — falling back to `fallback` when there is no referer or it
+    # points at another host (open-redirect protection):
+    #
+    # ```
+    # redirect_back(fallback: posts_path)
+    # ```
+    def redirect_back(fallback : String, status : ::HTTP::Status = ::HTTP::Status::FOUND) : Nil
+      if referer = @request.headers["Referer"]?
+        uri = URI.parse(referer)
+        host = @request.headers["Host"]?.try(&.split(':')[0])
+        if uri.host.nil? || host.nil? || uri.host == host
+          target = uri.query ? "#{uri.path}?#{uri.query}" : uri.path
+          return redirect_to(target, status)
+        end
+      end
+      redirect_to(fallback, status)
+    end
+
     # Sends an empty response with only the given status, e.g.
-    # `head ::HTTP::Status::NO_CONTENT`.
+    # `head ::HTTP::Status::NO_CONTENT`. Any body written afterwards is
+    # ignored.
     def head(status : ::HTTP::Status) : Nil
-      @response.status = status
+      @response.head(status)
+    end
+
+    # Sends an empty `204 No Content` response — the conventional answer
+    # for successful submissions that should not navigate anywhere.
+    def no_content : Nil
+      head ::HTTP::Status::NO_CONTENT
     end
   end
 end

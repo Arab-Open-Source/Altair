@@ -186,6 +186,70 @@ describe Altair::HTTP::Request do
     request = Altair::HTTP::Request.new(raw, max_body_size: nil)
     request.body.not_nil!.size.should eq(5000)
   end
+
+  it "defaults the format to html" do
+    request = Altair::HTTP::Request.new(HTTP::Request.new("GET", "/posts"))
+    request.format.should eq(:html)
+  end
+
+  it "derives the format from the Accept header" do
+    raw = HTTP::Request.new("GET", "/posts")
+    raw.headers["Accept"] = "application/json"
+    Altair::HTTP::Request.new(raw).format.should eq(:json)
+    raw.headers["Accept"] = "text/plain"
+    Altair::HTTP::Request.new(raw).format.should eq(:text)
+  end
+
+  it "prefers the path format suffix over the Accept header" do
+    raw = HTTP::Request.new("GET", "/posts.json")
+    raw.headers["Accept"] = "text/html"
+    request = Altair::HTTP::Request.new(raw)
+    request.params.merge_route({"format" => "json"})
+    request.format.should eq(:json)
+  end
+
+  it "parses a JSON body into the request's json accessor" do
+    raw = HTTP::Request.new("POST", "/posts")
+    raw.headers["Content-Type"] = "application/json"
+    raw.body = %({"title": "Hello", "count": 3})
+    request = Altair::HTTP::Request.new(raw)
+    request.json.not_nil!["title"].as_s.should eq("Hello")
+    request.json.not_nil!["count"].as_i.should eq(3)
+  end
+
+  it "returns nil json for non-JSON requests" do
+    raw = HTTP::Request.new("POST", "/posts")
+    raw.headers["Content-Type"] = "application/x-www-form-urlencoded"
+    raw.body = "title=x"
+    Altair::HTTP::Request.new(raw).json.should be_nil
+  end
+
+  it "exposes scalar JSON body values as params, skipping nested values" do
+    raw = HTTP::Request.new("POST", "/posts")
+    raw.headers["Content-Type"] = "application/json"
+    raw.body = %({"title": "Hello", "count": 3, "nested": {"a": 1}, "tags": ["x"]})
+    params = Altair::HTTP::Request.new(raw).params
+    params["title"].should eq("Hello")
+    params["count"].should eq("3")
+    params["nested"]?.should be_nil
+    params["tags"]?.should be_nil
+  end
+
+  it "lets query params win over JSON body values" do
+    raw = HTTP::Request.new("POST", "/posts?title=query")
+    raw.headers["Content-Type"] = "application/json"
+    raw.body = %({"title": "body"})
+    Altair::HTTP::Request.new(raw).params["title"].should eq("query")
+  end
+
+  it "ignores a malformed JSON body without raising" do
+    raw = HTTP::Request.new("POST", "/posts")
+    raw.headers["Content-Type"] = "application/json"
+    raw.body = "{not json"
+    request = Altair::HTTP::Request.new(raw)
+    request.json.should be_nil
+    request.params["nope"]?.should be_nil
+  end
 end
 
 describe Altair::HTTP::Response do
@@ -240,5 +304,25 @@ describe Altair::HTTP::Response do
     raw.try(&.close)
     File.delete(path) if path
     Dir.delete(dir) if dir && Dir.exists?(dir)
+  end
+
+  it "answers head with a status and no body" do
+    io = IO::Memory.new
+    raw = HTTP::Server::Response.new(io)
+    response = Altair::HTTP::Response.new(raw)
+    response.head(::HTTP::Status::NO_CONTENT)
+    response.status.should eq(::HTTP::Status::NO_CONTENT)
+    raw.close
+    io.to_s.should end_with("\r\n\r\n")
+  end
+
+  it "ignores body writes after head" do
+    io = IO::Memory.new
+    raw = HTTP::Server::Response.new(io)
+    response = Altair::HTTP::Response.new(raw)
+    response.head(::HTTP::Status::CREATED)
+    response.html("<p>late</p>")
+    raw.close
+    io.to_s.should end_with("\r\n\r\n")
   end
 end

@@ -1,7 +1,8 @@
 # Altair — the batteries-included web framework for Crystal.
 #
 # This file defines `Altair::HTTP::Params`, the unified request-parameter
-# bag. In Phase 0 it merges query-string and form-body parameters; route
+# bag. In Phase 0 it merges query-string and form-body parameters, and a
+# JSON request body contributes its top-level scalar values; route
 # parameters are merged in from the router in a later phase. Lookups follow
 # the conventional precedence: route params first, then the query string,
 # then the body.
@@ -11,8 +12,9 @@ module Altair
       @route = Hash(String, String).new
       @query : URI::Params
       @body : URI::Params
+      @json : Hash(String, String)
 
-      def initialize(@query : URI::Params, @body : URI::Params = URI::Params.new)
+      def initialize(@query : URI::Params, @body : URI::Params = URI::Params.new, @json : Hash(String, String) = {} of String => String)
       end
 
       # Returns the parameter value for the given key, or raises `KeyError`
@@ -24,7 +26,7 @@ module Altair
       # Returns the parameter value for the given key, or `nil` when no
       # parameter with that key exists.
       def []?(key : String) : String?
-        @route[key]? || @query[key]? || @body[key]?
+        @route[key]? || @query[key]? || @body[key]? || @json[key]?
       end
 
       # Fetches the parameter for the given key as a `String`, raising
@@ -117,7 +119,9 @@ module Altair
       # Returns every value of a repeated parameter, in order. Useful for
       # multi-select fields: `?tags=a&tags=b` yields `["a", "b"]`.
       def fetch_all(key : String) : Array(String)
-        @query.fetch_all(key) + @body.fetch_all(key)
+        values = @query.fetch_all(key) + @body.fetch_all(key)
+        values << @json[key] if @json.has_key?(key)
+        values
       end
 
       # Returns `self` when a parameter with the given key exists, raising
@@ -150,10 +154,12 @@ module Altair
         !self[key]?.nil?
       end
 
-      # Returns all parameters as a plain `Hash`, body values taking
-      # precedence over query values and route values over both.
+      # Returns all parameters as a plain `Hash`, JSON body values taking the
+      # lowest precedence, then body values over query values and route
+      # values over both.
       def to_h : Hash(String, String)
-        merged = @query.to_h
+        merged = @json.dup
+        @query.to_h.each { |key, value| merged[key] = value }
         @body.to_h.each { |key, value| merged[key] = value }
         @route.each { |key, value| merged[key] = value }
         merged

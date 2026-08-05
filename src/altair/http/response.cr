@@ -8,6 +8,10 @@
 module Altair
   module HTTP
     class Response
+      # Set once `head` answers the request; every later body write is
+      # ignored so a `head` followed by rendering still answers bodyless.
+      @body_suppressed = false
+
       # The response status, `200 OK` by default. Reads the live status
       # from the underlying stdlib response, so it reflects every change —
       # including ones made through the stdlib object directly.
@@ -32,21 +36,21 @@ module Altair
       # to `application/json`.
       def json(data : String) : Nil
         @headers["Content-Type"] = "application/json; charset=utf-8"
-        @response.print(data)
+        print(data)
       end
 
       # Sends `data` as an HTML response, setting the `Content-Type` header
       # to `text/html`.
       def html(data : String) : Nil
         @headers["Content-Type"] = "text/html; charset=utf-8"
-        @response.print(data)
+        print(data)
       end
 
       # Sends `data` as a plain-text response, setting the `Content-Type`
       # header to `text/plain`.
       def text(data : String) : Nil
         @headers["Content-Type"] = "text/plain; charset=utf-8"
-        @response.print(data)
+        print(data)
       end
 
       # Issues an HTTP redirect to `to`, defaulting to status 302 (Found),
@@ -76,9 +80,16 @@ module Altair
         @response.output
       end
 
+      # Answers with the given status and no body. Later body writes are
+      # ignored, so a `head` followed by rendering still answers bodyless.
+      def head(status : ::HTTP::Status) : Nil
+        @body_suppressed = true
+        @response.status = status
+      end
+
       # Writes raw data to the response body.
       def print(*objects) : Nil
-        @response.print(*objects)
+        @response.print(*objects) unless @body_suppressed
       end
     end
   end
