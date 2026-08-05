@@ -19,7 +19,7 @@ Altair is a batteries-included web framework for Crystal. It ships the full stac
 altair new blog
 cd blog
 shards install
-altair server
+bin/altair server
 ```
 
 ## What ships today

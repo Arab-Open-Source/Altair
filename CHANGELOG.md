@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`shards install` inside a generated project**: the framework no longer
+  declares `executables` in `shard.yml`, which made Shards look for a
+  prebuilt `lib/altair/bin/altair` in the fetched checkout and abort with
+  `Could not find executable "altair" for "altair"`. `shards build altair`
+  is unaffected (it uses `targets`).
+- **Project launcher**: `altair new` now writes an executable `bin/altair`
+  (a POSIX `sh` wrapper that execs `crystal run bin/altair.cr`, chmod +x on
+  Unix) in addition to `bin/altair.cr` and `bin/altair.cmd`, so `bin/altair
+  server`, `bin/altair routes` and `bin/altair db:migrate` work exactly as
+  documented. The post-`new` message and generated README now show
+  `bin/altair server`.
+- **Project-command hint**: running `altair server`, `altair routes`,
+  `altair db:migrate` or `altair db:rollback` through the global binary
+  inside a generated project points you at `bin/altair <command>` instead
+  of a bare `Unknown command`.
+
 ### Added
 
 - **Website**: a simple documentation site at
@@ -18,8 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`shards build altair`) that scaffolds, generates and drives projects.
   `altair new <name>` writes the standard layout — `src/app/{controllers,
   models,views}`, `src/config/{application,routes}.cr`, `db/schema.cr`,
-  `db/migrations/`, `public/`, and `bin/altair.cr` / `bin/altair.cmd`
-  launchers — runnable immediately. `altair g model` / `g migration` /
+  `db/migrations/`, `public/`, and `bin/altair` (a POSIX `sh` wrapper over
+  `bin/altair.cr`, plus `bin/altair.cmd` on Windows) — runnable immediately. `altair g model` / `g migration` /
   `g controller` / `g scaffold Post title:string body:text` write
   ready-to-edit files; scaffold produces a RESTful controller + views, a
   `resources` route (inserted into `routes do`) and a seeded
@@ -28,8 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `bin/altair db:migrate` and `bin/altair db:rollback` drive the app. A
   generated project depends on the published shard by default or a local
   checkout via `--framework-path` (or `ALTAIR_PATH`). Windows and Linux are
-  first-class — `bin/altair.cr` runs via `crystal` (no POSIX-only launchers)
-  and `bin/altair.cmd` wraps it on Windows.
+  first-class — `bin/altair` works on POSIX via `sh`, `crystal run
+  bin/altair.cr` works everywhere, and `bin/altair.cmd` covers Windows.
 
 - **`altair install`**: `altair install` copies the running binary onto your
   `PATH` — `~/.local/bin` on Unix, `%USERPROFILE%\.altair\bin` on Windows —

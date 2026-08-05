@@ -11,9 +11,6 @@ license: MIT
 repository:
   github: Arab-Open-Source/Altair
 
-executables:
-  - altair
-
 targets:
   altair:
     main: src/altair_cli.cr

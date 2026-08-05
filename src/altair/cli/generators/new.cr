@@ -3,7 +3,8 @@
 # This file defines the project generator: `altair new blog` writes a
 # complete, runnable Altair application into a new `blog/` directory — an
 # application subclass, an entry point, the standard `app/`, `config/`,
-# `db/` layout, static files, a `bin/altair` wrapper and the shard
+# `db/` layout, static files, a `bin/altair` launcher (plus `bin/altair.cr`
+# and `bin/altair.cmd` for `crystal run` and Windows) and the shard
 # metadata pointing at the framework. The generated `config/routes.cr`
 # starts with an empty `routes do` block so `g scaffold` can drop a
 # `resources :posts` line straight in.
@@ -75,16 +76,26 @@ module Altair
           generated.each do |relative, content|
             write_file(project_dir.join(relative), content)
           end
+          make_executable(project_dir.join("bin/altair"))
 
           puts "\nCreated #{@name} — navigate in and run:"
-          puts "  crystal run bin/altair server"
+          puts "  bin/altair server"
           project_dir
+        end
+
+        # Marks `path` executable on Unix; a no-op on Windows (the
+        # `bin/altair.cmd` wrapper is the Windows launcher).
+        private def make_executable(path : Path) : Nil
+          unless {{ flag?(:win32) }}
+            File.chmod(path, 0o755)
+          end
         end
 
         # Every generated file's relative path and exact contents.
         private def generated : Array(Tuple(String, String))
           [
             {"shard.yml", shard_yml},
+            {"bin/altair", bin_altair_wrapper},
             {"bin/altair.cr", bin_altair},
             {"bin/altair.cmd", bin_altair_cmd},
             {"src/#{@name}.cr", source_entry},
@@ -121,17 +132,26 @@ module Altair
           end
         end
 
+        # A POSIX sh wrapper so `./bin/altair server` runs without a
+        # prebuilt binary: it execs `crystal run` against `bin/altair.cr`,
+        # forwarding all arguments. `crystal run` cannot be the shebang
+        # interpreter directly (`env` would treat "crystal run" as one word),
+        # hence the `sh` indirection. Made executable in `generate`; a no-op
+        # on Windows, where `bin/altair.cmd` is the launcher.
+        private def bin_altair_wrapper : String
+          "#!/usr/bin/env sh\n" \
+          "# #{app_class} — the project command wrapper.\n" \
+          "#\n" \
+          "# Shims `crystal run` so `bin/altair server` runs directly.\n" \
+          "exec crystal run \"$(dirname \"$0\")/altair.cr\" -- \"$@\"\n"
+        end
+
         # The per-project CLI wrapper: `server`, `routes`, `db:*`, and the
         # generator commands. It requires the application files in order,
-        # then dispatches on the first argument.
+        # then dispatches on the first argument. Invoked by `bin/altair` /
+        # `bin/altair.cmd` (or directly via `crystal run bin/altair.cr`).
         private def bin_altair : String
           String.build do |io|
-            io << "#!/usr/bin/env crystal run\n"
-            io << "# #{app_class} — the project command wrapper.\n"
-            io << "#\n"
-            io << "# `crystal run bin/altair.cr server` boots the server,\n"
-            io << "# `routes` prints the route table, `db:migrate` and\n"
-            io << "# `db:rollback` migrate, and `g ...` scaffolds files.\n"
             io << "require \"altair\"\n"
             io << "require \"../db/schema\"\n"
             io << "require \"../db/migrations/**\"\n"
@@ -155,9 +175,10 @@ module Altair
           end
         end
 
-        # The Windows convenience wrapper: `crystal run bin/altair.cr`.
+        # The Windows convenience wrapper: `bin\altair cmd`. The `--` stops
+        # `crystal run` from treating the sub-command as a source file.
         private def bin_altair_cmd : String
-          "@crystal run bin\\altair.cr %*"
+          "@crystal run bin\\altair.cr -- %*"
         end
 
         # The application entry point — the file Crystal runs.
@@ -278,7 +299,7 @@ module Altair
             io << "\n"
             io << "```\n"
             io << "shards install\n"
-            io << "crystal run bin/altair server\n"
+            io << "bin/altair server\n"
             io << "```\n"
             io << "\n"
             io << "then open http://localhost:3000.\n"
@@ -286,9 +307,9 @@ module Altair
             io << "## Tasks\n"
             io << "\n"
             io << "```\n"
-            io << "crystal run bin/altair routes        # print the route table\n"
-            io << "crystal run bin/altair db:migrate   # run migrations\n"
-            io << "crystal run bin/altair g scaffold Post title:string\n"
+            io << "bin/altair routes        # print the route table\n"
+            io << "bin/altair db:migrate   # run migrations\n"
+            io << "bin/altair g scaffold Post title:string\n"
             io << "```\n"
           end
         end

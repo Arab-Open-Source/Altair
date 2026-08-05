@@ -7,6 +7,7 @@
 # which keeps them fast and portable across operating systems.
 require "../spec_helper"
 require "file_utils"
+require "file"
 
 private def in_tempdir(&)
   dir = Path.new(Dir.tempdir, "altair_cli_#{Random.rand(1_000_000)}")
@@ -184,8 +185,15 @@ module Altair::CLI
         generator.generate.should eq(Path.new("blog"))
 
         File.read("blog/shard.yml").should contain "path: /tmp/fake-framework"
+        File.exists?("blog/bin/altair").should be_true
         File.exists?("blog/bin/altair.cr").should be_true
         File.exists?("blog/bin/altair.cmd").should be_true
+        File.read("blog/bin/altair").should start_with("#!/usr/bin/env sh")
+        File.read("blog/bin/altair.cr").should start_with("require \"altair\"")
+        File.read("blog/bin/altair.cmd").should contain "crystal run bin\\altair.cr -- %*"
+        unless {{ flag?(:win32) }}
+          File.executable?("blog/bin/altair").should be_true
+        end
         File.read("blog/src/blog.cr").should contain "Blog.run!"
         File.read("blog/src/config/application.cr").should contain "class Blog < Altair::Application"
         File.read("blog/src/config/routes.cr").should contain "routes do"

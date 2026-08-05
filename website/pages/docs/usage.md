@@ -74,7 +74,7 @@ The repository ships `examples/hello_world`, the always-running demo app:
 ```sh
 cd examples/hello_world
 shards install
-bin/altair server
+crystal run src/hello_world.cr
 ```
 
 `examples/blog` is the persistence demo — posts and comments survive restarts.

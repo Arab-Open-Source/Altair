@@ -26,7 +26,19 @@ module Altair
         puts help
         0
       else
-        abort "Unknown command: #{args[0]? || "(none)"}\n\n#{help}"
+        abort "Unknown command: #{args[0]? || "(none)"}\n\n#{help}\n#{project_hint(args[0]?)}"
+      end
+    end
+
+    # A hint shown for app-context commands (like `server`) invoked through
+    # the global binary while inside a generated project, pointing at the
+    # project launcher. Empty otherwise.
+    def self.project_hint(command : String?) : String
+      if command && %w[server routes db:migrate db:rollback].includes?(command) &&
+         File.exists?("bin/altair") && File.exists?("shard.yml")
+        "\n`#{command}` is a project command — run `bin/altair #{command}` inside your application."
+      else
+        ""
       end
     end
 

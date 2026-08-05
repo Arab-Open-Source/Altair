@@ -72,10 +72,10 @@ Column specs take a type after a colon and default to `string`: `title:string bo
 
 | Command | Purpose |
 |---------|---------|
-| `altair server` | Run the app. |
-| `altair routes` | Print the compiled route table. |
-| `altair db:migrate` | Run pending migrations. |
-| `altair db:rollback` | Undo the latest migration. |
+| `bin/altair server` | Run the app. |
+| `bin/altair routes` | Print the compiled route table. |
+| `bin/altair db:migrate` | Run pending migrations. |
+| `bin/altair db:rollback` | Undo the latest migration. |
 
 When running the launcher with `crystal run` instead of the built binary, use `--` before the argument so `crystal run` does not consume it:
 
