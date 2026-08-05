@@ -27,11 +27,51 @@ module Altair
     end
 
     class Router
+      # Routes grouped by their first segment so matching only tests the
+      # candidates that can actually win.
+      @literal_index : Hash(String, Array(Int32))
+      @param_routes : Array(Int32)
+      @glob_routes : Array(Int32)
+      @root_routes : Array(Int32)
+
       def initialize(@routes : Array(Route))
+        @literal_index = {} of String => Array(Int32)
+        @param_routes = [] of Int32
+        @glob_routes = [] of Int32
+        @root_routes = [] of Int32
+        index_routes
       end
 
       # The registered routes, in definition order.
       getter routes : Array(Route)
+
+      # Retrieves the routes worth testing against a request by looking up
+      # its first segment: routes whose first segment is that literal, plus
+      # every route whose first segment is a parameter or a glob (both
+      # accept any single leading segment), plus the segment-less root
+      # routes. All groups are ascending index lists, so the merged result
+      # preserves definition order.
+      private def index_routes : Nil
+        @routes.each_with_index do |route, index|
+          case route.segments.first?.try(&.kind)
+          when Segment::Kind::Static
+            (@literal_index[route.segments.first.not_nil!.value] ||= [] of Int32) << index
+          when Segment::Kind::Param
+            @param_routes << index
+          when Segment::Kind::Glob
+            @glob_routes << index
+          else
+            @root_routes << index
+          end
+        end
+      end
+
+      # The route indices that could match `parts`, in definition order.
+      private def candidates(parts : PathParts) : Array(Int32)
+        key = parts.first?
+        literal = @literal_index[key]? || [] of Int32
+        (literal + @param_routes + (key ? @glob_routes : @root_routes)).sort!
+      end
 
       # Returns `true` when no routes are registered. Applications without
       # routes fall back to the welcome page.
@@ -58,7 +98,8 @@ module Altair
       end
 
       private def scan(method : String, parts : PathParts, skip_glob : Bool = false) : Match?
-        @routes.each do |route|
+        candidates(parts).each do |index|
+          route = @routes[index]
           next if skip_glob && route.glob?
           next unless method_matches?(route.method, method)
           if params = route.match(parts)
@@ -89,7 +130,8 @@ module Altair
       def allowed_for(path : String) : Array(String)?
         parts = PathParts.new(path)
         methods = [] of String
-        @routes.each do |route|
+        candidates(parts).each do |index|
+          route = @routes[index]
           next if route.method == "ANY"
           next unless route.matches_path?(parts)
           methods << route.method unless methods.includes?(route.method)

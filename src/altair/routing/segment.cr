@@ -88,6 +88,11 @@ module Altair
       def [](index : Int32) : String
         @parts[index]
       end
+
+      # The first part, or `nil` for the root path.
+      def first? : String?
+        @parts.first?
+      end
     end
   end
 end

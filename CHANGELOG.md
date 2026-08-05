@@ -47,6 +47,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   matching `request.format` (path suffix, then `Accept`, then `:html`) runs,
   and a request for an undeclared format answers 406 Not Acceptable.
 
+### Changed
+
+- **Segment-based route index**: the router buckets routes by their first
+  segment (literal, parameter, glob, root) at registration time, so a
+  request only tests the routes that can match it. Definition-order
+  precedence is preserved by merging the buckets by registration index.
+
 ### Fixed
 
 - **`_method` override end-to-end**: a `_method=DELETE` form now reaches the

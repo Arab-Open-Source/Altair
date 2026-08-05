@@ -83,6 +83,18 @@ describe Altair::Routing::Router do
       match = router.find("GET", "/posts/new")
       match.not_nil!.route.pattern.should eq("/posts/new")
     end
+
+    it "keeps definition order across index groups" do
+      router = build_router([{"GET", "/*catchall"}, {"GET", "/files/notes"}])
+      match = router.find("GET", "/files/notes")
+      match.not_nil!.route.pattern.should eq("/*catchall")
+    end
+
+    it "matches the root route through the segment-less group" do
+      router = build_router([{"GET", "/"}, {"GET", "/:id"}])
+      match = router.find("GET", "/")
+      match.not_nil!.route.pattern.should eq("/")
+    end
   end
 
   describe "#allowed_for" do
