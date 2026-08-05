@@ -160,6 +160,43 @@ post.comments.each { |c| puts c.body }
 Post.all.includes(:comments).to_a          # 2 queries total
 ```
 
+### Loading and counting without N+1
+
+Association accessors are lazy: `post.comments` runs one query the first
+time it is touched. That is free for a single record and quietly
+catastrophic inside a loop — `posts.each { |p| p.comments.size }` is one
+query per post. The rule: **an association accessed inside a loop belongs
+in `includes`**.
+
+```crystal
+posts = Post.all.includes(:comments).to_a   # one batched query per association
+posts.each { |p| p.comments.size }          # no extra queries
+```
+
+`Relation#count` and `size` never materialize the rows — they run
+`COUNT(*)` with the scoped `where` clauses (and reuse the cached rows once
+loaded):
+
+```crystal
+Post.all.where(published: true).count       # SELECT COUNT(*), no row loading
+Post.all.includes(:comments).size           # 2 queries, rows not materialized
+```
+
+`find_each` streams in bounded batches ordered by primary key and keeps
+the scoped filters and preloaders across batches:
+
+```crystal
+Post.all.where(published: true).includes(:comments).find_each(batch_size: 100) do |post|
+  post.comments.each { |c| c.touch }
+end
+```
+
+In the Development environment the framework watches every query for the
+N+1 signature — the same SQL firing more than `config.n_plus_one_threshold`
+(3) times within one request — and logs a warning naming the statement.
+Production never pays the detector's cost; disable it with
+`config.detect_n_plus_one = false` if it is ever noisy.
+
 ## Transactions
 
 `transaction` runs its block atomically; a raise rolls it back:
@@ -182,3 +219,17 @@ require "altair/record/adapters/postgresql"
 
 The same application code runs on either — the adapter interface is the
 only thing that changes.
+
+## Performance defaults
+
+Altair ships performance-sane defaults, all overridable through `config`:
+
+- The server resizes Crystal's execution context to the available workers
+  on boot, so requests fan out across cores instead of running on the
+  single OS thread the runtime starts with. Set the `CRYSTAL_WORKERS`
+  environment variable to your CPU limit inside containers; disable with
+  `config.parallel_execution = false`.
+- The connection pool opens warm and stays warm —
+  `db_initial_pool_size 2`, `db_max_idle_pool_size 2`,
+  `db_max_pool_size 10` — avoiding connection-creation bursts and
+  reconnect churn under load. Tune with the `config.db_*` properties.

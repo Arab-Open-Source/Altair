@@ -50,9 +50,17 @@ Three vertical waves:
 - `altair update` checks GitHub for a newer release, verifies the checksum and swaps the binary atomically
 - Prebuilt binaries for Linux, macOS and Windows (amd64 + arm64) published with checksums; verified one-command installers
 
+## Performance hardening
+
+- `find_each` streams bounded batches that keep the scoped `where` filters and `includes` preloaders
+- `Relation#count` / `size` run `COUNT(*)` without materializing rows
+- The server resizes the execution context to the available workers on boot (honors `CRYSTAL_WORKERS`; `config.parallel_execution` opt-out)
+- Warm connection-pool defaults: `initial 2 / idle 2 / max 10`
+- A development-mode N+1 detector warns on identical SQL fired more than `config.n_plus_one_threshold` times in one request
+
 ## Testing and quality
 
-- 542 specs passing (6 pending: the PostgreSQL contract suite, gated on `ALTAIR_TEST_PG_URL`)
+- 561 specs passing (6 pending: the PostgreSQL contract suite, gated on `ALTAIR_TEST_PG_URL`)
 - Formatter clean, linter silent on framework sources
 - Smart error pages: 404 with route suggestions, 405 with `_method` explanation, detailed 500 diagnostics in debug mode only
 

@@ -147,6 +147,32 @@ end
 <pre><code class="language-crystal">post.comments.each { |c| puts c.body }
 Post.all.includes(:comments).to_a          # 2 queries total
 </code></pre>
+<h3>Loading and counting without N+1</h3>
+<p>Association accessors are lazy: <code>post.comments</code> runs one query the first
+time it is touched. That is free for a single record and quietly
+catastrophic inside a loop — <code>posts.each { |p| p.comments.size }</code> is one
+query per post. The rule: <strong>an association accessed inside a loop belongs
+in <code>includes</code></strong>.</p>
+<pre><code class="language-crystal">posts = Post.all.includes(:comments).to_a   # one batched query per association
+posts.each { |p| p.comments.size }          # no extra queries
+</code></pre>
+<p><code>Relation#count</code> and <code>size</code> never materialize the rows — they run
+<code>COUNT(*)</code> with the scoped <code>where</code> clauses (and reuse the cached rows once
+loaded):</p>
+<pre><code class="language-crystal">Post.all.where(published: true).count       # SELECT COUNT(*), no row loading
+Post.all.includes(:comments).size           # 2 queries, rows not materialized
+</code></pre>
+<p><code>find_each</code> streams in bounded batches ordered by primary key and keeps
+the scoped filters and preloaders across batches:</p>
+<pre><code class="language-crystal">Post.all.where(published: true).includes(:comments).find_each(batch_size: 100) do |post|
+  post.comments.each { |c| c.touch }
+end
+</code></pre>
+<p>In the Development environment the framework watches every query for the
+N+1 signature — the same SQL firing more than <code>config.n_plus_one_threshold</code>
+(3) times within one request — and logs a warning naming the statement.
+Production never pays the detector&#39;s cost; disable it with
+<code>config.detect_n_plus_one = false</code> if it is ever noisy.</p>
 <h2>Transactions</h2>
 <p><code>transaction</code> runs its block atomically; a raise rolls it back:</p>
 <pre><code class="language-crystal">Post.transaction do
@@ -161,6 +187,19 @@ adapter and <code>crystal-pg</code> in the project&#39;s shard:</p>
 </code></pre>
 <p>The same application code runs on either — the adapter interface is the
 only thing that changes.</p>
+<h2>Performance defaults</h2>
+<p>Altair ships performance-sane defaults, all overridable through <code>config</code>:</p>
+<ul>
+<li>The server resizes Crystal&#39;s execution context to the available workers
+on boot, so requests fan out across cores instead of running on the
+single OS thread the runtime starts with. Set the <code>CRYSTAL_WORKERS</code>
+environment variable to your CPU limit inside containers; disable with
+<code>config.parallel_execution = false</code>.</li>
+<li>The connection pool opens warm and stays warm —
+<code>db_initial_pool_size 2</code>, <code>db_max_idle_pool_size 2</code>,
+<code>db_max_pool_size 10</code> — avoiding connection-creation bursts and
+reconnect churn under load. Tune with the <code>config.db_*</code> properties.</li>
+</ul>
 
   </main>
 
