@@ -7,6 +7,7 @@
   <title>Altair — batteries-included web framework for Crystal</title>
   <link rel="icon" href="favicon.png" type="image/png">
   <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/docs.css">
 </head>
 <body>
   <header class="site-header">
@@ -15,6 +16,7 @@
       <div class="nav-links">
         <a href="index.html">Home</a>
         <a href="docs/">Docs</a>
+        <a href="docs/routing.html">Guides</a>
         <a href="docs/install.html">Install</a>
         <a href="docs/usage.html">Usage</a>
         <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
@@ -39,8 +41,11 @@
 <pre><code class="language-sh">altair new blog
 cd blog
 shards install
-bin/altair server
+altair server
 </code></pre>
+<p>Open <a href="http://localhost:3000">http://localhost:3000</a>. Inside a generated project the CLI finds the
+project automatically — <code>altair server</code>, <code>altair routes</code> and
+<code>altair db:migrate</code> work from any subdirectory, no <code>bin/</code> prefix needed.</p>
 <h2>What ships today</h2>
 <div class="feature-grid">
   <div class="feature">
@@ -81,6 +86,7 @@ bin/altair server
 <ul>
 <li><a href="docs/install.html">Install</a> — download and set up Altair on your platform.</li>
 <li><a href="docs/usage.html">Usage</a> — create a project, generate a scaffold and run the server.</li>
+<li><a href="docs/routing.html">Guides</a> — routing, controllers, views and the Record ORM.</li>
 <li><a href="docs/features.html">What is implemented</a> — the current state of the framework, phase by phase.</li>
 <li><a href="docs/cli.html">CLI reference</a> — every command and generator.</li>
 </ul>
@@ -91,5 +97,7 @@ bin/altair server
     <p>Altair — batteries-included web framework for Crystal.</p>
     <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></p>
   </footer>
+
+  <script src="assets/js/docs.js" defer></script>
 </body>
 </html>

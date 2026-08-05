@@ -7,12 +7,16 @@ const layout = readFileSync(join(root, "templates", "layout.html"), "utf8");
 
 const meta = {
   "index": { title: "Altair — batteries-included web framework for Crystal", description: "Altair is a batteries-included web framework for Crystal: routing, controllers, views, an ORM, generators and a CLI." },
-  "docs/index": { title: "Documentation — Altair", description: "The Altair documentation: install, usage, features and the CLI reference." },
+  "docs/index": { title: "Documentation — Altair", description: "The Altair documentation: install, usage, features, the CLI reference and guides." },
   "docs/install": { title: "Install — Altair", description: "Download and set up Altair on Linux, macOS or Windows with one command and checksum verification." },
   "docs/usage": { title: "Usage — Altair", description: "Create a project, generate a scaffold and run the server with the Altair CLI." },
   "docs/features": { title: "What is implemented — Altair", description: "The current state of the Altair framework, phase by phase." },
   "docs/cli": { title: "CLI reference — Altair", description: "Every Altair command and generator." },
   "docs/update": { title: "Updating — Altair", description: "Update the Altair binary and a project's framework copy, with checksum verification." },
+  "docs/routing": { title: "Routing guide — Altair", description: "Routes, parameters, resources and path helpers in Altair." },
+  "docs/controllers": { title: "Controllers guide — Altair", description: "Actions, parameters, rendering and templates in Altair." },
+  "docs/views": { title: "Views guide — Altair", description: "ECR templates, escaping, layouts, partials, helpers and the form builder." },
+  "docs/record": { title: "Record (ORM) guide — Altair", description: "Models, migrations, validations, callbacks and associations in Altair::Record." },
 };
 
 function render(page) {
@@ -42,8 +46,8 @@ const indexHtml = render("index");
 writeFileSync(join(root, "index.html"), indexHtml);
 
 mkdirSync(join(root, "docs"), { recursive: true });
-for (const page of ["index", "install", "usage", "features", "cli", "update"]) {
+for (const page of ["index", "install", "usage", "features", "cli", "update", "routing", "controllers", "views", "record"]) {
   writeFileSync(join(root, "docs", `${page}.html`), render(`docs/${page}`));
 }
 
-console.log("Built website/: index.html + docs/{index,install,usage,features,cli,update}.html");
+console.log("Built website/: index.html + docs/{index,install,usage,features,cli,update,routing,controllers,views,record}.html");

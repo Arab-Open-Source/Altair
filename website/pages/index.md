@@ -19,8 +19,12 @@ Altair is a batteries-included web framework for Crystal. It ships the full stac
 altair new blog
 cd blog
 shards install
-bin/altair server
+altair server
 ```
+
+Open <http://localhost:3000>. Inside a generated project the CLI finds the
+project automatically — `altair server`, `altair routes` and
+`altair db:migrate` work from any subdirectory, no `bin/` prefix needed.
 
 ## What ships today
 
@@ -75,5 +79,6 @@ curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/i
 
 - [Install](/docs/install.html) — download and set up Altair on your platform.
 - [Usage](/docs/usage.html) — create a project, generate a scaffold and run the server.
+- [Guides](/docs/routing.html) — routing, controllers, views and the Record ORM.
 - [What is implemented](/docs/features.html) — the current state of the framework, phase by phase.
 - [CLI reference](/docs/cli.html) — every command and generator.

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Routes, parameters, resources and path helpers in Altair.">
+  <title>Routing guide — Altair</title>
+  <link rel="icon" href="../favicon.png" type="image/png">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/docs.css">
+</head>
+<body>
+  <header class="site-header">
+    <nav class="site-nav" aria-label="Main">
+      <a class="brand" href="../">Altair</a>
+      <div class="nav-links">
+        <a href="../">Home</a>
+        <a href="../docs/">Docs</a>
+        <a href="../docs/routing.html">Guides</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/usage.html">Usage</a>
+        <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="site-main">
+    <h1>Routing</h1>
+<p>The router parses URL segments directly — no regex over the whole path — and
+every route is declared inside the application&#39;s <code>routes do</code> block, which
+runs at compile time. A typo in a route is a compile error, and the generated
+path helpers are real, type-checked methods.</p>
+<pre><code class="language-crystal">class Blog &lt; Altair::Application
+  config.port = 3000
+
+  routes do
+    root to: PagesController.index
+    get &quot;/hello/:name&quot;, to: PagesController.hello, named: :greeting
+    resources :posts
+  end
+end
+</code></pre>
+<h2>Verb macros</h2>
+<p><code>get</code>, <code>post</code>, <code>put</code>, <code>patch</code> and <code>delete</code> each register one route. Two
+actions reference styles work everywhere:</p>
+<ul>
+<li><strong>Typed references</strong> — <code>to: PostsController.index</code>. Renaming the action
+breaks the build, so a stale route can never be a silent 404.</li>
+<li><strong>Strings</strong> — <code>to: &quot;posts#index&quot;</code>. The controller class and action are
+derived from the string.</li>
+</ul>
+<p><code>root to: PagesController.index</code> maps <code>/</code> to an action, and any of the macros
+can also take a handler block <code>|request, response|</code> for one-off endpoints.</p>
+<h2>Parameters</h2>
+<p>Segments starting with <code>:</code> capture one path part into <code>params</code>:</p>
+<pre><code class="language-crystal">get &quot;/posts/:id&quot;, to: PostsController.show, named: :post
+</code></pre>
+<p><code>/posts/42</code> sets <code>params[&quot;id&quot;]</code> to <code>&quot;42&quot;</code>. Lookups follow the conventional
+precedence — route parameters first, then the query string, then the body:</p>
+<pre><code class="language-crystal">params[&quot;title&quot;]?        # String? — missing key is nil, never a crash
+params[&quot;id&quot;]            # String  — raises KeyError when absent
+params.fetch(&quot;id&quot;, Int32)   # Integer, or a 422 for a malformed value
+params.fetch?(&quot;id&quot;, Int32)  # Integer?, or nil for a malformed value
+params.permit(&quot;title&quot;, &quot;body&quot;)
+params.require(&quot;post&quot;).permit(&quot;title&quot;, &quot;body&quot;)
+</code></pre>
+<h2>Named routes and helpers</h2>
+<p><code>named:</code> gives a route a generated path helper, callable in controllers and
+views as a real method:</p>
+<pre><code class="language-crystal">get &quot;/hello/:name&quot;, to: PagesController.hello, named: :greeting
+# -&gt; greeting_path(&quot;world&quot;) == &quot;/hello/world&quot;
+</code></pre>
+<p><code>resources :posts</code> generates the conventional set:</p>
+<table>
+<thead>
+<tr>
+<th>Helper</th>
+<th>Path</th>
+<th>Method</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>posts_path</code></td>
+<td><code>/posts</code></td>
+<td><code>GET</code> / <code>POST</code></td>
+</tr>
+<tr>
+<td><code>post_path(5)</code></td>
+<td><code>/posts/5</code></td>
+<td><code>GET</code> / <code>PATCH</code> / <code>PUT</code> / <code>DELETE</code></td>
+</tr>
+<tr>
+<td><code>new_post_path</code></td>
+<td><code>/posts/new</code></td>
+<td><code>GET</code></td>
+</tr>
+<tr>
+<td><code>edit_post_path(5)</code></td>
+<td><code>/posts/5/edit</code></td>
+<td><code>GET</code></td>
+</tr>
+</tbody></table>
+<h2>Format suffix</h2>
+<p>A trailing <code>.ext</code> is stripped before matching and exposed as
+<code>params[&quot;format&quot;]</code>, so <code>/posts/5.json</code> matches <code>GET /posts/:id</code> with
+<code>id = 5</code> and <code>format = &quot;json&quot;</code>. The exact path is tried first, so a literal
+dotted route like <code>/sitemap.xml</code> still matches unchanged.</p>
+<h2>Resources, members and collections</h2>
+<p><code>member</code> routes operate on one record, <code>collection</code> routes on the whole set:</p>
+<pre><code class="language-crystal">resources :posts do
+  member { get :preview }            # GET  /posts/:id/preview
+  collection { get :export }         # GET  /posts/export
+  resources :comments, only: :create # POST /posts/:post_id/comments
+end
+</code></pre>
+<p>The generated helpers follow the nesting: <code>preview_post_path(5)</code>,
+<code>export_posts_path</code>, <code>post_comments_path(5)</code>. <code>only:</code> and <code>except:</code> restrict
+the generated routes, and <code>constraints:</code> limits matching to the given
+parameter regexes:</p>
+<pre><code class="language-crystal">resources :posts, constraints: { id: /\d+/ } do
+  resources :comments
+end
+</code></pre>
+<h2>Singular resources</h2>
+<p><code>resource :profile</code> declares the singular form — the URL has no id, and the
+helpers are <code>profile_path</code>, <code>new_profile_path</code>, <code>edit_profile_path</code>:</p>
+<pre><code class="language-crystal">resource :profile do
+  member { get :history }   # GET /profile/history
+end
+</code></pre>
+<h2>Glob segments</h2>
+<p>A <code>*segment</code> captures the rest of the path, joined with slashes. It must be
+the last segment:</p>
+<pre><code class="language-crystal">get &quot;/docs/*path&quot;, to: PagesController.docs, named: :docs
+</code></pre>
+<p><code>/docs/routing/overview</code> sets <code>params[&quot;path&quot;]</code> to <code>&quot;routing/overview&quot;</code>.</p>
+<h2>Redirects</h2>
+<p><code>redirect &quot;/old&quot;, to: &quot;/new&quot;</code> registers the route under every method, so the
+browser follows it for <code>GET</code> and <code>POST</code> alike:</p>
+<pre><code class="language-crystal">redirect &quot;/legacy&quot;, to: &quot;/posts&quot;
+</code></pre>
+<h2>Not found and method not allowed</h2>
+<ul>
+<li>A path no route matches answers <strong>404</strong>. In development the error page
+suggests routes whose patterns resemble what you typed.</li>
+<li>A path that matches but with the wrong verb answers <strong>405</strong> with an <code>Allow</code>
+header listing the accepted methods. <code>redirect</code> routes are registered
+under <code>ANY</code> and never appear in that list.</li>
+<li><code>HEAD</code> requests match <code>GET</code> routes; the response body is dropped.</li>
+</ul>
+<p>With no routes at all, <code>/</code> renders the welcome page.</p>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>Altair — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></p>
+  </footer>
+
+  <script src="../assets/js/docs.js" defer></script>
+</body>
+</html>

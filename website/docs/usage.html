@@ -7,6 +7,7 @@
   <title>Usage — Altair</title>
   <link rel="icon" href="../favicon.png" type="image/png">
   <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/docs.css">
 </head>
 <body>
   <header class="site-header">
@@ -15,6 +16,7 @@
       <div class="nav-links">
         <a href="../">Home</a>
         <a href="../docs/">Docs</a>
+        <a href="../docs/routing.html">Guides</a>
         <a href="../docs/install.html">Install</a>
         <a href="../docs/usage.html">Usage</a>
         <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
@@ -32,29 +34,33 @@ shards install
 </code></pre>
 <p>This generates the standard layout: <code>src/</code>, <code>db/</code>, <code>public/</code>, and the <code>bin/altair</code> wrapper script.</p>
 <h2>Run the server</h2>
-<pre><code class="language-sh">bin/altair server
+<pre><code class="language-sh">altair server
 </code></pre>
-<p>Open <a href="http://localhost:3000">http://localhost:3000</a> in your browser.</p>
+<p>Open <a href="http://localhost:3000">http://localhost:3000</a> in your browser. Inside the project the CLI
+finds the project automatically — <code>server</code>, <code>routes</code> and the database
+commands work from any subdirectory, so you never need to type <code>bin/</code>.
+The project&#39;s own <code>bin/altair</code> launcher accepts the same commands if you
+prefer it.</p>
 <h2>Generate a scaffold</h2>
 <p>The full magic — model, migration, controller, views and a <code>resources</code> route in one command:</p>
-<pre><code class="language-sh">bin/altair g scaffold Post title:string body:text
+<pre><code class="language-sh">altair g scaffold Post title:string body:text
 </code></pre>
 <p>Then migrate the database and start the server:</p>
-<pre><code class="language-sh">bin/altair db:migrate
-bin/altair server
+<pre><code class="language-sh">altair db:migrate
+altair server
 </code></pre>
 <p>You get a working CRUD app for posts, ready to edit.</p>
 <h2>Generate individual pieces</h2>
-<pre><code class="language-sh">bin/altair g model Person name:string age:int
-bin/altair g migration add-email-to-person email:string
-bin/altair g controller People index show
+<pre><code class="language-sh">altair g model Person name:string age:int
+altair g migration add-email-to-person email:string
+altair g controller People index show
 </code></pre>
 <h2>List the routes</h2>
-<pre><code class="language-sh">bin/altair routes
+<pre><code class="language-sh">altair routes
 </code></pre>
 <h2>Database commands</h2>
-<pre><code class="language-sh">bin/altair db:migrate    # run pending migrations
-bin/altair db:rollback   # roll back the last migration
+<pre><code class="language-sh">altair db:migrate    # run pending migrations
+altair db:rollback   # roll back the last migration
 </code></pre>
 <h2>Project structure</h2>
 <pre><code>src/            your application code
@@ -76,5 +82,7 @@ crystal run src/hello_world.cr
     <p>Altair — batteries-included web framework for Crystal.</p>
     <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></p>
   </footer>
+
+  <script src="../assets/js/docs.js" defer></script>
 </body>
 </html>

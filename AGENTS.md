@@ -41,7 +41,7 @@ Nothing ships unless someone can look at it, click it, and see it work.
 - **Phases 0–5 done** (Foundation, Router, Controllers, Views, Record/ORM,
   CLI + Generators). `examples/blog` is the always-running persistence demo
   — its posts and comments survive restarts.
-- 470 specs passing (6 pending: the PostgreSQL contract suite, gated on
+- 495 specs passing (6 pending: the PostgreSQL contract suite, gated on
   `ALTAIR_TEST_PG_URL`), formatter clean, Ameba silent on framework sources.
 - The router shipped three post-Phase-1 waves: `resources` blocks
   (`member`/`collection`/nested, Phase 1 era), constraints + implicit
@@ -102,11 +102,18 @@ Three vertical waves, each ending green with something visible:
   `db/schema.cr`.
 - Inside a project, `bin/altair` runs `server`, `routes`, `db:migrate` /
   `db:rollback`; the framework builds a standalone `altair` binary via
-  `shards build altair`.
+  `shards build altair`. The standalone `altair` auto-forwards those
+  app-context commands to the nearest project from any directory (walking
+  up to the project root, preferring an executable `bin/altair`, falling
+  back to `crystal run bin/altair.cr`).
 - `altair install` copies the built binary onto your `PATH`
   (`~/.local/bin` on Unix, `%USERPROFILE%\.altair\bin` on Windows), prints
   its SHA-256 digest, is idempotent, refuses clobbering an unrelated file
   without `--force`, and honors `--dir` / `ALTAIR_BIN`.
+- `altair update` checks GitHub for the latest release, verifies the
+  downloaded binary against `SHA256SUMS` and atomically replaces the
+  running executable; `--check` (exit 0 current / 1 newer) and `--force`
+  are supported.
 - Distributed install: `release.yml` builds the binary for Linux/macOS/
   Windows (amd64 + arm64) and publishes it with `SHA256SUMS`; the fail-safe
   `scripts/install.sh` (`curl ... | sh`), `install.ps1` (`iex (irm ...)`)

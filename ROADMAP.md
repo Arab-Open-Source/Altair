@@ -28,7 +28,10 @@ generators on top of that stack.
 > `altair server` / `altair routes`. That CLI landed in Phase 5, together
 > with the generators and scaffolding. Applications boot via the framework's
 > standalone `altair` binary or, inside a generated project, through a
-> `bin/altair.cr` launcher (`crystal run bin/altair server`).
+> `bin/altair.cr` launcher (`crystal run bin/altair server`). The standalone
+> `altair` auto-forwards those app-context commands to the nearest project
+> from any directory, so `altair server`, `altair routes` and the database
+> commands work without a `bin/` prefix.
 
 ---
 
@@ -101,6 +104,8 @@ waves:
 | `altair routes` | Prints the route table | `bin/altair routes` renders the compiled route table |
 | `altair g model/migration/controller` | Ready-to-edit files generated | Typed column DSL, model/migration/controller + views and helper registrations |
 | `altair install` | Binary available directly on PATH | `~/.local/bin` (Unix) / `%USERPROFILE%\.altair\bin` (Windows), SHA-256 verified, idempotent, refuses clobbering without `--force`, `--dir` / `ALTAIR_BIN` override |
+| `altair update` | Update the installed binary from GitHub | Checks the latest release, verifies the download against `SHA256SUMS`, atomically replaces the running executable; `--check` (exit 0 current / 1 newer) and `--force` supported |
+| App-context command delegation | `server` / `routes` / `db:migrate` / `db:rollback` work from anywhere | The standalone `altair` auto-forwards to the nearest project (walking up the tree, preferring an executable `bin/altair`, falling back to `crystal run bin/altair.cr`), so no `bin/` prefix is ever needed inside a project |
 | Distributed install | Prebuilt binary + one-command install for new users | `release.yml` (triggered by a `v*` tag) builds Linux/macOS/Windows (amd64+arm64) into a GitHub Release with `SHA256SUMS`; verified one-command installs on every platform — `scripts/install.sh` (`curl ... | sh`), `install.ps1` (`iex (irm ...)`) and `install.cmd` (`curl ... | cmd`) — each downloads, checksums, installs and refuses clobbering without `--force` |
 | `altair g scaffold Post title:string body:text` | Model + migration + controller + views | Full RESTful scaffold incl. `resources` route and seeded `db/schema.cr` |
 | Full blog demo via scaffold | New project + scaffold + server works out of the box | E2E-verified: `new` → `g scaffold` → `db:migrate` → `server` → POST/GET over real HTTP |

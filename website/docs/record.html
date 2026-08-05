@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Models, migrations, validations, callbacks and associations in Altair::Record.">
+  <title>Record (ORM) guide — Altair</title>
+  <link rel="icon" href="../favicon.png" type="image/png">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/docs.css">
+</head>
+<body>
+  <header class="site-header">
+    <nav class="site-nav" aria-label="Main">
+      <a class="brand" href="../">Altair</a>
+      <div class="nav-links">
+        <a href="../">Home</a>
+        <a href="../docs/">Docs</a>
+        <a href="../docs/routing.html">Guides</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/usage.html">Usage</a>
+        <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="site-main">
+    <h1>Record (ORM)</h1>
+<p><code>Altair::Record</code> is the ORM: SQLite3 and PostgreSQL adapters behind one
+interface, a migrations DSL, compile-time column metadata, validations,
+callbacks and associations. Every value travels as a bind parameter — SQL
+strings stay constant, so values can never be interpolated into a query.</p>
+<h2>Connecting</h2>
+<p>The application points at a database; <code>ALTAIR_DB_URL</code> overrides it at run
+time:</p>
+<pre><code class="language-crystal">class Blog &lt; Altair::Application
+  config.db_url = ENV[&quot;ALTAIR_DB_URL&quot;]? || &quot;sqlite3://./db/blog.db&quot;
+end
+</code></pre>
+<pre><code class="language-sh"># SQLite (default) — or PostgreSQL:
+ALTAIR_DB_URL=&quot;postgres://postgres:secret@localhost:5433/blog&quot; altair server
+</code></pre>
+<h2>Models</h2>
+<p>A model maps to a table and gets typed accessors for every column, generated
+from <code>db/schema.cr</code> at compile time:</p>
+<pre><code class="language-crystal">class Post &lt; Altair::Record::Model
+  table :posts
+
+  has_many :comments, dependent: :destroy
+  validates_presence_of :title
+end
+</code></pre>
+<h3>CRUD and finders</h3>
+<pre><code class="language-crystal">post = Post.new(title: &quot;Hello&quot;)
+post.save                                  # false when invalid
+post.save!                                 # raises Altair::Record::Error instead
+
+Post.create(title: &quot;Hello&quot;)                # save + validate, one call
+post.title = &quot;Edited&quot;
+post.update(title: &quot;Edited&quot;)               # save changes in place
+post.delete                                # delete the row
+
+Post.find(5)                               # Post?  — nil when missing
+Post.find!(5)                              # Post   — raises when missing
+Post.find_by_title(&quot;Hello&quot;)                # Post?  — find_by_&lt;column&gt;
+Post.find_by_title!(&quot;Hello&quot;)
+Post.all                                   # Relation(Post)
+Post.count                                 # Int64
+Post.exists?(5)
+Post.pluck(:title)                         # Array(Value)
+</code></pre>
+<p><code>Post.all</code> is lazy and caches after iteration; chain <code>.where</code> to filter:</p>
+<pre><code class="language-crystal">Post.all.where(published: true)
+Post.all.where(:views, :&gt;=, 15).order(:created_at).to_a
+</code></pre>
+<h2>Migrations</h2>
+<p>Migrations live in <code>db/migrations/</code> as timestamped files; <code>altair db:migrate</code> runs pending ones and <code>altair db:rollback</code> undoes the last.</p>
+<pre><code class="language-crystal">class CreatePosts &lt; Altair::Record::Migration
+  def up(schema : Altair::Record::Schema) : Nil
+    schema.create_table(:posts) do |t|
+      t.string :title
+      t.text :body
+      t.boolean :published
+      t.datetime :created_at
+      t.datetime :updated_at
+    end
+    schema.add_index(:posts, :title)
+  end
+
+  def down(schema : Altair::Record::Schema) : Nil
+    schema.drop_table(:posts)
+  end
+end
+</code></pre>
+<p>Column types are <code>string</code>, <code>text</code>, <code>integer</code>, <code>bigint</code>, <code>float</code>, <code>decimal</code>,
+<code>boolean</code>, <code>datetime</code> and <code>json</code>. Timestamps aren&#39;t automatic — add
+<code>created_at</code> / <code>updated_at</code> columns and the model fills them when they
+exist. <code>db/schema.cr</code> is regenerated after every run and feeds the
+compile-time column metadata, so the model&#39;s accessors always match the
+database.</p>
+<h2>Validations</h2>
+<p>Validations run before save; failures land in <code>errors</code> and <code>valid?</code> returns
+false:</p>
+<pre><code class="language-crystal">class Post &lt; Altair::Record::Model
+  validates_presence_of :title
+  validates_length_of :title, maximum: 140
+  validates_numericality_of :views, greater_than: 0, integer: true
+  validates_uniqueness_of :slug, scope: :category_id
+  validates_inclusion_of :status, in: %w[draft published]
+  validates_exclusion_of :slug, in: %w[admin login]
+  validates_format_of :email, with: /\A[^@\s]+@[^@\s]+\z/
+  validates_confirmation_of :password
+end
+</code></pre>
+<pre><code class="language-crystal">post = Post.new(title: &quot;&quot;)
+post.valid?            # false
+post.errors[:title]    # [&quot;Title can&#39;t be blank&quot;]
+post.errors.full_messages
+</code></pre>
+<h2>Callbacks</h2>
+<p><code>before_save</code>, <code>after_save</code>, <code>before_create</code>, <code>after_create</code>,
+<code>before_update</code>, <code>after_update</code>, <code>before_destroy</code>, <code>after_destroy</code> — each
+takes method names to run around the lifecycle:</p>
+<pre><code class="language-crystal">class Post &lt; Altair::Record::Model
+  before_save :slugify
+  after_create :notify
+
+  private def slugify : Nil
+    self.slug = title.downcase.gsub(&#39; &#39;, &quot;-&quot;)
+  end
+end
+</code></pre>
+<h2>Associations</h2>
+<p><code>belongs_to</code>, <code>has_many</code> and <code>has_one</code> generate typed accessors and foreign
+keys. <code>dependent:</code> clears the child rows when the parent is destroyed, and
+<code>includes</code> eager-loads a whole relation in one batched query — no query per
+row:</p>
+<pre><code class="language-crystal">class Post &lt; Altair::Record::Model
+  has_many :comments, dependent: :destroy
+  has_one :profile
+end
+
+class Comment &lt; Altair::Record::Model
+  belongs_to :post
+end
+</code></pre>
+<pre><code class="language-crystal">post.comments.each { |c| puts c.body }
+Post.all.includes(:comments).to_a          # 2 queries total
+</code></pre>
+<h2>Transactions</h2>
+<p><code>transaction</code> runs its block atomically; a raise rolls it back:</p>
+<pre><code class="language-crystal">Post.transaction do
+  post.save!
+  comment.save!
+end
+</code></pre>
+<h2>Adapters</h2>
+<p>SQLite3 ships in the framework; PostgreSQL is enabled by requiring the
+adapter and <code>crystal-pg</code> in the project&#39;s shard:</p>
+<pre><code class="language-crystal">require &quot;altair/record/adapters/postgresql&quot;
+</code></pre>
+<p>The same application code runs on either — the adapter interface is the
+only thing that changes.</p>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>Altair — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></p>
+  </footer>
+
+  <script src="../assets/js/docs.js" defer></script>
+</body>
+</html>

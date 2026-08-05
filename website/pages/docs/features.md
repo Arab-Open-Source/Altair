@@ -1,6 +1,6 @@
 # What is implemented
 
-Altair is built in phases, each ending with something working and visible. Everything below is implemented, tested and shipped.
+Altair is built in phases, each ending with something working and visible. Everything below is implemented, tested and shipped. Each area has a guide: [Routing](/docs/routing.html), [Controllers](/docs/controllers.html), [Views](/docs/views.html) and [Record](/docs/record.html).
 
 ## Phase 0 — Foundation
 
@@ -36,13 +36,14 @@ Three vertical waves:
 
 - `altair new` generates a standard project layout
 - `altair g model|migration|controller|scaffold` generates ready-to-edit files
-- `bin/altair` runs `server`, `routes`, `db:migrate` / `db:rollback` inside a project
+- App commands (`server`, `routes`, `db:migrate` / `db:rollback`) run from anywhere inside a project — no `bin/` prefix needed
 - `altair install` copies a built binary onto your `PATH`, prints its SHA-256 digest, and refuses to clobber unrelated files without `--force`
+- `altair update` checks GitHub for a newer release, verifies the checksum and swaps the binary atomically
 - Prebuilt binaries for Linux, macOS and Windows (amd64 + arm64) published with checksums; verified one-command installers
 
 ## Testing and quality
 
-- 481 specs passing (6 pending: the PostgreSQL contract suite, gated on `ALTAIR_TEST_PG_URL`)
+- 495 specs passing (6 pending: the PostgreSQL contract suite, gated on `ALTAIR_TEST_PG_URL`)
 - Formatter clean, linter silent on framework sources
 - Smart error pages: 404 with route suggestions, 405 with `_method` explanation, detailed 500 diagnostics in debug mode only
 

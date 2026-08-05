@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Actions, parameters, rendering and templates in Altair.">
+  <title>Controllers guide — Altair</title>
+  <link rel="icon" href="../favicon.png" type="image/png">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/docs.css">
+</head>
+<body>
+  <header class="site-header">
+    <nav class="site-nav" aria-label="Main">
+      <a class="brand" href="../">Altair</a>
+      <div class="nav-links">
+        <a href="../">Home</a>
+        <a href="../docs/">Docs</a>
+        <a href="../docs/routing.html">Guides</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/usage.html">Usage</a>
+        <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="site-main">
+    <h1>Controllers</h1>
+<p>Controllers turn a matched route into a response. Each action is an instance
+method on a class that subclasses <code>Altair::Controller</code>, called once per
+request with the request&#39;s <code>params</code>. Routes reference actions with typed
+references (<code>to: PostsController.index</code>), so a wrong action name is a compile
+error, not a runtime 500.</p>
+<pre><code class="language-crystal">class PostsController &lt; ApplicationController
+  def index : Nil
+    posts = Post.all.to_a
+    render :index, locals: {posts: posts}
+  end
+
+  def show : Nil
+    if post = Post.find(params.fetch(&quot;id&quot;, Int32))
+      render :show, locals: {post: post}
+    else
+      render text: &quot;Post not found&quot;, status: ::HTTP::Status::NOT_FOUND
+    end
+  end
+end
+</code></pre>
+<h2>Parameters</h2>
+<p><code>params</code> merges the route parameters, the query string and the form body,
+with route values taking precedence. Fetch with a type to keep actions
+compile-time safe — a malformed value becomes a 422, never a 500:</p>
+<pre><code class="language-crystal">params[&quot;title&quot;]?          # String? — absent key is nil
+params[&quot;id&quot;]              # String  — absent key raises KeyError
+params.fetch(&quot;id&quot;, Int32)     # Integer, or 422 on bad input
+params.fetch?(&quot;id&quot;, Int32)    # Integer?, or nil on bad input
+params.permit(&quot;title&quot;, &quot;body&quot;)
+params.require(&quot;post&quot;).permit(&quot;title&quot;, &quot;body&quot;)
+</code></pre>
+<h2>Rendering</h2>
+<p>An action ends by rendering something. Plain strings and helpers:</p>
+<pre><code class="language-crystal">render html: &quot;&lt;h1&gt;Hello&lt;/h1&gt;&quot;
+render text: &quot;plain&quot;, status: ::HTTP::Status::NOT_FOUND
+render json: %({&quot;ok&quot;: true})
+redirect_to posts_path
+head ::HTTP::Status::NO_CONTENT
+</code></pre>
+<p>When the controller declares templates, <code>render</code> takes the action name plus
+its locals:</p>
+<pre><code class="language-crystal">render :index, locals: {posts: Post.all.to_a}
+render :index, layout: false, locals: {posts: Post.all.to_a}
+render &quot;form&quot;, locals: {post: post}   # a partial, returns a String
+</code></pre>
+<h2>Templates</h2>
+<p>The <code>templates</code> macro declares the view files and compiles them into typed
+render methods — a wrong local name or type is a compile error:</p>
+<pre><code class="language-crystal">class PostsController &lt; ApplicationController
+  templates &quot;posts&quot;,
+    root: __DIR__ + &quot;/../views&quot;,
+    layout: &quot;application&quot;,
+    index: {posts: Array(Post)},
+    show: {post: Post}
+end
+</code></pre>
+<p>This renders <code>views/posts/index.ecr</code> and <code>views/posts/show.ecr</code>, each
+receiving exactly the declared locals. See the <a href="../docs/views.html">Views guide</a>.</p>
+<h2>Exceptions to responses</h2>
+<p><code>rescue_from</code> maps a raised exception to a response instead of a bare 500:</p>
+<pre><code class="language-crystal">class Blog &lt; Altair::Application
+  rescue_from KeyError, to: 404
+end
+</code></pre>
+<p><code>KeyError</code> (a missing param or a missing record raised with <code>raise KeyError</code>)
+now answers 404.</p>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>Altair — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></p>
+  </footer>
+
+  <script src="../assets/js/docs.js" defer></script>
+</body>
+</html>

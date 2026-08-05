@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="ECR templates, escaping, layouts, partials, helpers and the form builder.">
+  <title>Views guide — Altair</title>
+  <link rel="icon" href="../favicon.png" type="image/png">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/docs.css">
+</head>
+<body>
+  <header class="site-header">
+    <nav class="site-nav" aria-label="Main">
+      <a class="brand" href="../">Altair</a>
+      <div class="nav-links">
+        <a href="../">Home</a>
+        <a href="../docs/">Docs</a>
+        <a href="../docs/routing.html">Guides</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/usage.html">Usage</a>
+        <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="site-main">
+    <h1>Views</h1>
+<p>Views are <code>.ecr</code> templates compiled at build time into typed render methods.
+Output is <strong>auto-escaped by default</strong> — <code>&lt;%= %&gt;</code> escapes, <code>&lt;%== %&gt;</code> is raw —
+so user input is XSS-safe out of the box.</p>
+<h2>Declaring templates</h2>
+<p>A controller names its view files with <code>templates</code>, declaring the locals
+each one receives:</p>
+<pre><code class="language-crystal">class TasksController &lt; ApplicationController
+  templates &quot;tasks&quot;,
+    root: __DIR__ + &quot;/../views&quot;,
+    layout: &quot;application&quot;,
+    index: {tasks: Array(Task)},
+    edit: {task: Task}
+end
+</code></pre>
+<p>The macro compiles <code>views/tasks/index.ecr</code> and <code>views/tasks/edit.ecr</code> into
+<code>render :index</code> and <code>render :edit</code>. A wrong local name or type in the action
+call is a compile error.</p>
+<h2>Template syntax</h2>
+<pre><code class="language-ecr">&lt;% if tasks.empty? %&gt;
+  &lt;p class=&quot;empty&quot;&gt;No tasks yet.&lt;/p&gt;
+&lt;% else %&gt;
+  &lt;ul&gt;
+    &lt;% tasks.each do |task| %&gt;
+      &lt;li&gt;&lt;%= task.title %&gt;&lt;/li&gt;
+    &lt;% end %&gt;
+  &lt;/ul&gt;
+&lt;% end %&gt;
+</code></pre>
+<ul>
+<li><code>&lt;%= expr %&gt;</code> — interpolate, escaped</li>
+<li><code>&lt;%== expr %&gt;</code> — interpolate, raw</li>
+<li><code>&lt;% code %&gt;</code> — plain Crystal</li>
+<li>Helper calls (<code>link_to</code>, <code>content_tag</code>, <code>render</code>, the form builder) are
+already escaped HTML, so they render unchanged even inside <code>&lt;%= %&gt;</code>.</li>
+</ul>
+<h2>Layouts</h2>
+<p>A template renders inside the layout&#39;s <code>yield</code>:</p>
+<pre><code class="language-ecr">&lt;!DOCTYPE html&gt;
+&lt;html lang=&quot;en&quot;&gt;
+&lt;head&gt;
+  &lt;meta charset=&quot;utf-8&quot;&gt;
+  &lt;title&gt;Altair&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;header&gt;&lt;h1&gt;&lt;a href=&quot;/&quot;&gt;Altair&lt;/a&gt;&lt;/h1&gt;&lt;/header&gt;
+  &lt;main&gt;
+&lt;% yield %&gt;
+  &lt;/main&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>Pass <code>layout: false</code> to render a bare fragment — handy for partial page
+updates.</p>
+<h2>Partials</h2>
+<p><code>render</code> a partial by name with its locals; it returns a String you can
+embed anywhere:</p>
+<pre><code class="language-crystal">render &quot;form&quot;, locals: {post: post}
+</code></pre>
+<h2>Helpers</h2>
+<pre><code class="language-ecr">&lt;%= link_to &quot;Edit&quot;, &quot;/tasks/#{task.id}/edit&quot; %&gt;
+&lt;%= content_tag :li, &quot;task&quot;, id: &quot;task-#{task.id}&quot; %&gt;
+&lt;%= button_to &quot;delete&quot;, &quot;/tasks/#{task.id}&quot;, method: :delete %&gt;
+&lt;%= javascript_include_tag :htmx %&gt;
+</code></pre>
+<p><code>link_to</code> and <code>button_to</code> accept extra attributes and pass them through to
+the generated tag, so htmx attributes work directly:</p>
+<pre><code class="language-ecr">&lt;%= link_to &quot;edit&quot;, &quot;/tasks/#{task.id}/edit&quot;, hx_get: &quot;/tasks/#{task.id}/edit&quot;,
+            hx_target: &quot;#task-#{task.id}&quot;, hx_swap: &quot;outerHTML&quot; %&gt;
+</code></pre>
+<h2>Form builder</h2>
+<p><code>form_for</code> yields a builder with typed field helpers; the generated form is
+auto-escaped:</p>
+<pre><code class="language-ecr">&lt;% form_for(&quot;/tasks&quot;) do |f| %&gt;
+  &lt;%= f.label(&quot;title&quot;, &quot;What needs doing?&quot;) %&gt;
+  &lt;%= f.text_field(&quot;title&quot;, placeholder: &quot;Add a task&quot;) %&gt;
+  &lt;%= f.submit(&quot;Add&quot;) %&gt;
+&lt;% end %&gt;
+</code></pre>
+<p>Fields include <code>text_field</code>, <code>email_field</code>, <code>password_field</code>, <code>hidden_field</code>,
+<code>label</code> and <code>submit</code>. Pass method and htmx attributes through <code>form_for</code>:</p>
+<pre><code class="language-ecr">&lt;% form_for(&quot;/tasks&quot;, hx_post: &quot;/tasks&quot;, hx_target: &quot;#task-list&quot;, hx_swap: &quot;outerHTML&quot;) do |f| %&gt;
+  &lt;%= f.text_field(&quot;title&quot;) %&gt;
+  &lt;%= f.submit(&quot;Add&quot;) %&gt;
+&lt;% end %&gt;
+</code></pre>
+<h2>htmx</h2>
+<p>The htmx layer ships helpers for the request side and the response side. On
+the request side, <code>request.hx_request?</code> tells an action whether the browser
+sent the <code>HX-Request</code> header, so one action can render a full page or a bare
+fragment:</p>
+<pre><code class="language-crystal">render :index, layout: !request.hx_request?, locals: {tasks: @@tasks}
+</code></pre>
+<p>On the response side, <code>hx_trigger_after_swap(:task_changed)</code> and
+<code>hx_trigger_after_settle(:task_changed)</code> emit the <code>HX-Trigger</code> header, which
+the page listens for to update the UI.</p>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>Altair — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></p>
+  </footer>
+
+  <script src="../assets/js/docs.js" defer></script>
+</body>
+</html>

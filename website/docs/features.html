@@ -7,6 +7,7 @@
   <title>What is implemented — Altair</title>
   <link rel="icon" href="../favicon.png" type="image/png">
   <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/docs.css">
 </head>
 <body>
   <header class="site-header">
@@ -15,6 +16,7 @@
       <div class="nav-links">
         <a href="../">Home</a>
         <a href="../docs/">Docs</a>
+        <a href="../docs/routing.html">Guides</a>
         <a href="../docs/install.html">Install</a>
         <a href="../docs/usage.html">Usage</a>
         <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
@@ -24,7 +26,7 @@
 
   <main class="site-main">
     <h1>What is implemented</h1>
-<p>Altair is built in phases, each ending with something working and visible. Everything below is implemented, tested and shipped.</p>
+<p>Altair is built in phases, each ending with something working and visible. Everything below is implemented, tested and shipped. Each area has a guide: <a href="../docs/routing.html">Routing</a>, <a href="../docs/controllers.html">Controllers</a>, <a href="../docs/views.html">Views</a> and <a href="../docs/record.html">Record</a>.</p>
 <h2>Phase 0 — Foundation</h2>
 <p>The core request/response loop: <code>Altair::Application</code>, request handling, error pages and configuration.</p>
 <h2>Phase 1 — Router</h2>
@@ -54,13 +56,14 @@
 <ul>
 <li><code>altair new</code> generates a standard project layout</li>
 <li><code>altair g model|migration|controller|scaffold</code> generates ready-to-edit files</li>
-<li><code>bin/altair</code> runs <code>server</code>, <code>routes</code>, <code>db:migrate</code> / <code>db:rollback</code> inside a project</li>
+<li>App commands (<code>server</code>, <code>routes</code>, <code>db:migrate</code> / <code>db:rollback</code>) run from anywhere inside a project — no <code>bin/</code> prefix needed</li>
 <li><code>altair install</code> copies a built binary onto your <code>PATH</code>, prints its SHA-256 digest, and refuses to clobber unrelated files without <code>--force</code></li>
+<li><code>altair update</code> checks GitHub for a newer release, verifies the checksum and swaps the binary atomically</li>
 <li>Prebuilt binaries for Linux, macOS and Windows (amd64 + arm64) published with checksums; verified one-command installers</li>
 </ul>
 <h2>Testing and quality</h2>
 <ul>
-<li>481 specs passing (6 pending: the PostgreSQL contract suite, gated on <code>ALTAIR_TEST_PG_URL</code>)</li>
+<li>495 specs passing (6 pending: the PostgreSQL contract suite, gated on <code>ALTAIR_TEST_PG_URL</code>)</li>
 <li>Formatter clean, linter silent on framework sources</li>
 <li>Smart error pages: 404 with route suggestions, 405 with <code>_method</code> explanation, detailed 500 diagnostics in debug mode only</li>
 </ul>
@@ -76,5 +79,7 @@
     <p>Altair — batteries-included web framework for Crystal.</p>
     <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></p>
   </footer>
+
+  <script src="../assets/js/docs.js" defer></script>
 </body>
 </html>

@@ -1,0 +1,124 @@
+/* Code block theming, copy buttons and inline-code polish.
+ * Loaded on every page; the enhancement script is assets/js/docs.js.
+ */
+
+.code-block {
+  --code-panel: #0d1b2a;
+  --code-panel-header: #14273d;
+  --code-text: #e6edf3;
+  --code-border: #22374f;
+
+  background: var(--code-panel);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 1.1em 0;
+}
+
+.code-block__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.8rem;
+  background: var(--code-panel-header);
+  border-bottom: 1px solid var(--code-border);
+}
+
+.code-block__lang {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9fb6cf;
+  user-select: none;
+}
+
+.code-block__copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #c9d7e6;
+  background: transparent;
+  border: 1px solid #35506e;
+  border-radius: 5px;
+  padding: 0.22rem 0.6rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.code-block__copy:hover {
+  background: #1b3450;
+  color: #ffffff;
+  border-color: #4a6b90;
+}
+
+.code-block__copy:active {
+  background: #223f60;
+}
+
+.code-block__copy.copied {
+  color: #7ee0a3;
+  border-color: #3f7a58;
+}
+
+.code-block pre {
+  margin: 0;
+  padding: 1rem 1.1rem;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--code-text);
+}
+
+.code-block pre code {
+  color: var(--code-text);
+  font-size: 0.88rem;
+}
+
+/* The homepage hero's one-liner install command gets the same treatment. */
+.copy-box {
+  position: relative;
+  background: var(--code-panel);
+  border-color: var(--code-border);
+  color: var(--code-text);
+}
+
+.copy-box code {
+  display: block;
+  color: var(--code-text);
+  padding-right: 4.5rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.copy-box .code-block__copy {
+  position: absolute;
+  top: 50%;
+  right: 0.6rem;
+  transform: translateY(-50%);
+}
+
+/* Inline code: slightly warmer than before, no surrounding box clutter. */
+code {
+  background: #eef1f6;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.08em 0.35em;
+  font-size: 0.88em;
+}
+
+.code-block code {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+/* Shell prompt lines read better with the leading `$` muted. */
+.code-block .shell-prompt {
+  color: #8fa6c1;
+  user-select: none;
+}

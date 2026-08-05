@@ -26,11 +26,16 @@ Phase 1 in three spec-first waves: `resources` blocks
 implicit format suffix, and `redirect` / glob segments / singular
 `resource`. `examples/blog` is the persistence demo. The CLI builds a
 standalone `altair` binary; inside a generated project `bin/altair` runs
-`server`, `routes`, `db:migrate` / `db:rollback`; `altair install` copies
-the binary onto `PATH`. Distributions: `release.yml` (pushed on `v*` tags)
+`server`, `routes`, `db:migrate` / `db:rollback`, and the standalone
+`altair` auto-forwards those app-context commands to the nearest project
+from any directory. `altair install` copies the binary onto `PATH`;
+`altair update` checks GitHub for the latest release, verifies the
+download against `SHA256SUMS` and atomically replaces the running
+executable (`--check` / `--force` supported). Distributions: `release.yml`
+(pushed on `v*` tags)
 builds Linux/macOS/Windows (amd64+arm64) binaries with `SHA256SUMS`, and
 `scripts/install.sh` / `install.ps1` / `install.cmd` give a verified
-one-command install on each platform. 481 specs passing (6 pending: the PostgreSQL contract suite on `ALTAIR_TEST_PG_URL`).
+one-command install on each platform. 495 specs passing (6 pending: the PostgreSQL contract suite on `ALTAIR_TEST_PG_URL`).
 
 | Phase | Focus | Status |
 |---|---|---|
@@ -78,7 +83,7 @@ cli/         CLI dispatcher, per-project commands, generators (incl. install)
 ## Testing
 
 ```bash
-crystal spec                              # full suite (currently 481)
+crystal spec                              # full suite (currently 495)
 crystal tool format --check src spec examples
 crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
 ```

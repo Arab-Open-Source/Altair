@@ -15,24 +15,28 @@ This generates the standard layout: `src/`, `db/`, `public/`, and the `bin/altai
 ## Run the server
 
 ```sh
-bin/altair server
+altair server
 ```
 
-Open <http://localhost:3000> in your browser.
+Open <http://localhost:3000> in your browser. Inside the project the CLI
+finds the project automatically — `server`, `routes` and the database
+commands work from any subdirectory, so you never need to type `bin/`.
+The project's own `bin/altair` launcher accepts the same commands if you
+prefer it.
 
 ## Generate a scaffold
 
 The full magic — model, migration, controller, views and a `resources` route in one command:
 
 ```sh
-bin/altair g scaffold Post title:string body:text
+altair g scaffold Post title:string body:text
 ```
 
 Then migrate the database and start the server:
 
 ```sh
-bin/altair db:migrate
-bin/altair server
+altair db:migrate
+altair server
 ```
 
 You get a working CRUD app for posts, ready to edit.
@@ -40,22 +44,22 @@ You get a working CRUD app for posts, ready to edit.
 ## Generate individual pieces
 
 ```sh
-bin/altair g model Person name:string age:int
-bin/altair g migration add-email-to-person email:string
-bin/altair g controller People index show
+altair g model Person name:string age:int
+altair g migration add-email-to-person email:string
+altair g controller People index show
 ```
 
 ## List the routes
 
 ```sh
-bin/altair routes
+altair routes
 ```
 
 ## Database commands
 
 ```sh
-bin/altair db:migrate    # run pending migrations
-bin/altair db:rollback   # roll back the last migration
+altair db:migrate    # run pending migrations
+altair db:rollback   # roll back the last migration
 ```
 
 ## Project structure
