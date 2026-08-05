@@ -105,10 +105,14 @@ abstract class Altair::Application
         {% end %}
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
           controller = {{ cconst.id }}.new(request, response)
+          begin
           controller.run_before_actions({{ action_ref.id.stringify }})
           if !controller.responded?
             controller.{{ action_ref.id }}
             controller.run_after_actions({{ action_ref.id.stringify }})
+          end
+          rescue e : Exception
+            controller.handle_rescue(e, {{ action_ref.id.stringify }})
           end
         }
       )
@@ -200,10 +204,14 @@ abstract class Altair::Application
         {% end %}
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
           controller = {{ cconst.id }}.new(request, response)
+          begin
           controller.run_before_actions({{ action_ref.id.stringify }})
           if !controller.responded?
             controller.{{ action_ref.id }}
             controller.run_after_actions({{ action_ref.id.stringify }})
+          end
+          rescue e : Exception
+            controller.handle_rescue(e, {{ action_ref.id.stringify }})
           end
         }
       )
@@ -295,10 +303,14 @@ abstract class Altair::Application
         {% end %}
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
           controller = {{ cconst.id }}.new(request, response)
+          begin
           controller.run_before_actions({{ action_ref.id.stringify }})
           if !controller.responded?
             controller.{{ action_ref.id }}
             controller.run_after_actions({{ action_ref.id.stringify }})
+          end
+          rescue e : Exception
+            controller.handle_rescue(e, {{ action_ref.id.stringify }})
           end
         }
       )
@@ -390,10 +402,14 @@ abstract class Altair::Application
         {% end %}
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
           controller = {{ cconst.id }}.new(request, response)
+          begin
           controller.run_before_actions({{ action_ref.id.stringify }})
           if !controller.responded?
             controller.{{ action_ref.id }}
             controller.run_after_actions({{ action_ref.id.stringify }})
+          end
+          rescue e : Exception
+            controller.handle_rescue(e, {{ action_ref.id.stringify }})
           end
         }
       )
@@ -485,10 +501,14 @@ abstract class Altair::Application
         {% end %}
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
           controller = {{ cconst.id }}.new(request, response)
+          begin
           controller.run_before_actions({{ action_ref.id.stringify }})
           if !controller.responded?
             controller.{{ action_ref.id }}
             controller.run_after_actions({{ action_ref.id.stringify }})
+          end
+          rescue e : Exception
+            controller.handle_rescue(e, {{ action_ref.id.stringify }})
           end
         }
       )
@@ -573,10 +593,14 @@ abstract class Altair::Application
         name: {{ route_name }},
         handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
           controller = {{ cconst.id }}.new(request, response)
+          begin
           controller.run_before_actions({{ action_ref.id.stringify }})
           if !controller.responded?
             controller.{{ action_ref.id }}
             controller.run_after_actions({{ action_ref.id.stringify }})
+          end
+          rescue e : Exception
+            controller.handle_rescue(e, {{ action_ref.id.stringify }})
           end
         }
       )
@@ -800,10 +824,14 @@ abstract class Altair::Application
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
             controller = {{ cconst.id }}.new(request, response)
+            begin
             controller.run_before_actions("index")
             if !controller.responded?
               controller.index
               controller.run_after_actions("index")
+            end
+            rescue e : Exception
+              controller.handle_rescue(e, "index")
             end
           }
         )
@@ -818,10 +846,14 @@ abstract class Altair::Application
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
             controller = {{ cconst.id }}.new(request, response)
+            begin
             controller.run_before_actions("new")
             if !controller.responded?
               controller.new
               controller.run_after_actions("new")
+            end
+            rescue e : Exception
+              controller.handle_rescue(e, "new")
             end
           }
         )
@@ -836,10 +868,14 @@ abstract class Altair::Application
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
             controller = {{ cconst.id }}.new(request, response)
+            begin
             controller.run_before_actions("create")
             if !controller.responded?
               controller.create
               controller.run_after_actions("create")
+            end
+            rescue e : Exception
+              controller.handle_rescue(e, "create")
             end
           }
         )
@@ -854,10 +890,14 @@ abstract class Altair::Application
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
             controller = {{ cconst.id }}.new(request, response)
+            begin
             controller.run_before_actions("show")
             if !controller.responded?
               controller.show
               controller.run_after_actions("show")
+            end
+            rescue e : Exception
+              controller.handle_rescue(e, "show")
             end
           }
         )
@@ -872,10 +912,14 @@ abstract class Altair::Application
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
             controller = {{ cconst.id }}.new(request, response)
+            begin
             controller.run_before_actions("edit")
             if !controller.responded?
               controller.edit
               controller.run_after_actions("edit")
+            end
+            rescue e : Exception
+              controller.handle_rescue(e, "edit")
             end
           }
         )
@@ -890,10 +934,14 @@ abstract class Altair::Application
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
             controller = {{ cconst.id }}.new(request, response)
+            begin
             controller.run_before_actions("update")
             if !controller.responded?
               controller.update
               controller.run_after_actions("update")
+            end
+            rescue e : Exception
+              controller.handle_rescue(e, "update")
             end
           }
         )
@@ -907,10 +955,14 @@ abstract class Altair::Application
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
             controller = {{ cconst.id }}.new(request, response)
+            begin
             controller.run_before_actions("update")
             if !controller.responded?
               controller.update
               controller.run_after_actions("update")
+            end
+            rescue e : Exception
+              controller.handle_rescue(e, "update")
             end
           }
         )
@@ -925,10 +977,14 @@ abstract class Altair::Application
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
             controller = {{ cconst.id }}.new(request, response)
+            begin
             controller.run_before_actions("destroy")
             if !controller.responded?
               controller.destroy
               controller.run_after_actions("destroy")
+            end
+            rescue e : Exception
+              controller.handle_rescue(e, "destroy")
             end
           }
         )
@@ -1187,10 +1243,14 @@ abstract class Altair::Application
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
             controller = {{ cconst.id }}.new(request, response)
+            begin
             controller.run_before_actions("new")
             if !controller.responded?
               controller.new
               controller.run_after_actions("new")
+            end
+            rescue e : Exception
+              controller.handle_rescue(e, "new")
             end
           }
         )
@@ -1205,10 +1265,14 @@ abstract class Altair::Application
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
             controller = {{ cconst.id }}.new(request, response)
+            begin
             controller.run_before_actions("create")
             if !controller.responded?
               controller.create
               controller.run_after_actions("create")
+            end
+            rescue e : Exception
+              controller.handle_rescue(e, "create")
             end
           }
         )
@@ -1223,10 +1287,14 @@ abstract class Altair::Application
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
             controller = {{ cconst.id }}.new(request, response)
+            begin
             controller.run_before_actions("show")
             if !controller.responded?
               controller.show
               controller.run_after_actions("show")
+            end
+            rescue e : Exception
+              controller.handle_rescue(e, "show")
             end
           }
         )
@@ -1241,10 +1309,14 @@ abstract class Altair::Application
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
             controller = {{ cconst.id }}.new(request, response)
+            begin
             controller.run_before_actions("edit")
             if !controller.responded?
               controller.edit
               controller.run_after_actions("edit")
+            end
+            rescue e : Exception
+              controller.handle_rescue(e, "edit")
             end
           }
         )
@@ -1259,10 +1331,14 @@ abstract class Altair::Application
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
             controller = {{ cconst.id }}.new(request, response)
+            begin
             controller.run_before_actions("update")
             if !controller.responded?
               controller.update
               controller.run_after_actions("update")
+            end
+            rescue e : Exception
+              controller.handle_rescue(e, "update")
             end
           }
         )
@@ -1276,10 +1352,14 @@ abstract class Altair::Application
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
             controller = {{ cconst.id }}.new(request, response)
+            begin
             controller.run_before_actions("update")
             if !controller.responded?
               controller.update
               controller.run_after_actions("update")
+            end
+            rescue e : Exception
+              controller.handle_rescue(e, "update")
             end
           }
         )
@@ -1294,10 +1374,14 @@ abstract class Altair::Application
           {% end %}
           handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
             controller = {{ cconst.id }}.new(request, response)
+            begin
             controller.run_before_actions("destroy")
             if !controller.responded?
               controller.destroy
               controller.run_after_actions("destroy")
+            end
+            rescue e : Exception
+              controller.handle_rescue(e, "destroy")
             end
           }
         )

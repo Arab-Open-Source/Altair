@@ -34,6 +34,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   filter for selected actions without affecting sibling controllers. The
   dispatch wrapper lives in the router, and callback ancestry is recorded
   at class-definition time so resolution needs no runtime reflection.
+- **`rescue_from`**: a controller names an exception class and a handler
+  method (`rescue_from InvalidParams, handle_with: :render_bad_request`);
+  when an action or its callbacks raise a matching exception, the handler
+  answers instead of the error bubbling to the debug pages. Subclass
+  exceptions match the registered type, `only:` / `except:` filter the
+  actions, handlers inherit across the hierarchy, and unmatched exceptions
+  re-raise. Matching is compiled per declaration (`e.is_a?(Foo)`), never
+  runtime reflection.
 
 ### Fixed
 

@@ -139,6 +139,45 @@ module Altair
       )
     end
 
+    # Registers a handler for exceptions raised by the action or any of its
+    # callbacks. The handler must accept the exception and return nothing:
+    #
+    # ```
+    # rescue_from InvalidParams, handle_with: :render_bad_request
+    #
+    # def render_bad_request(e : InvalidParams) : Nil
+    #   render json: {error: e.message}, status: :bad_request
+    # end
+    # ```
+    #
+    # `only:` and `except:` restrict the actions the handler answers for,
+    # subclass exceptions match the registered type, and a subclass's
+    # `rescue_from` shadows a base controller's for the same exception.
+    macro rescue_from(exception, handle_with = nil, only = nil, except = nil)
+      {% if handle_with == nil %}
+        {% raise "rescue_from requires `handle_with:` naming the handler method" %}
+      {% end %}
+      {% only_list = only ? (only.is_a?(SymbolLiteral) ? [only] : only) : [] of SymbolLiteral %}
+      {% except_list = except ? (except.is_a?(SymbolLiteral) ? [except] : except) : [] of SymbolLiteral %}
+      {% only_codes = only_list.map(&.id.stringify) %}
+      {% except_codes = except_list.map(&.id.stringify) %}
+      altair_rescue_match = ->(e : Exception) { e.is_a?({{ exception }}) }
+      altair_rescue_run = ->(controller : Altair::Controller, e : Exception) {
+        controller.as({{ @type }}).{{ handle_with.id }}(e.as({{ exception }}))
+      }
+      Altair::Controller::RescueFrom.add_handler(
+        {{ @type.name.stringify }},
+        Altair::Controller::RescueFrom::RescueHandler.new(
+          {{ exception.stringify }},
+          {{ handle_with.id.stringify }},
+          {{ only_codes.empty? ? "[] of String".id : only_codes }},
+          {{ except_codes.empty? ? "[] of String".id : except_codes }},
+          altair_rescue_match,
+          altair_rescue_run
+        )
+      )
+    end
+
     # The framework's request wrapper for this request.
     getter request : Altair::HTTP::Request
 
@@ -322,6 +361,26 @@ module Altair
     # wrapper uses it to halt the chain once the response is started.
     def responded? : Bool
       @response.written?
+    end
+
+    # Answers `e` with the first matching `rescue_from` handler for the
+    # current action, or re-raises when none applies.
+    def handle_rescue(e : Exception, action : String) : Nil
+      handler = self.class.rescue_handlers_for(e, action).first?
+      if handler
+        handler.run.call(self, e)
+      else
+        raise e
+      end
+    end
+
+    # The `rescue_from` handlers in effect for `e` and `action`: declared
+    # anywhere in the superclass chain (the subclass's own first), whose
+    # registered exception matches `e` and whose filters include the action.
+    def self.rescue_handlers_for(e : Exception, action : String) : Array(Altair::Controller::RescueFrom::RescueHandler)
+      Altair::Controller::Callbacks.chain_of(name)
+        .flat_map { |class_name| Altair::Controller::RescueFrom.handlers_of(class_name) }
+        .select { |handler| handler.match.call(e) && handler.applies_to?(action) }
     end
 
     # The callbacks in effect for `action`: declarations from the whole
