@@ -35,6 +35,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Record hot path builds each SQL statement once per connection**
+  (`Altair::Record::Model` + `Altair::Record::Connection#sql_template`):
+  `find`, `find_by_*` and `insert` cached their quoted/placeholder-laden
+  statements instead of rebuilding them per call, cutting the write-path
+  allocations by half (frozen-GC harness, PostgreSQL: `Item.create`
+  2,033 → 964 B/op, `Item.find` 1,378 → 1,060 B/op). Same-session A/B at
+  1,000 VU / 60 s: write max −27%, read p99.9 −51%; the remaining tail is
+  still the per-second Boehm stop-the-world pause.
+- **Benchmark measurement excludes the cold-start ramp** (`examples/benchmark_k6`):
+  each write/read phase now runs a discarded k6 warm-up (ramp to 1,000 VUs +
+  settle) before the measured `constant-vus` run, so the committed summaries
+  describe sustained load only. Instrumentation showed the previous ~900 ms
+  write max was a first-second cold-start spike (pool + prepared statements +
+  GC heap storm under the ramp), not a sustained-load defect; the sustained
+  tail that remains is one Boehm stop-the-world pause per second on the
+  plateaued heap. Altair write max dropped 873.1 → 429.6 ms under the same
+  load. Diagnosis tooling: `scripts/sample_pg.sh`, `scripts/diagnose.sh` and
+  the flag-gated sampler in `app/altair/src/bench_sample.cr` (compiled only
+  with `--define bench_sample`, zero effect on the normal binary).
 - **Request parameters are parsed lazily**: `Altair::HTTP::Request` defers
   the query string, the JSON body and the unified `params` bag (with its
   form-param walk) to first access, memoizing each. Constructing a request

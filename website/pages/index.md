@@ -82,3 +82,4 @@ curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/i
 - [Guides](/docs/routing.html) — routing, controllers, views and the Record ORM.
 - [What is implemented](/docs/features.html) — the current state of the framework, phase by phase.
 - [CLI reference](/docs/cli.html) — every command and generator.
+- [Benchmarks](/docs/benchmarks.html) — Altair vs Express and Fiber under real HTTP load.

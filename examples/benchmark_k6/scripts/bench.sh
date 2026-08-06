@@ -99,8 +99,11 @@ echo "== $FRAMEWORK ready on :$PORT — write phase =="
 
 PG() { env PGPASSWORD=bench psql -h 127.0.0.1 -p 55433 -U bench -d bench "$@"; }
 
-# Write phase: empty table, POSTs add rows.
+# Write phase: empty table, POSTs add rows. The warmup run (ramp to VUS plus
+# a settle pause) absorbs the cold-start spike (pool + prepared statements +
+# GC heap storm) so the measured run's summary reflects sustained load only.
 PG -c "TRUNCATE $TABLE RESTART IDENTITY;" > /dev/null
+k6 run -q -e "BASE_URL=http://127.0.0.1:$PORT" -e VUS="$VUS" -e MODE=warmup k6/write.js > /dev/null
 k6 run -e "BASE_URL=http://127.0.0.1:$PORT" -e VUS="$VUS" -e DURATION="$DURATION" \
   --summary-trend-stats "$TREND_STATS" --summary-export "results/$FRAMEWORK-write.json" k6/write.js
 
@@ -113,6 +116,7 @@ SELECT g, 'item-' || g, ROUND((random() * 1000)::numeric, 2)
 FROM generate_series(1, 10000) AS g;
 SELECT setval('${TABLE}_id_seq', 10000);
 SQL
+k6 run -q -e "BASE_URL=http://127.0.0.1:$PORT" -e VUS="$VUS" -e MODE=warmup k6/read.js > /dev/null
 k6 run -e "BASE_URL=http://127.0.0.1:$PORT" -e VUS="$VUS" -e DURATION="$DURATION" \
   --summary-trend-stats "$TREND_STATS" --summary-export "results/$FRAMEWORK-read.json" k6/read.js
 

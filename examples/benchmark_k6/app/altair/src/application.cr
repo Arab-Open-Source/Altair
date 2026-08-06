@@ -5,6 +5,10 @@
 # HTTP server and DB pool fan out across cores by default.
 require "altair/record/adapters/postgresql"
 
+{% if flag?(:bench_sample) %}
+  require "./bench_sample"
+{% end %}
+
 class Bench < Altair::Application
   config.name = "Altair benchmark"
   # The reference applications do not emit one log line per request. Remove
@@ -23,6 +27,10 @@ class Bench < Altair::Application
   # Admission control: excess fibers wait on a FIFO gate outside the pool,
   # so the tail stays bounded under sustained concurrent requests. 0 = off.
   config.db_max_active_queries = ENV["BENCH_ACTIVE"]?.try(&.to_i?) || 0
+
+  {% if flag?(:bench_sample) %}
+    config.middleware << ->(app : Altair::Application) { BenchMetrics.new(app).as(Altair::Middleware) }
+  {% end %}
 
   routes do
     get "/health", to: ItemsController.health

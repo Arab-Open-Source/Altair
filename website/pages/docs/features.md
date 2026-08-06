@@ -57,10 +57,15 @@ Three vertical waves:
 - The server resizes the execution context to the available workers on boot (honors `CRYSTAL_WORKERS`; `config.parallel_execution` opt-out)
 - Warm connection-pool defaults: `initial 2 / idle 2 / max 10`
 - A development-mode N+1 detector warns on identical SQL fired more than `config.n_plus_one_threshold` times in one request
+- The record hot path builds each SQL statement once per connection
+  (`Connection#sql_template`): `find`, `find_by_*` and `insert` cache their
+  quoted statements, halving the write-path allocations (PostgreSQL:
+  `Item.create` 2,033 → 964 B/op on the frozen-GC harness) — see
+  [Benchmarks](/docs/benchmarks.html) for the end-to-end effect
 
 ## Testing and quality
 
-- 561 specs passing (6 pending: the PostgreSQL contract suite, gated on `ALTAIR_TEST_PG_URL`)
+- 634 specs passing (5 pending: the PostgreSQL concurrency contract tests; the full PostgreSQL contract suite runs when `ALTAIR_TEST_PG_URL` is set)
 - Formatter clean, linter silent on framework sources
 - Smart error pages: 404 with route suggestions, 405 with `_method` explanation, detailed 500 diagnostics in debug mode only
 

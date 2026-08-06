@@ -7,20 +7,22 @@ real HTTP.
 The current committed results live in [`results/`](results/) as k6 summary
 exports. The short version:
 
-- **Write** (POST `/items`): Fiber leads at **17,505 req/s**. Altair sustains
-  **13,088 req/s** (**1.74x Express**, 0.75x Fiber), with a p99.9 of 148.5 ms.
-- **Read** (GET `/items/:id`): Fiber leads at **20,468 req/s**. Altair sustains
-  **15,505 req/s** (**1.90x Express**, 0.76x Fiber). Altair's average is
-  57.1 ms, with a p95 of 103.3 ms and a maximum of 286.7 ms.
+- **Write** (POST `/items`): Fiber leads at **17,088 req/s**. Altair sustains
+  **13,167 req/s** (**1.81x Express**, 0.77x Fiber), with a p99.9 of 145.9 ms.
+- **Read** (GET `/items/:id`): Fiber leads at **19,527 req/s**. Altair sustains
+  **14,687 req/s** (**1.91x Express**, 0.75x Fiber). Altair's average is
+  64.3 ms, with a p95 of 129.0 ms and a maximum of 479.6 ms.
 - **Zero failed requests** across all six runs; every `status is 200/201` check
   passed.
 
-These numbers are from a **lower-saturation fairness re-run** (see [Methodology](#methodology)):
-1,000 virtual users, 60-second sustained load, every framework on the same
-**200-connection budget**, and PostgreSQL pinned to **6 CPUs / 2 GB** — enough DB
-headroom that throughput is framework-limited, so per-request cost, not pool
-starvation, is what's measured. They were produced after the benchmark and
-database-path fixes described below:
+These numbers are from a **sustained-load measurement** (see
+[Methodology](#methodology)): a discarded k6 warm-up run first ramps the target
+to 1,000 virtual users and absorbs the cold-start spike, then the measured run
+holds **1,000 virtual users for 60 seconds** at the same **200-connection
+budget**, with PostgreSQL pinned to **6 CPUs / 2 GB** — enough DB headroom that
+throughput is framework-limited, so per-request cost, not pool starvation, is
+what's measured. They were produced after the benchmark and database-path fixes
+described below:
 
 1. **ORM/DB-layer hardening** (see [`CHANGELOG.md`](../../CHANGELOG.md)):
    the query path no longer pays a global mutex per statement outside
@@ -71,12 +73,12 @@ just its HTTP layer.
 
 With these fixes in place the latest picture is now:
 
-- **Write** (`POST /items`): **Fiber** leads at 17,505 req/s, Altair 13,088
-  req/s (**1.74x Express**, 0.75x Fiber), Express 7,513 req/s. Altair's p95 is
-  99.1 ms and its p99.9 is 148.5 ms.
-- **Read** (`GET /items/:id`): **Fiber** leads at 20,468 req/s, Altair 15,505
-  req/s (**1.90x Express**, 0.76x Fiber), Express 8,162 req/s. Altair's p95 is
-  103.3 ms and its p99.9 is 184.4 ms.
+- **Write** (`POST /items`): **Fiber** leads at 17,088 req/s, Altair 13,167
+  req/s (**1.81x Express**, 0.77x Fiber), Express 7,273 req/s. Altair's p95 is
+  101.3 ms, its p99.9 is 145.9 ms.
+- **Read** (`GET /items/:id`): **Fiber** leads at 19,527 req/s, Altair 14,687
+  req/s (**1.91x Express**, 0.75x Fiber), Express 7,700 req/s. Altair's p95 is
+  129.0 ms, its p99.9 is 318.4 ms.
 - **Zero failed requests** across all six runs; every `status is 200/201`
   check passed.
 
@@ -92,7 +94,9 @@ here as directional, not as a final verdict.
 
 All figures below are from the latest fair runs: **every framework gets the
 same 200-connection budget** against PostgreSQL, 60-second sustained load at
-1,000 VUs. Latency percentiles include k6 warm-up and ramp-down.
+1,000 VUs. A discarded k6 warm-up run precedes each phase, so the summaries
+measure **sustained load only** — cold-start effects are excluded (see
+[Methodology](#methodology)).
 
 ### Read workload — `GET /items/:id`
 
@@ -100,14 +104,14 @@ Primary-key lookups against 10,000 seeded rows.
 
 | Framework | Requests | Throughput | Avg | p50 | p90 | p95 | p99 | p99.9 | Max | Failed |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Fiber | 1,432,779 | 20,468 req/s | 35.6 ms | 33.7 ms | 59.4 ms | 72.2 ms | 107.7 ms | 154.4 ms | 225.2 ms | 0% |
-| **Altair** | **1,085,354** | **15,505 req/s** | **57.1 ms** | **55.2 ms** | 85.9 ms | 103.3 ms | 140.0 ms | 184.4 ms | 286.7 ms | 0% |
-| Express | 571,373 | 8,162 req/s | 112.5 ms | 114.0 ms | 144.2 ms | 169.5 ms | 236.4 ms | 293.8 ms | 364.4 ms | 0% |
+| Fiber | 1,171,974 | 19,527 req/s | 37.1 ms | 35.1 ms | 60.4 ms | 71.7 ms | 103.5 ms | 149.9 ms | 236.3 ms | 0% |
+| **Altair** | **881,772** | **14,687 req/s** | **64.3 ms** | **58.2 ms** | 101.2 ms | 129.0 ms | 180.4 ms | 318.4 ms | 479.6 ms | 0% |
+| Express | 462,813 | 7,700 req/s | 127.3 ms | 122.7 ms | 172.9 ms | 197.3 ms | 267.3 ms | 350.3 ms | 965.8 ms | 0% |
 
-The p90 column shows that Altair's tail is now close to Fiber's and below
-Express's in this run. The remaining spread is the shared-pool queue: most
-requests finish on a warm pooled connection, while excess VUs wait for one of
-the 200 slots.
+Altair keeps a fixed ~1.7x gap to Fiber on the read side (p90 101.2 vs
+60.4 ms). Its own tail is tight from p99 up (180.4 ms) and stays flat until the
+per-second GC pause lands on in-flight requests; Express's max (965.8 ms) shows
+the same artifact worse.
 
 ### Write workload — `POST /items`
 
@@ -115,40 +119,88 @@ One row inserted and committed per request (JSON body).
 
 | Framework | Requests | Throughput | Avg | p50 | p90 | p95 | p99 | p99.9 | Max | Failed |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Fiber | 1,225,423 | 17,505 req/s | 51.9 ms | 51.0 ms | 72.2 ms | 86.5 ms | 120.1 ms | 156.3 ms | 225.0 ms | 0% |
-| **Altair** | **916,163** | **13,088 req/s** | **70.7 ms** | **71.1 ms** | 92.1 ms | 99.1 ms | 117.0 ms | 148.5 ms | 873.1 ms | 0% |
-| Express | 525,942 | 7,513 req/s | 121.7 ms | 118.1 ms | 177.1 ms | 204.8 ms | 266.3 ms | 339.6 ms | 613.7 ms | 0% |
+| Fiber | 1,025,953 | 17,088 req/s | 57.0 ms | 53.5 ms | 77.3 ms | 94.3 ms | 131.7 ms | 171.5 ms | 242.4 ms | 0% |
+| **Altair** | **790,920** | **13,167 req/s** | **75.4 ms** | **73.1 ms** | 94.5 ms | 101.3 ms | 117.8 ms | 145.9 ms | 201.5 ms | 0% |
+| Express | 436,805 | 7,273 req/s | 133.8 ms | 124.7 ms | 198.2 ms | 232.1 ms | 302.8 ms | 1036.8 ms | 2067.8 ms | 0% |
 
 Fiber leads the write throughput at the same pool budget. Altair remains faster
-than Express, with a 99.1 ms p95 and 148.5 ms p99.9; its maximum of 873.1 ms
-is still higher than both other applications.
+than Express and now carries the cleanest write tail of the three: its p99
+(117.8 ms) and max (201.5 ms) are *below* Fiber's, and its p99.9 (145.9 ms) is
+7x tighter than Express's (1,036.8 ms). The Wave-D2 SQL template cache halved
+the write-path allocations (frozen-GC harness: `Item.create` 2,033 → 964 B/op),
+which dropped the write max from 429.6 → 201.5 ms; the remaining outlier is one
+GC stop-the-world pause per second under sustained load (see
+[The tail-latency investigation](#the-tail-latency-investigation)).
 
 ### Relative throughput
 
 | Comparison | Read | Write |
 |---|---:|---:|
-| Altair vs Express | 1.90x | 1.74x |
-| Altair vs Fiber | 0.76x | 0.75x |
-| Fiber vs Express | 2.51x | 2.33x |
+| Altair vs Express | 1.91x | 1.81x |
+| Altair vs Fiber | 0.75x | 0.77x |
+| Fiber vs Express | 2.54x | 2.35x |
 
 ### Data moved
 
 | Framework | Scenario | Received | Sent |
-|---|---|---:|---:|
-| Altair | read | 160.0 MB / 2.40 MB/s | 82.7 MB / 1.24 MB/s |
-| Altair | write | 111.7 MB / 1.67 MB/s | 144.7 MB / 2.17 MB/s |
-| Express | read | 152.3 MB / 2.28 MB/s | 43.5 MB / 0.65 MB/s |
-| Express | write | 126.3 MB / 1.89 MB/s | 83.0 MB / 1.24 MB/s |
-| Fiber | read | 208.4 MB / 3.12 MB/s | 109.2 MB / 1.64 MB/s |
-| Fiber | write | 147.4 MB / 2.21 MB/s | 193.7 MB / 2.90 MB/s |
+|---|---:|---:|---:|
+| Altair | read | 136.3 MB / 2.27 MB/s | 70.4 MB / 1.17 MB/s |
+| Altair | write | 101.2 MB / 1.69 MB/s | 131.0 MB / 2.18 MB/s |
+| Express | read | 129.4 MB / 2.15 MB/s | 37.0 MB / 0.62 MB/s |
+| Express | write | 110.0 MB / 1.83 MB/s | 72.2 MB / 1.20 MB/s |
+| Fiber | read | 178.8 MB / 2.98 MB/s | 93.6 MB / 1.56 MB/s |
+| Fiber | write | 129.4 MB / 2.16 MB/s | 170.0 MB / 2.83 MB/s |
 
 ---
 
 ## Analysis
 
 **Altair beats Express on throughput in both workloads, while Fiber leads both.**
-Altair sustains **13,088 write req/s** and **15,505 read req/s**. Its average
-and p95 latency are lower than Express in both cases in this run.
+Altair sustains **13,167 write req/s** and **14,687 read req/s**. Its average
+and p95 latency are lower than Express in both cases in this run, and its write
+tail (p99 / p99.9 / max) is tighter than Fiber's.
+
+### The Wave-D measurement pass (cold start vs. sustained load)
+
+The previous committed figures (and this one's `results/archive-fair-runs/`)
+were produced with a **single k6 `ramping-vus` scenario whose summary included
+the warm-up ramp**. Instrumenting Altair per-second (GC heap + collections,
+pool state, request latency; see `scripts/sample_pg.sh` and the `--define
+bench_sample` build in `app/altair/src/bench_sample.cr`) showed where the
+worst tail actually lives:
+
+- The **entire ~900 ms write outlier happened in the first second** of the
+  ramp: 198 requests at avg 401 ms / max 883 ms while the pool's 200
+  connections and prepared statements came up under a VU burst (PostgreSQL
+  momentarily saw 131 active connections). From second two on, the run is
+  flat: per-second average ~65-75 ms, per-second max 108-158 ms, and the GC
+  heap **plateaus at ~191 MB** (it does not grow across the 60 s — the
+  late-run degradation hypothesis is disproved).
+- PostgreSQL is nowhere near saturation: ~201 backends with **1-2 active**,
+  ~13 k commits/s, and zero wait events through the sustained phase.
+- The cold-start hypothesis was confirmed by pre-firing: warming the pool with
+  30 POSTs first moved the ~860 ms spike into the pre-fire window and the
+  measured run stayed flat (max 30-66 ms per second).
+
+So the benchmark now **separates warm-up from measurement**: each phase runs a
+discarded `ramping-vus` warm-up (5 s ramp to 1,000 VUs + 3 s settle), then the
+measured `constant-vus` run at 1,000 VUs for 60 s (`MODE=warmup|load` in
+`k6/write.js` / `k6/read.js`). That removed the cold-start artifact from the
+summaries: Altair's write max dropped **873.1 → 201.5 ms** and its read max
+(286.7 → 479.6 ms) is now pure sustained behavior, not warm-up.
+
+What remains in the sustained summaries is one **GC stop-the-world pause per
+second** (Boehm full collection on the ~190 MB plateau): the per-second max of
+108-158 ms coincides one-for-one with the collection counter, and the p99.9 /
+max values (145.9 / 201.5 ms write, 318.4 / 479.6 ms read) are the pauses
+landing on in-flight requests. The Wave-D2 SQL template cache
+(`Model`/`Connection#sql_template`) halved the write-path cost (frozen-GC
+harness, PostgreSQL: `Item.create` 2,033 → 964 B/op, `Item.find` 1,378 →
+1,060 B/op), which pulled the write tail back under the pause: Altair's write
+p99.9 is now tighter than Fiber's and its write max beats both. The read side
+still allocates more per request (JSON response building dominates), so its
+outliers land inside the same pause windows; cutting read-side allocations is
+the next lever.
 
 ### The tail-latency investigation
 
@@ -194,21 +246,21 @@ tail-latency profile at that equal cap is:
 
 - **Admission control bounds the queue outside the pool.** Altair's
   `db_max_active_queries` gate (see the admission-control section below) parks
-  the ~800 excess VUs on a FIFO queue *outside* the pool instead of letting
-  them contend on the pool's own wait list. Fewer fibers ever race for a slot,
+  the excess VUs on a FIFO queue *outside* the pool instead of letting them
+  contend on the pool's own wait list. Fewer fibers ever race for a slot,
   so the queueing is single and fair. In the latest run it completed all six
-  workloads with zero failed requests; Altair's read p99.9 was 184.4 ms and its
-  write p99.9 was 148.5 ms.
+  workloads with zero failed requests.
 
 Notable observations:
 
-- Altair's read throughput was 15,505 req/s, between Fiber at 20,468 req/s and
-  Express at 8,162 req/s. Its p95 was 103.3 ms, below Express's 169.5 ms.
-- On writes Altair sustained 13,088 req/s, ahead of Express at 7,513 req/s and
-  behind Fiber at 17,505 req/s. Altair's p95 was 99.1 ms, while its maximum
-  reached 873.1 ms.
-- Fiber had the best tail in both workloads: 225.2 ms read max and 225.0 ms
-  write max. All three applications completed the run without failed requests.
+- Altair's read throughput was 14,687 req/s, between Fiber at 19,527 req/s and
+  Express at 7,700 req/s. Its p95 was 129.0 ms, below Express's 197.3 ms.
+- On writes Altair sustained 13,167 req/s, ahead of Express at 7,273 req/s and
+  behind Fiber at 17,088 req/s. Altair's p95 was 101.3 ms, and its p99 / p99.9 /
+  max (117.8 / 145.9 / 201.5 ms) were the tightest write tail of the three.
+- Fiber had the best read tail (236.3 ms max); Altair's write max (201.5 ms)
+  beat both Fiber (242.4 ms) and Express (2,067.8 ms). All three applications
+  completed the runs without failed requests.
 
 ---
 
@@ -276,14 +328,17 @@ BENCH_ACTIVE=200 ./scripts/bench.sh altair
 
 ### Load profile
 
-k6 `ramping-vus` scenario shared by both scripts:
+Each phase runs **two** k6 scenarios against the same script (`MODE` env):
 
-| Phase | Duration | Virtual users |
-|---|---|---:|
-| Warm-up ramp | 5 s | 1 → 1000 |
-| Sustained | 60 s | 1000 |
-| Ramp-down | 5 s | 1000 → 0 |
+| Phase | Scenario | Duration | Virtual users | Summary |
+|---|---|---|---|---|
+| Warm-up | `ramping-vus` | 5 s ramp + 3 s settle | 1 → 1000 | discarded |
+| Measured | `constant-vus` | 60 s | 1000 | exported |
 
+- The warm-up run absorbs the cold-start spike (pool + prepared statements +
+  GC heap storm in the first seconds), so the exported summary describes
+  sustained load only. This is what removed Altair's 873.1 ms write outlier
+  (see [The Wave-D measurement pass](#the-wave-d-measurement-pass-cold-start-vs-sustained-load)).
 - **Read**: one random seeded row (`id` in 1..10,000) per request, asserting
   `status is 200`.
 - **Write**: one JSON insert per request, asserting `status is 201`.
@@ -297,14 +352,13 @@ k6 `ramping-vus` scenario shared by both scripts:
   framework gets more than its peers.
 - All three share the **same single PostgreSQL instance** (220 connections).
   At this load the database is a shared ceiling, so the numbers describe the
-  *combined* stack, not raw framework throughput. During the write phase the
-  database is saturated.
+  *combined* stack, not raw framework throughput.
 - The host runs PostgreSQL, k6, and the application together; the tail latencies
   reflect core contention on the host, not just framework behavior.
 - Numbers are per-run samples, not averages across repeated runs. Treat them as
-  indicative; rerun locally (below) for confidence on your own hardware.
-- Latency percentiles include k6 warm-up and ramp-down traffic, which inflates
-  tail values under a fixed-length run.
+  indicative; rerun locally (below) for confidence on your own hardware. The
+  host's state (thermal/other load) shifts absolute values between days; the
+  relative ordering has been stable across sessions.
 
 ---
 
@@ -334,8 +388,9 @@ VUS=1000 DURATION=60 BENCH_ACTIVE=200 ./scripts/bench.sh altair
 
 `scripts/bench.sh <express|fiber|altair>` stops the other two apps, starts the
 target with `ulimit -n 65535` and its tuned environment if it is not already
-up, truncates the table, runs the k6 write phase, reseeds, then runs the read
-phase. It stops the other two apps so each framework runs alone. Results land in
+up, truncates the table, runs the k6 warm-up + write phase, reseeds, then runs
+the k6 warm-up + read phase. It stops the other two apps so each framework
+runs alone. Results land in
 `results/<framework>-write.json` / `results/<framework>-read.json`; each app's
 log is in `/tmp/bench_<name>.log`.
 
@@ -352,15 +407,17 @@ path and may differ from the containerized one.
 ## Layout
 
 ```
-app/altair/     Altair server (bench.cr, application.cr, ItemsController, Item model)
+app/altair/     Altair server (bench.cr, application.cr, bench_sample.cr, ItemsController)
 app/express/    Express reference server (node cluster)
 app/fiber/      Fiber reference server (GOMAXPROCS + pgx pool)
 db/init.sql     One table per framework
-k6/read.js      Read load script (random PK lookup)
-k6/write.js     Write load script (single-row insert)
+k6/read.js      Read load script (random PK lookup; MODE=warmup|load)
+k6/write.js     Write load script (single-row insert; MODE=warmup|load)
 k6/echo.js      No-DB load script (GET /health) used to isolate the HTTP layer
-scripts/bench.sh     Host-native runner (isolation + ulimit + write/read phases)
-scripts/run.sh  Containerized runner (compose)
-scripts/summary.sh  Renders results/*.json as markdown tables
-results/        k6 summary JSON exports
+scripts/bench.sh       Host-native runner (isolation + ulimit + warmup + write/read)
+scripts/run.sh         Containerized runner (compose)
+scripts/summary.sh     Renders results/*.json as markdown tables
+scripts/sample_pg.sh   Per-second PostgreSQL sampler for tail-latency diagnosis
+scripts/diagnose.sh    Sampled run: GC heap + pool + PG CSVs under the k6 load
+results/               k6 summary JSON exports
 ```

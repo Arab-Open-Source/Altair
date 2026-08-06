@@ -75,6 +75,14 @@ module Altair
       # query execution or the transaction body.
       @lock = Mutex.new
 
+      # SQL templates built on first use, keyed by model and statement kind.
+      # Templates embed adapter-specific quoting and placeholder syntax, so
+      # they live on the connection: when the shared connection is replaced
+      # (the adapter contract suite swaps sqlite and PostgreSQL between
+      # phases), a fresh instance starts with an empty cache and rebuilds.
+      @sql_templates = {} of String => String
+      @sql_templates_lock = Mutex.new
+
       # The number of fibers currently inside a transaction. Read without
       # the lock by every statement: when it is zero, no fiber owns a
       # transaction connection, and the per-query `active_connection` check
@@ -84,6 +92,26 @@ module Altair
 
       def initialize(@adapter : Adapter, url : String, pool_options : DB::Pool::Options, @query_timeout : Time::Span)
         @database = @adapter.connect(url, pool_options)
+      end
+
+      # Returns the SQL template for `key`, building it with the block on
+      # first use and caching it for the connection's lifetime. The steady
+      # path is a hash lookup by an interned literal key; the block (and the
+      # build lock) runs only on a miss.
+      def sql_template(key : String, & : -> String) : String
+        if template = @sql_templates[key]?
+          template
+        else
+          @sql_templates_lock.synchronize do
+            @sql_templates[key] ||= yield
+          end
+        end
+      end
+
+      # Returns the cached template for `key`, raising when it was never
+      # built on this connection.
+      def sql_template(key : String) : String
+        @sql_templates[key]
       end
 
       # Executes a statement with bound parameters, notifying the

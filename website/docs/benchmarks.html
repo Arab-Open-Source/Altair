@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Altair vs Express and Fiber on PostgreSQL-backed CRUD endpoints under real HTTP load, driven by k6.">
+  <title>Benchmarks — Altair</title>
+  <link rel="icon" href="../favicon.png" type="image/png">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/docs.css">
+</head>
+<body>
+  <header class="site-header">
+    <nav class="site-nav" aria-label="Main">
+      <a class="brand" href="../">Altair</a>
+      <div class="nav-links">
+        <a href="../">Home</a>
+        <a href="../docs/">Docs</a>
+        <a href="../docs/routing.html">Guides</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/usage.html">Usage</a>
+        <a href="../docs/benchmarks.html">Benchmarks</a>
+        <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="site-main">
+    <h1>Benchmarks</h1>
+<p>Altair is compared against <strong>Express</strong> (Node.js) and <strong>Fiber</strong> (Go) on
+identical PostgreSQL-backed CRUD endpoints, driven by k6 over real HTTP. The
+harness lives in the repository at <code>examples/benchmark_k6</code> and can be re-run
+locally.</p>
+<p>Every framework gets the same <strong>200-connection database budget</strong>. A discarded
+k6 warm-up run first ramps each app to 1,000 virtual users and absorbs the
+cold-start spike, then the measured run holds <strong>1,000 VUs for 60 seconds</strong>.
+PostgreSQL is pinned to 6 CPUs / 2 GB — enough headroom that throughput is
+framework-limited, so per-request cost is what is measured.</p>
+<h2>Results</h2>
+<table>
+<thead>
+<tr>
+<th>Workload</th>
+<th>Framework</th>
+<th align="right">req/s</th>
+<th align="right">avg</th>
+<th align="right">p95</th>
+<th align="right">p99</th>
+<th align="right">p99.9</th>
+<th align="right">max</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Write</strong> <code>POST /items</code></td>
+<td>Fiber</td>
+<td align="right">17,088</td>
+<td align="right">57.0 ms</td>
+<td align="right">94.3 ms</td>
+<td align="right">131.7 ms</td>
+<td align="right">171.5 ms</td>
+<td align="right">242.4 ms</td>
+</tr>
+<tr>
+<td></td>
+<td><strong>Altair</strong></td>
+<td align="right"><strong>13,167</strong></td>
+<td align="right"><strong>75.4 ms</strong></td>
+<td align="right">101.3 ms</td>
+<td align="right">117.8 ms</td>
+<td align="right"><strong>145.9 ms</strong></td>
+<td align="right"><strong>201.5 ms</strong></td>
+</tr>
+<tr>
+<td></td>
+<td>Express</td>
+<td align="right">7,273</td>
+<td align="right">133.8 ms</td>
+<td align="right">232.1 ms</td>
+<td align="right">302.8 ms</td>
+<td align="right">1,036.8 ms</td>
+<td align="right">2,067.8 ms</td>
+</tr>
+<tr>
+<td><strong>Read</strong> <code>GET /items/:id</code></td>
+<td>Fiber</td>
+<td align="right">19,527</td>
+<td align="right">37.1 ms</td>
+<td align="right">71.7 ms</td>
+<td align="right">103.5 ms</td>
+<td align="right">149.9 ms</td>
+<td align="right">236.3 ms</td>
+</tr>
+<tr>
+<td></td>
+<td><strong>Altair</strong></td>
+<td align="right"><strong>14,687</strong></td>
+<td align="right"><strong>64.3 ms</strong></td>
+<td align="right">129.0 ms</td>
+<td align="right">180.4 ms</td>
+<td align="right">318.4 ms</td>
+<td align="right">479.6 ms</td>
+</tr>
+<tr>
+<td></td>
+<td>Express</td>
+<td align="right">7,700</td>
+<td align="right">127.3 ms</td>
+<td align="right">197.3 ms</td>
+<td align="right">267.3 ms</td>
+<td align="right">350.3 ms</td>
+<td align="right">965.8 ms</td>
+</tr>
+</tbody></table>
+<p>All six runs completed with <strong>zero failed requests</strong>.</p>
+<h2>What the numbers say</h2>
+<ul>
+<li><strong>Altair is ~1.8–1.9x faster than Express</strong> on throughput in both
+workloads, with a far tighter tail: its write p99.9 (145.9 ms) is 7x lower
+than Express&#39;s and its write max (201.5 ms) is the best of all three.</li>
+<li><strong>Fiber (Go) leads raw throughput</strong> — the honest gap is 0.75–0.77x.
+Altair&#39;s write tail is nevertheless tighter than Fiber&#39;s at every
+percentile from p99 up.</li>
+<li><strong>Altair&#39;s read tail runs ~2x Fiber&#39;s</strong> (p99.9 318.4 / max 479.6 ms). The
+outliers land inside one Boehm stop-the-world pause per second on the
+plateaued heap; the next optimization target is read-side allocation
+(JSON response building dominates), and it is tracked as follow-up work.</li>
+</ul>
+<h2>Methodology</h2>
+<ul>
+<li>One k6 warm-up run per phase (ramp to 1,000 VUs + settle) precedes the
+measured <code>constant-vus</code> run, so the summaries describe sustained load only.</li>
+<li>The pool budget is the same for every framework: 200 connections total,
+matching PostgreSQL&#39;s <code>max_connections = 220</code> headroom (Express and Fiber
+split theirs across 8 workers; Altair uses one shared pool).</li>
+<li>Latency statistics: <code>avg, med, p(90), p(95), p(99), p(99.9), max</code>.</li>
+<li>Raw k6 summary exports are committed next to the harness in <code>results/</code>.</li>
+</ul>
+<h2>Where this came from</h2>
+<p>The numbers are maintained together with the benchmark harness: see
+<code>examples/benchmark_k6/README.md</code> for the full report — the tail-latency
+investigation, the per-second GC pause measurement and the allocation
+findings — and the repository&#39;s <code>CHANGELOG.md</code> for what changed between
+measurement passes.</p>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>Altair — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></p>
+  </footer>
+
+  <script src="../assets/js/docs.js" defer></script>
+</body>
+</html>

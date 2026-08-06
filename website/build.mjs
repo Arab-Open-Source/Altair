@@ -17,6 +17,7 @@ const meta = {
   "docs/controllers": { title: "Controllers guide — Altair", description: "Actions, parameters, rendering and templates in Altair." },
   "docs/views": { title: "Views guide — Altair", description: "ECR templates, escaping, layouts, partials, helpers and the form builder." },
   "docs/record": { title: "Record (ORM) guide — Altair", description: "Models, migrations, validations, callbacks and associations in Altair::Record." },
+  "docs/benchmarks": { title: "Benchmarks — Altair", description: "Altair vs Express and Fiber on PostgreSQL-backed CRUD endpoints under real HTTP load, driven by k6." },
 };
 
 function render(page) {
@@ -46,8 +47,8 @@ const indexHtml = render("index");
 writeFileSync(join(root, "index.html"), indexHtml);
 
 mkdirSync(join(root, "docs"), { recursive: true });
-for (const page of ["index", "install", "usage", "features", "cli", "update", "routing", "controllers", "views", "record"]) {
+for (const page of ["index", "install", "usage", "features", "cli", "update", "routing", "controllers", "views", "record", "benchmarks"]) {
   writeFileSync(join(root, "docs", `${page}.html`), render(`docs/${page}`));
 }
 
-console.log("Built website/: index.html + docs/{index,install,usage,features,cli,update,routing,controllers,views,record}.html");
+console.log("Built website/: index.html + docs/{index,install,usage,features,cli,update,routing,controllers,views,record,benchmarks}.html");

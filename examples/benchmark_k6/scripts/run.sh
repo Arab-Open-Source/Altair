@@ -60,6 +60,8 @@ for i in "${!SERVICES[@]}"; do
 
   echo "== write phase against ${svc} =="
   docker compose exec -T postgres psql -U bench -d bench -c "TRUNCATE ${table} RESTART IDENTITY" >/dev/null
+  k6 run -q k6/write.js \
+    -e BASE_URL="${base}" -e VUS="${VUS_WRITE}" -e MODE=warmup >/dev/null
   k6 run k6/write.js \
     -e BASE_URL="${base}" -e VUS="${VUS_WRITE}" -e DURATION="${DURATION}" -e WARMUP="${WARMUP}" \
     --summary-export "results/${svc}-write.json" \
@@ -67,6 +69,8 @@ for i in "${!SERVICES[@]}"; do
 
   echo "== read phase against ${svc} =="
   ./scripts/seed.sh "${table}" >/dev/null
+  k6 run -q k6/read.js \
+    -e BASE_URL="${base}" -e VUS="${VUS_READ}" -e MODE=warmup >/dev/null
   k6 run k6/read.js \
     -e BASE_URL="${base}" -e VUS="${VUS_READ}" -e DURATION="${DURATION}" -e WARMUP="${WARMUP}" \
     --summary-export "results/${svc}-read.json" \

@@ -19,6 +19,7 @@ The Altair documentation, generated from markdown. All content lives in `website
 
 - [What is implemented](/docs/features.html) — the current state of the framework, phase by phase.
 - [CLI reference](/docs/cli.html) — every command and generator.
+- [Benchmarks](/docs/benchmarks.html) — Altair vs Express and Fiber under real HTTP load.
 
 ## Contribute
 

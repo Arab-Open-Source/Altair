@@ -127,6 +127,42 @@ authentication, asset pipeline, rich query DSL, testing utilities.
 
 ---
 
+## Benchmarks
+
+Altair ships a public load-test harness —
+[`examples/benchmark_k6`](examples/benchmark_k6) — that compares it with
+**Express** (Node.js) and **Fiber** (Go) on identical PostgreSQL-backed CRUD
+endpoints, driven by k6 over real HTTP. Each framework gets the same
+200-connection database budget; a discarded warm-up run first ramps it to
+1,000 virtual users, and the measured run then holds **1,000 VUs for 60
+seconds**. The committed results:
+
+| Workload | Framework | req/s | avg | p95 | p99 | p99.9 | max |
+|---|---|---:|---:|---:|---:|---:|---:|
+| **Write** `POST /items` | Fiber | 17,088 | 57.0 ms | 94.3 ms | 131.7 ms | 171.5 ms | 242.4 ms |
+| | **Altair** | **13,167** | **75.4 ms** | 101.3 ms | 117.8 ms | **145.9 ms** | **201.5 ms** |
+| | Express | 7,273 | 133.8 ms | 232.1 ms | 302.8 ms | 1,036.8 ms | 2,067.8 ms |
+| **Read** `GET /items/:id` | Fiber | 19,527 | 37.1 ms | 71.7 ms | 103.5 ms | 149.9 ms | 236.3 ms |
+| | **Altair** | **14,687** | **64.3 ms** | 129.0 ms | 180.4 ms | 318.4 ms | 479.6 ms |
+| | Express | 7,700 | 127.3 ms | 197.3 ms | 267.3 ms | 350.3 ms | 965.8 ms |
+
+Highlights:
+
+- **Altair is ~1.8–1.9x faster than Express on throughput** in both
+  workloads, with a far tighter tail — its write p99.9 (145.9 ms) is 7x lower
+  than Express's, and its write max (201.5 ms) is the best of all three.
+- **Zero failed requests** across all six runs.
+- Honest picture: Fiber (Go) leads on raw throughput, and Altair's read tail
+  (~2x Fiber's) is driven by a per-second Boehm stop-the-world GC pause on
+  the read path — the next optimization target, tracked in the
+  [performance audit](docs/architecture/performance-audit.md).
+
+The full report — methodology, per-framework latency tables, the
+tail-latency investigation and the Wave-D allocation findings — lives in
+[`examples/benchmark_k6/README.md`](examples/benchmark_k6/README.md).
+
+---
+
 ## Quick start
 
 The fastest way to see Altair running is the bundled example application:

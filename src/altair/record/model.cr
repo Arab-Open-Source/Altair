@@ -329,12 +329,26 @@ module Altair
           # Finds the record whose {{ col_name.id }} column equals the
           # value, or `nil`.
           def self.find_by_{{ col_name.id }}(value : {{ CRYSTAL_TYPE[type].id }}{% if nullable %}?{% end %}) : self?
-            quoted = connection.adapter.quote_identifier("{{ col_name.id }}")
             {% if nullable %}
-              sql = select_sql + " WHERE #{quoted} " + (value.nil? ? "IS NULL" : "= #{connection.adapter.placeholder(0)}") + " LIMIT 1"
-              value.nil? ? connection.query_one(sql) { |rs| from_row(rs) } : connection.query_one(sql, value) { |rs| from_row(rs) }
+              if value.nil?
+                connection.query_one(
+                  connection.sql_template("{{ @type.id }}#find_by_{{ col_name.id }}_null") {
+                    "#{select_sql} WHERE #{connection.adapter.quote_identifier("{{ col_name.id }}")} IS NULL LIMIT 1"
+                  }
+                ) { |rs| from_row(rs) }
+              else
+                connection.query_one(
+                  connection.sql_template("{{ @type.id }}#find_by_{{ col_name.id }}_value") {
+                    "#{select_sql} WHERE #{connection.adapter.quote_identifier("{{ col_name.id }}")} = #{connection.adapter.placeholder(0)} LIMIT 1"
+                  }, value
+                ) { |rs| from_row(rs) }
+              end
             {% else %}
-              connection.query_one(select_sql + " WHERE #{quoted} = #{connection.adapter.placeholder(0)} LIMIT 1", value) { |rs| from_row(rs) }
+              connection.query_one(
+                connection.sql_template("{{ @type.id }}#find_by_{{ col_name.id }}") {
+                  "#{select_sql} WHERE #{connection.adapter.quote_identifier("{{ col_name.id }}")} = #{connection.adapter.placeholder(0)} LIMIT 1"
+                }, value
+              ) { |rs| from_row(rs) }
             {% end %}
           rescue DB::NoResultsError
             nil
@@ -348,6 +362,19 @@ module Altair
             )
           end
         {% end %}
+
+        # Finds the record with the given id, or `nil`. The statement is a
+        # cached template — the base implementation rebuilds the WHERE
+        # clause on every call.
+        def self.find(id : Int32 | Int64) : self?
+          connection.query_one(
+            connection.sql_template("{{ @type.id }}#find_pk") {
+              "#{select_sql} WHERE #{connection.adapter.quote_identifier("{{ pk_name.id }}")} = #{connection.adapter.placeholder(0)} LIMIT 1"
+            }, id
+          ) { |rs| from_row(rs) }
+        rescue DB::NoResultsError
+          nil
+        end
 
         # The values of a column, in row order. Raises on a column the
         # table does not have.
@@ -384,11 +411,6 @@ module Altair
 
         private def insert : Nil
           conn = connection
-          columns = self.class.column_names.reject { |column| column == "id" }
-          quoted = columns.map { |column| conn.adapter.quote_identifier(column) }
-          placeholders = columns.each_index.map { |index| conn.adapter.placeholder(index) }
-          sql = "INSERT INTO #{conn.adapter.quote_identifier(self.class.table_name)} " \
-                "(#{quoted.join(", ")}) VALUES (#{placeholders.join(", ")})"
           {% args = [] of String %}
           {% for col_name, col in columns %}
             {% unless col[:primary] %}
@@ -397,16 +419,39 @@ module Altair
           {% end %}
           if conn.adapter.supports_returning?(:insert)
             conn.query_one(
-              "#{sql} RETURNING #{conn.adapter.quote_identifier("id")}",
+              self.class.insert_sql(true),
               {{ args.join(", ").id }}
             ) { |rs| @id = rs.read({{ CRYSTAL_TYPE[pk_type].id }}) }
           else
             result = conn.exec(
-              sql,
+              self.class.insert_sql(false),
               {{ args.join(", ").id }}
             )
             @id = {% if pk_type == :bigint %}conn.last_insert_id(result){% else %}conn.last_insert_id(result).to_i32{% end %}
           end
+        end
+
+        # The cached INSERT statement. `returning` selects the variant that
+        # appends `RETURNING` for the primary key. Building the statement
+        # once per connection keeps the write path off a dozen small string
+        # allocations per insert. The build block must not call another
+        # `sql_template` — template locks are not reentrant.
+        def self.insert_sql(returning : Bool) : String
+          if returning
+            connection.sql_template("{{ @type.id }}#insert_returning") do
+              build_insert_sql + " RETURNING #{connection.adapter.quote_identifier("{{ pk_name.id }}")}"
+            end
+          else
+            connection.sql_template("{{ @type.id }}#insert") { build_insert_sql }
+          end
+        end
+
+        private def self.build_insert_sql : String
+          columns = column_names.reject { |column| column == "id" }
+          quoted = columns.map { |column| connection.adapter.quote_identifier(column) }
+          placeholders = columns.each_index.map { |index| connection.adapter.placeholder(index) }
+          "INSERT INTO #{connection.adapter.quote_identifier(table_name)} " \
+          "(#{quoted.join(", ")}) VALUES (#{placeholders.join(", ")})"
         end
 
         protected def clear_dirty : Nil

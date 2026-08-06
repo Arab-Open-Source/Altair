@@ -434,4 +434,39 @@ describe Altair::Record::Connection do
     end
     Altair::Record.close_connection
   end
+
+  describe "#sql_template" do
+    it "builds a template once and returns the same string on later calls" do
+      conn = spec_connection
+      built = 0
+      3.times do
+        conn.sql_template("spec#once") do
+          built += 1
+          "SELECT 1"
+        end
+      end
+      built.should eq(1)
+    end
+
+    it "keeps templates with different keys apart" do
+      conn = spec_connection
+      conn.sql_template("spec#a") { "SELECT 1" }
+      conn.sql_template("spec#b") { "SELECT 2" }
+      conn.sql_template("spec#a").should eq("SELECT 1")
+      conn.sql_template("spec#b").should eq("SELECT 2")
+    end
+
+    it "does not share templates between connections" do
+      first = spec_connection
+      second = Altair::Record.connection_for(SpecApp.instance)
+      begin
+        first.sql_template("spec#fresh") { "SELECT 1" }
+        second.sql_template("spec#fresh") { "SELECT 2" }
+        second.sql_template("spec#fresh").should eq("SELECT 2")
+        first.sql_template("spec#fresh").should eq("SELECT 1")
+      ensure
+        second.close
+      end
+    end
+  end
 end
