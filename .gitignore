@@ -19,3 +19,4 @@ examples/*/shard.lock
 node_modules/
 examples/benchmark_k6/app/altair/lib/
 examples/rails-vs-altair/app/altair/lib/
+examples/hello_bench/altair/lib
