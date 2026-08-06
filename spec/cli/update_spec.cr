@@ -2,9 +2,40 @@
 
 require "../spec_helper"
 require "digest/sha256"
+require "http/server"
 
 module Altair::CLI
   describe Update do
+    describe ".download" do
+      it "follows redirects" do
+        body = "redirected-body"
+        server = ::HTTP::Server.new do |ctx|
+          case ctx.request.path
+          when "/start"
+            ctx.response.status = ::HTTP::Status::FOUND
+            ctx.response.headers["Location"] = "/final"
+          when "/final"
+            ctx.response.print(body)
+          end
+        end
+        with_redirect_server(server) do |port|
+          Update.download("http://127.0.0.1:#{port}/start").should eq(body)
+        end
+      end
+
+      it "caps the redirect chain" do
+        server = ::HTTP::Server.new do |ctx|
+          ctx.response.status = ::HTTP::Status::FOUND
+          ctx.response.headers["Location"] = ctx.request.path
+        end
+        with_redirect_server(server) do |port|
+          expect_raises(Altair::Error, "Too many redirects") do
+            Update.download("http://127.0.0.1:#{port}/loop")
+          end
+        end
+      end
+    end
+
     describe ".platform_asset_name" do
       it "returns an asset name for the current platform" do
         name = Update.platform_asset_name
@@ -51,5 +82,20 @@ module Altair::CLI
         Update.current_executable.try(&.should_not be_empty)
       end
     end
+  end
+end
+
+private def with_redirect_server(server : ::HTTP::Server, &block : Int32 -> _)
+  server.bind_tcp("127.0.0.1", 0)
+  port = server.addresses.first.as(Socket::IPAddress).port
+  spawn do
+    server.listen
+  rescue ex
+    raise ex
+  end
+  begin
+    block.call(port)
+  ensure
+    server.close
   end
 end

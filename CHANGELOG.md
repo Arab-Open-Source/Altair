@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`altair update` follows redirects**: release assets are served behind an
+  HTTP redirect, which `HTTP::Client` no longer follows automatically on
+  modern Crystal. `Update.download` now follows a bounded redirect chain
+  (up to 5 hops) and applies request timeouts, so `--check`/`--force` work
+  against GitHub's asset host again. Specs cover a real 302 redirect and an
+  infinite redirect loop.
+
 ## [0.2.0] — 2026-08-06
 
 ### Added

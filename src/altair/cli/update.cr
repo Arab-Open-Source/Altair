@@ -153,11 +153,32 @@ module Altair
         nil
       end
 
-      # Fetches `url`, raising on any failure.
-      def self.download(url : String) : String
-        response = ::HTTP::Client.get(url)
-        raise Altair::Error.new("Failed to download #{url} (#{response.status}).") unless response.success?
-        response.body
+      # Fetches `url`, following redirects up to a bounded chain, and
+      # raising on any failure. `HTTP::Client` does not follow redirects
+      # itself, and GitHub serves release assets behind one.
+      MAX_REDIRECTS = 5
+
+      def self.download(url : String, timeout : Time::Span = 30.seconds) : String
+        current = URI.parse(url)
+        MAX_REDIRECTS.times do
+          client = ::HTTP::Client.new(current)
+          client.connect_timeout = timeout
+          client.read_timeout = timeout
+          begin
+            response = client.get(current.request_target)
+          ensure
+            client.close
+          end
+
+          location = response.headers["Location"]?
+          if response.status.redirection? && location
+            current = current.resolve(location)
+            next
+          end
+          raise Altair::Error.new("Failed to download #{current} (#{response.status}).") unless response.success?
+          return response.body
+        end
+        raise Altair::Error.new("Too many redirects downloading #{url}.")
       end
 
       # Writes `content` to `path` replacing the running binary. On Unix the
