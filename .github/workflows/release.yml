@@ -1,36 +1,53 @@
 # Release pipeline for Altair.
 #
-# Triggered by a `v*` tag push. Builds a standalone `altair` binary for
-# the supported platforms, computes a SHA-256 digest for each artifact and
-# publishes them together as a GitHub Release. Consumers rely on the
-# checksums file to verify what they download, and the install scripts
-# (`scripts/install.sh` / `scripts/install.ps1`) enforce that check before
-# anything is written to disk.
+# Triggered by a `v*` tag push, or manually via `workflow_dispatch`. Builds a
+# standalone `altair` binary for the supported platforms, computes a SHA-256
+# digest for each artifact and publishes them together as a GitHub Release.
+# Consumers rely on the checksums file to verify what they download, and the
+# install scripts (`scripts/install.sh` / `scripts/install.ps1`) enforce that
+# check before anything is written to disk.
+#
+# A manual run can target a subset of platforms (e.g. "linux,windows" first,
+# then "macos") via the `platforms` input. Partial runs merge their
+# checksums with the binaries already attached to the release, so SHA256SUMS
+# stays complete no matter how many times the release is published.
 name: Release
 
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: 'Platforms to build (comma-separated: linux,windows,macos)'
+        required: false
+        default: 'linux,windows,macos'
 
 permissions:
   contents: write
 
 jobs:
   build:
+    if: contains((inputs.platforms || 'linux,windows,macos') | split(','), matrix.platform)
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             target: linux-amd64
+            platform: linux
           - os: ubuntu-latest
             target: linux-arm64
+            platform: linux
           - os: macos-latest
             target: macos-amd64
+            platform: macos
           - os: macos-latest
             target: macos-arm64
+            platform: macos
           - os: windows-latest
             target: windows-amd64
+            platform: windows
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -72,6 +89,9 @@ jobs:
         run: |
           mkdir -p dist
           cp artifacts/*/altair-* dist/
+          # Merge the binaries already attached to this release so SHA256SUMS
+          # stays complete across partial (per-platform) runs.
+          gh release download "${{ github.ref_name }}" --pattern 'altair-*' --dir dist --clobber 2>/dev/null || true
           cp scripts/install.sh scripts/install.ps1 scripts/install.cmd dist/
           cd dist
           sha256sum altair-* > SHA256SUMS
@@ -81,3 +101,4 @@ jobs:
         with:
           files: dist/*
           fail_on_unmatched_files: true
+          overwrite: true
