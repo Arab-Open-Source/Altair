@@ -38,7 +38,7 @@ The binary is installed to `%USERPROFILE%\.altair\bin`. You may need to restart 
 altair version
 ```
 
-You should see something like `Altair 0.1.2`.
+You should see something like `Altair 0.2.0`.
 
 ## Installing to a custom directory
 
