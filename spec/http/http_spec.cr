@@ -253,14 +253,14 @@ describe Altair::HTTP::Request do
 
   it "merges route params recorded before the bag is first built" do
     request = Altair::HTTP::Request.new(HTTP::Request.new("GET", "/posts/5"))
-    request.set_route_params({"id" => "5"})
+    request.route_params = {"id" => "5"}
     request.params["id"].should eq("5")
   end
 
   it "merges route params recorded after the bag was already built" do
     request = Altair::HTTP::Request.new(HTTP::Request.new("POST", "/posts/5?from=api"))
     request.params["from"].should eq("api")
-    request.set_route_params({"id" => "5"})
+    request.route_params = {"id" => "5"}
     request.params["id"].should eq("5")
   end
 

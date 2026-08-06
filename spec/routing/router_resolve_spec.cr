@@ -25,7 +25,7 @@ describe Altair::Routing::Router do
       router = build_router([{"GET", "/posts/:id"}])
       resolution = router.resolve("GET", "/posts/5")
       resolution.match.should_not be_nil
-      resolution.match.not_nil!.params.should eq({"id" => "5"})
+      resolution.match!.params.should eq({"id" => "5"})
       resolution.allowed.should be_nil
     end
 
@@ -52,31 +52,31 @@ describe Altair::Routing::Router do
       router = build_router([{"GET", "/posts/:id"}])
       first = router.resolve("GET", "/posts/5")
       second = router.resolve("GET", "/posts/5")
-      first.match.not_nil!.params.should be(second.match.not_nil!.params)
+      first.match!.params.should be(second.match!.params)
     end
 
     it "resolves the format suffix with its format parameter" do
       router = build_router([{"GET", "/posts/:id"}])
       resolution = router.resolve("GET", "/posts/5.json")
-      resolution.match.not_nil!.params.should eq({"id" => "5", "format" => "json"})
+      resolution.match!.params.should eq({"id" => "5", "format" => "json"})
     end
 
     it "keeps definition order across index groups (param before literal)" do
       router = build_router([{"GET", "/:id"}, {"GET", "/posts"}])
       resolution = router.resolve("GET", "/posts")
-      resolution.match.not_nil!.route.pattern.should eq("/:id")
+      resolution.match!.route.pattern.should eq("/:id")
     end
 
     it "keeps definition order across index groups (literal before param)" do
       router = build_router([{"GET", "/posts"}, {"GET", "/:id"}])
       resolution = router.resolve("GET", "/posts")
-      resolution.match.not_nil!.route.pattern.should eq("/posts")
+      resolution.match!.route.pattern.should eq("/posts")
     end
 
     it "keeps definition order across index groups (glob last)" do
       router = build_router([{"GET", "/files/*path"}, {"GET", "/files/notes"}])
       resolution = router.resolve("GET", "/files/notes")
-      resolution.match.not_nil!.route.pattern.should eq("/files/*path")
+      resolution.match!.route.pattern.should eq("/files/*path")
     end
   end
 end

@@ -45,6 +45,12 @@ module Altair
       def found? : Bool
         !@match.nil?
       end
+
+      # The matched route plus params, raising when the method did not match.
+      # The bang form of `match` for callers that know a route matched.
+      def match! : Match
+        @match.not_nil!
+      end
     end
 
     class Router
@@ -105,35 +111,37 @@ module Altair
       # first segment is a parameter, and every route whose first segment is
       # a glob (the segment-less root routes when the path has none). Each
       # group is ascending because indices are assigned in definition order.
-      private def each_candidate(parts : PathParts, &block : Int32 ->) : Nil
+      private def each_candidate(parts : PathParts, & : Int32 ->) : Nil
         key = parts.first?
         literal = @literal_index[key]? || EMPTY_INDICES
         params = @param_routes
         globs = key ? @glob_routes : @root_routes
 
+        merge_candidates(literal, params, globs) { |index| yield index }
+      end
+
+      # Three-way ascending merge that yields the smallest list head on each
+      # step. `Int32::MAX` as the exhausted-list sentinel keeps the step a
+      # plain comparison against a constant.
+      private def merge_candidates(literal, params, globs, & : Int32 ->) : Nil
         i = 0
         j = 0
         k = 0
         loop do
-          li = literal[i]?
-          pi = params[j]?
-          gi = globs[k]?
-          break if li.nil? && pi.nil? && gi.nil?
+          li = literal[i]? || Int32::MAX
+          pi = params[j]? || Int32::MAX
+          gi = globs[k]? || Int32::MAX
+          break if li == Int32::MAX && pi == Int32::MAX && gi == Int32::MAX
 
-          min = li || Int32::MAX
-          min = pi if pi && pi < min
-          min = gi if gi && gi < min
-          if li && li == min
+          if li <= pi && li <= gi
             yield li
             i += 1
-          elsif pi && pi == min
+          elsif pi <= gi
             yield pi
             j += 1
-          elsif gi
+          else
             yield gi
             k += 1
-          else
-            break
           end
         end
       end

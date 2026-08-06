@@ -81,7 +81,7 @@ class Altair::Core::RequestHandler
     else
       resolution = @router.resolve(effective_method(request), request.path)
       if match = resolution.match
-        request.set_route_params(match.params)
+        request.route_params = match.params
         request.route = match.route
         match.route.handler.call(request, response)
       elsif allowed = resolution.allowed

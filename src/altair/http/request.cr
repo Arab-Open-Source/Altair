@@ -108,7 +108,7 @@ module Altair
       # parameters merge in immediately; otherwise they are recorded and
       # merged when the bag is first built, keeping a request whose handler
       # never reads parameters free of the merge.
-      def set_route_params(route_params : Hash(String, String)) : self
+      def route_params=(route_params : Hash(String, String)) : self
         if @params_done
           @params_memo.not_nil!.merge_route(route_params)
         else
