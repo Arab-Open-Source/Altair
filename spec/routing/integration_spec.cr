@@ -109,4 +109,15 @@ describe "routing integration" do
       response.status_code.should eq(200)
     end
   end
+
+  it "honours the `_method` override for POST submissions only" do
+    with_routing_server do |port|
+      # A GET carrying `_method` in the query must stay a GET — the override
+      # is a form (POST) behaviour, and letting a GET re-route as DELETE
+      # would be method smuggling. Because routing happens before the body
+      # is touched for non-POST requests, this also proves the fast path.
+      response = HTTP::Client.get("http://127.0.0.1:#{port}/hello/altair?_method=DELETE")
+      response.status_code.should eq(200)
+    end
+  end
 end

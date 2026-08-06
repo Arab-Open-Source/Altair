@@ -250,6 +250,27 @@ describe Altair::HTTP::Request do
     request.json.should be_nil
     request.params["nope"]?.should be_nil
   end
+
+  it "merges route params recorded before the bag is first built" do
+    request = Altair::HTTP::Request.new(HTTP::Request.new("GET", "/posts/5"))
+    request.set_route_params({"id" => "5"})
+    request.params["id"].should eq("5")
+  end
+
+  it "merges route params recorded after the bag was already built" do
+    request = Altair::HTTP::Request.new(HTTP::Request.new("POST", "/posts/5?from=api"))
+    request.params["from"].should eq("api")
+    request.set_route_params({"id" => "5"})
+    request.params["id"].should eq("5")
+  end
+
+  it "keeps the unified bag lazy until it is first accessed" do
+    raw = HTTP::Request.new("GET", "/posts?q=altair")
+    request = Altair::HTTP::Request.new(raw)
+    request.path.should eq("/posts")
+    request.params["q"].should eq("altair")
+    request.params["q"].should eq("altair")
+  end
 end
 
 describe Altair::HTTP::Response do

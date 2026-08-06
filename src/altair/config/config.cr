@@ -27,6 +27,12 @@ module Altair
     # default parallelism.
     property? parallel_execution : Bool = true
 
+    # How many successful route lookups the router memoizes per `"METHOD
+    # path"`. A hot path is matched once and then answered from the cache —
+    # no segment walk, no parameter re-extraction — until evicted by
+    # least-recently-used pressure. `0` disables the cache.
+    property router_cache_size : Int32 = 1024
+
     # The logger used by the framework for boot messages, requests and
     # errors. Applications may swap it for their own `Log` instance.
     property logger : Log = Log.for("altair")

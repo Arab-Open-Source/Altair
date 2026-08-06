@@ -26,15 +26,48 @@ module Altair
       # The request body as a `String`, or `nil` when the request has none.
       getter body : String?
 
-      # The parsed JSON body, or `nil` when the request has no JSON body.
-      getter json : JSON::Any?
+      @query_done = false
+      @query_memo : URI::Params? = nil
+      @json_done = false
+      @json_memo : JSON::Any? = nil
+      @route_params : Hash(String, String)? = nil
+      @params_done = false
+      @params_memo : Altair::HTTP::Params? = nil
 
-      # The raw query-string parameters.
-      getter query_params : URI::Params
+      # The parsed JSON body, or `nil` when the request has no JSON body.
+      # The body is parsed on first access, so a request that never reads its
+      # JSON never pays for the parse.
+      def json : JSON::Any?
+        unless @json_done
+          @json_done = true
+          @json_memo = parse_json_body
+        end
+        @json_memo
+      end
+
+      # The raw query-string parameters, parsed on first access.
+      def query_params : URI::Params
+        unless @query_done
+          @query_done = true
+          @query_memo = @request.query_params
+        end
+        @query_memo.not_nil!
+      end
 
       # The unified parameter bag: query parameters merged with form-body
-      # parameters and, after routing, route parameters.
-      getter params : Altair::HTTP::Params
+      # parameters and, once the router has matched, route parameters. The
+      # bag and its sources are built on first access — a request whose
+      # handler never reads parameters parses nothing.
+      def params : Altair::HTTP::Params
+        unless @params_done
+          @params_done = true
+          @params_memo = Altair::HTTP::Params.new(query_params, form_params, json_params)
+          if route_params = @route_params
+            @params_memo.not_nil!.merge_route(route_params)
+          end
+        end
+        @params_memo.not_nil!
+      end
 
       # The route that matched this request, assigned by the router just
       # before the route's handler runs; `nil` until then. The debug error
@@ -60,16 +93,35 @@ module Altair
         @full_path = @request.resource
         @headers = @request.headers
         @body = read_body(@request.body, max_body_size)
-        @json = parse_json_body
-        @query_params = @request.query_params
-        @params = Altair::HTTP::Params.new(@query_params, form_params, json_params)
+        @query_done = false
+        @query_memo = nil
+        @json_done = false
+        @json_memo = nil
+        @route_params = nil
+        @params_done = false
+        @params_memo = nil
+      end
+
+      # Registers the route parameters as the unified bag's highest-precedence
+      # source. Called by the router once a route matches. When the bag has
+      # already been built (a form-`_method` lookup during routing), the
+      # parameters merge in immediately; otherwise they are recorded and
+      # merged when the bag is first built, keeping a request whose handler
+      # never reads parameters free of the merge.
+      def set_route_params(route_params : Hash(String, String)) : self
+        if @params_done
+          @params_memo.not_nil!.merge_route(route_params)
+        else
+          @route_params = route_params
+        end
+        self
       end
 
       # The format the client asked for, as a `Symbol`: the path's format
       # suffix (`/posts.json`) when present, else the `Accept` header, else
       # `:html`.
       def format : Symbol
-        case @params["format"]?
+        case params["format"]?
         when "json"        then :json
         when "text", "txt" then :text
         when "html"        then :html
@@ -118,8 +170,8 @@ module Altair
       # sit alongside form parameters; nested objects and arrays are left
       # out — use `request.json` for those.
       private def json_params : Hash(String, String)
-        return {} of String => String unless json = @json
-        object = json.as_h?
+        return {} of String => String unless payload = json
+        object = payload.as_h?
         return {} of String => String unless object
         params = {} of String => String
         object.each do |key, value|

@@ -21,7 +21,10 @@ class Altair::Core::RequestHandler
   @chain : Proc(Altair::HTTP::Request, Altair::HTTP::Response, Nil)
 
   def initialize(@app : Altair::Application)
-    @router = Altair::Routing::Router.new(Altair::Routing.route_set_for(@app.class).routes)
+    @router = Altair::Routing::Router.new(
+      Altair::Routing.route_set_for(@app.class).routes,
+      cache_size: @app.config.router_cache_size
+    )
     @chain = build_chain
     Altair::Record::NDetector.enable(Altair.env, @app.config.detect_n_plus_one?, @app.config.n_plus_one_threshold)
     Altair::Record::PermitGate.enable(admission_limit, @app.config.db_admission_timeout)
@@ -76,16 +79,16 @@ class Altair::Core::RequestHandler
     if @router.empty? && request.path == "/"
       render_welcome(response)
     else
-      match = @router.find(effective_method(request), request.path)
-      if match.nil?
-        if allowed = @router.allowed_for(request.path)
-          raise Altair::HTTP::MethodNotAllowed.new(allowed)
-        end
+      resolution = @router.resolve(effective_method(request), request.path)
+      if match = resolution.match
+        request.set_route_params(match.params)
+        request.route = match.route
+        match.route.handler.call(request, response)
+      elsif allowed = resolution.allowed
+        raise Altair::HTTP::MethodNotAllowed.new(allowed)
+      else
         raise Altair::HTTP::NotFound.new
       end
-      request.params.merge_route(match.params)
-      request.route = match.route
-      match.route.handler.call(request, response)
     end
   end
 
@@ -94,6 +97,7 @@ class Altair::Core::RequestHandler
   end
 
   private def effective_method(request : Altair::HTTP::Request) : String
+    return request.method unless request.method == "POST"
     case request.params["_method"]?.try(&.upcase)
     when "PUT", "PATCH", "DELETE"
       request.params["_method"].upcase

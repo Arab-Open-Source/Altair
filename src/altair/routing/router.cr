@@ -26,7 +26,32 @@ module Altair
       end
     end
 
+    # The outcome of a single scan against the route table: a matched route with
+    # its parameters, the allowed methods when the path matches but the method
+    # does not, or neither. A resolution carries exactly one of `match` and
+    # `allowed`.
+    struct Resolution
+      # The matched route plus params, or `nil` when the method did not match.
+      getter match : Match?
+
+      # The methods accepted at a matching path, or `nil` when the method
+      # matched (or nothing matched the path).
+      getter allowed : Array(String)?
+
+      def initialize(@match : Match?, @allowed : Array(String)?)
+      end
+
+      # Whether any route matched the request method.
+      def found? : Bool
+        !@match.nil?
+      end
+    end
+
     class Router
+      # Shared empty index list for first segments with no literal routes.
+      # Never mutated; avoids allocating an empty array per lookup.
+      EMPTY_INDICES = [] of Int32
+
       # Routes grouped by their first segment so matching only tests the
       # candidates that can actually win.
       @literal_index : Hash(String, Array(Int32))
@@ -34,11 +59,18 @@ module Altair
       @glob_routes : Array(Int32)
       @root_routes : Array(Int32)
 
-      def initialize(@routes : Array(Route))
+      # Memoizes successful `find` results so a repeated request path — the
+      # common case — collapses to a hash lookup instead of re-walking the
+      # route table. Misses are never stored, so a 404 scan cannot evict a
+      # hot entry. Sized by the application's `router_cache_size` config.
+      @cache : Altair::Support::LRUCache({String, String}, Match)
+
+      def initialize(@routes : Array(Route), cache_size : Int32 = 1024)
         @literal_index = {} of String => Array(Int32)
         @param_routes = [] of Int32
         @glob_routes = [] of Int32
         @root_routes = [] of Int32
+        @cache = Altair::Support::LRUCache({String, String}, Match).new(cache_size)
         index_routes
       end
 
@@ -66,11 +98,44 @@ module Altair
         end
       end
 
-      # The route indices that could match `parts`, in definition order.
-      private def candidates(parts : PathParts) : Array(Int32)
+      # Yields the route indices that could match `parts`, in definition
+      # order, by merging the per-group ascending index lists — no combined
+      # array and no sort per request. The groups are: routes whose first
+      # segment is the request's literal first segment, every route whose
+      # first segment is a parameter, and every route whose first segment is
+      # a glob (the segment-less root routes when the path has none). Each
+      # group is ascending because indices are assigned in definition order.
+      private def each_candidate(parts : PathParts, &block : Int32 ->) : Nil
         key = parts.first?
-        literal = @literal_index[key]? || [] of Int32
-        (literal + @param_routes + (key ? @glob_routes : @root_routes)).sort!
+        literal = @literal_index[key]? || EMPTY_INDICES
+        params = @param_routes
+        globs = key ? @glob_routes : @root_routes
+
+        i = 0
+        j = 0
+        k = 0
+        loop do
+          li = literal[i]?
+          pi = params[j]?
+          gi = globs[k]?
+          break if li.nil? && pi.nil? && gi.nil?
+
+          min = li || Int32::MAX
+          min = pi if pi && pi < min
+          min = gi if gi && gi < min
+          if li && li == min
+            yield li
+            i += 1
+          elsif pi && pi == min
+            yield pi
+            j += 1
+          elsif gi
+            yield gi
+            k += 1
+          else
+            break
+          end
+        end
       end
 
       # Returns `true` when no routes are registered. Applications without
@@ -79,34 +144,72 @@ module Altair
         @routes.empty?
       end
 
-      # Finds the first route matching the given method and path, returning
-      # the match with its extracted parameters, or `nil` when nothing
-      # matches. A path ending in a `.ext` suffix is first tried with the
-      # extension stripped, exposing it as `params["format"]` — so
-      # `/posts/5.json` exercises `GET /posts/:id` with `id` = `5` and
+      # Resolves a request to a `Resolution`: the matched route and params,
+      # or the allowed methods when the path matches but the method does not,
+      # or neither on a true miss. A path ending in a `.ext` suffix is first
+      # tried with the extension stripped, exposing it as `params["format"]`
+      # — so `/posts/5.json` exercises `GET /posts/:id` with `id` = `5` and
       # `format` = `json`. The exact path is tried second, so a literal
       # dotted route such as `/sitemap.xml` still matches unchanged.
+      #
+      # Successful matches are memoized by `{method, path}`, so repeated
+      # requests to a hot path skip the scan and return the cached match —
+      # including its extracted params, which callers must not mutate.
+      def resolve(method : String, path : String) : Resolution
+        key = {method, path}
+        if cached = @cache.get(key)
+          return Resolution.new(cached, nil)
+        end
+        resolution = resolve_uncached(method, path)
+        if match = resolution.match
+          @cache.put(key, match)
+        end
+        resolution
+      end
+
+      # The matched route or `nil`, from a single scan — the convenience form
+      # of `resolve` used by callers that only care about the match.
       def find(method : String, path : String) : Match?
+        resolve(method, path).match
+      end
+
+      # The uncached resolution: split, scan and extract. The format suffix
+      # is written into the freshly built params hash here — before the
+      # match is cached — so a cached entry never needs mutating.
+      private def resolve_uncached(method : String, path : String) : Resolution
         parts = PathParts.new(path)
         if suffix = format_suffix(parts)
-          if match = scan(method, suffix[:parts], skip_glob: true)
+          resolution = scan(method, suffix[:parts], skip_glob: true)
+          if match = resolution.match
             match.params["format"] = suffix[:format]
-            return match
+            return resolution
           end
         end
         scan(method, parts)
       end
 
-      private def scan(method : String, parts : PathParts, skip_glob : Bool = false) : Match?
-        candidates(parts).each do |index|
+      # One pass over the candidates: returns the first route whose path and
+      # method match, or collects the methods of every route whose path
+      # matches but whose method does not. `ANY` routes match every method
+      # and therefore never appear in the allowed list.
+      private def scan(method : String, parts : PathParts, skip_glob : Bool = false) : Resolution
+        allowed = nil
+        each_candidate(parts) do |index|
           route = @routes[index]
           next if skip_glob && route.glob?
-          next unless method_matches?(route.method, method)
-          if params = route.match(parts)
-            return Match.new(route, params)
+          if method_matches?(route.method, method)
+            if params = route.match(parts)
+              return Resolution.new(Match.new(route, params), nil)
+            end
+          elsif route.matches_path?(parts)
+            if allowed_list = allowed
+              allowed_list << route.method unless allowed_list.includes?(route.method)
+            else
+              allowed = [route.method]
+            end
           end
         end
-        nil
+        Resolution.new(nil, allowed)
       end
 
       # Splits a trailing `.{ext}` off the last path part, returning the
@@ -130,7 +233,7 @@ module Altair
       def allowed_for(path : String) : Array(String)?
         parts = PathParts.new(path)
         methods = [] of String
-        candidates(parts).each do |index|
+        each_candidate(parts) do |index|
           route = @routes[index]
           next if route.method == "ANY"
           next unless route.matches_path?(parts)
