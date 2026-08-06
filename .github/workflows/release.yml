@@ -28,7 +28,7 @@ permissions:
 
 jobs:
   build:
-    if: contains((inputs.platforms || 'linux,windows,macos') | split(','), matrix.platform)
+    if: contains(inputs.platforms || 'linux,windows,macos', matrix.platform)
     strategy:
       fail-fast: false
       matrix:
