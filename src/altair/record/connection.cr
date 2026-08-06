@@ -39,7 +39,16 @@ module Altair
                   else
                     Adapters::SQLite3.instance
                   end
-        new(adapter, url, pool_options, app.config.db_query_timeout)
+        connection_url = url
+        if url.starts_with?("postgres") || url.starts_with?("postgresql")
+          uri = URI.parse(url)
+          params = uri.query_params
+          timeout_ms = app.config.db_query_timeout.total_milliseconds.to_i
+          params["statement_timeout"] = timeout_ms.to_s if timeout_ms > 0
+          uri.query = params.to_s
+          connection_url = uri.to_s
+        end
+        new(adapter, connection_url, pool_options, app.config.db_query_timeout)
       end
 
       # The adapter in use.
@@ -81,29 +90,42 @@ module Altair
       # instrumentation hooks. Every value travels as a bind parameter —
       # never interpolated into the SQL string. Inside a transaction the
       # statement runs on the calling fiber's transaction connection.
-      # Statement timing is skipped entirely unless a query handler is
-      # registered, so a bare application never pays the clock reads.
+      # Acquisition wait is excluded from reported SQL time: the granular
+      # `QueryEvent` carries checkout and sql durations separately. When no
+      # query or event handler is registered the connection takes its
+      # zero-cost path and never reads the clock.
       def exec(sql : String, *db_args, args : Enumerable? = nil) : DB::ExecResult
-        start = Time.instant if Altair::Record.query_handlers?
-        result = if conn = active_connection
-                   conn.fetch_or_build_prepared_statement(sql).exec(*db_args, args: args)
-                 elsif Altair::Record.checkout_hooks?
-                   run_checkout { @database.exec(sql, *db_args, args: args) }
-                 else
-                   @database.exec(sql, *db_args, args: args)
-                 end
-        if started = start
-          notify(sql, Time.instant - started)
+        if measure?
+          measured_statement(sql, QueryEvent::Operation.from_sql(sql)) do |conn, meter|
+            result = uninitialized DB::ExecResult
+            meter.sql = measured do
+              result = conn.fetch_or_build_prepared_statement(sql).exec(*db_args, args: args)
+            end
+            result
+          end
+        elsif conn = active_connection
+          conn.fetch_or_build_prepared_statement(sql).exec(*db_args, args: args)
+        elsif Altair::Record.checkout_hooks?
+          run_checkout { @database.exec(sql, *db_args, args: args) }
+        else
+          @database.exec(sql, *db_args, args: args)
         end
-        result
       end
 
       # Runs a query with bound parameters, yielding each row to the
       # block. `values:` binds a variable-length collection, for
-      # `IN (...)` clauses.
+      # `IN (...)` clauses. Row-reading time is tracked as decode time in
+      # the granular event, separate from the checkout wait.
       def query(sql : String, *args, values : Enumerable? = nil, &block : DB::ResultSet ->) : Nil
-        start = Time.instant if Altair::Record.query_handlers?
-        if conn = active_connection
+        if measure?
+          measured_statement(sql, QueryEvent::Operation.from_sql(sql)) do |conn, meter|
+            sql_started = Time.instant
+            conn.query(sql, *args, args: values) do |rs|
+              meter.sql = Time.instant - sql_started
+              meter.add_decode(measured { block.call(rs) })
+            end
+          end
+        elsif conn = active_connection
           conn.fetch_or_build_prepared_statement(sql).query(*args, args: values) do |rs|
             block.call(rs)
           end
@@ -118,30 +140,33 @@ module Altair
             block.call(rs)
           end
         end
-        if started = start
-          notify(sql, Time.instant - started)
-        end
       end
 
       # Runs a query expecting a single row, yielded to the block.
       def query_one(sql : String, *args, &block : DB::ResultSet -> U) : U forall U
-        start = Time.instant if Altair::Record.query_handlers?
-        result = if conn = active_connection
-                   conn.fetch_or_build_prepared_statement(sql).query(*args) do |rs|
-                     rs.move_next || raise DB::NoResultsError.new("No results")
-                     block.call(rs)
-                   end
-                 elsif Altair::Record.checkout_hooks?
-                   run_checkout do
-                     @database.query_one(sql, *args) { |rs| block.call(rs) }
-                   end
-                 else
-                   @database.query_one(sql, *args) { |rs| block.call(rs) }
-                 end
-        if started = start
-          notify(sql, Time.instant - started)
+        if measure?
+          measured_statement(sql, QueryEvent::Operation.from_sql(sql)) do |conn, meter|
+            sql_started = Time.instant
+            conn.query_one(sql, *args) do |rs|
+              meter.sql = Time.instant - sql_started
+              start = Time.instant
+              value = block.call(rs)
+              meter.add_decode(Time.instant - start)
+              value
+            end
+          end
+        elsif conn = active_connection
+          conn.fetch_or_build_prepared_statement(sql).query(*args) do |rs|
+            rs.move_next || raise DB::NoResultsError.new("No results")
+            block.call(rs)
+          end
+        elsif Altair::Record.checkout_hooks?
+          run_checkout do
+            @database.query_one(sql, *args) { |rs| block.call(rs) }
+          end
+        else
+          @database.query_one(sql, *args) { |rs| block.call(rs) }
         end
-        result
       end
 
       # Returns the last auto-generated id of an insert result.
@@ -250,14 +275,111 @@ module Altair
         @database.close
       end
 
-      private def notify(sql : String, duration : Time::Span) : Nil
-        Altair::Record.notify_query(sql, duration)
-      end
-
       # Runs the registered checkout hooks around a connection acquisition,
       # preserving the block's return value.
       private def run_checkout(&block : -> U) : U forall U
         Altair::Record.run_checkout_hooks(&block)
+      end
+
+      # Whether any timing hook is registered. The zero-cost path (no clock
+      # reads) is taken only when this is false.
+      private def measure? : Bool
+        Altair::Record.query_handlers? || Altair::Record.query_event_handlers?
+      end
+
+      # Runs the block and returns how long it took.
+      private def measured(& : -> U) : Time::Span forall U
+        start = Time.instant
+        yield
+        Time.instant - start
+      end
+
+      # Runs a statement with granular timing, reporting a `QueryEvent`
+      # regardless of success. Inside a transaction the connection is already
+      # held, so checkout wait is zero. Otherwise the acquisition wait (the
+      # admission gate plus the pool checkout) is timed separately from the
+      # SQL execution, and the connection is always returned to the pool —
+      # even when the statement raises or the checkout times out.
+      private def measured_statement(
+        sql : String,
+        op : QueryEvent::Operation,
+        &block : DB::Connection, QueryMeter -> U
+      ) : U forall U
+        meter = QueryMeter.new
+        started = Time.instant
+        success = true
+        result = uninitialized U
+        begin
+          if conn = active_connection
+            # The statement-specific runner records SQL and decode spans at
+            # their exact boundaries. Wrapping the whole block here would
+            # fold row decoding back into sql_time for transactions.
+            result = block.call(conn, meter)
+          else
+            checkout_started = Time.instant
+            inner = ->(cn : DB::Connection) {
+              meter.checkout = Time.instant - checkout_started
+              result = block.call(cn, meter)
+              nil
+            }
+            callback = ->(run : Proc(DB::Connection, Nil)) {
+              @database.retry do
+                checked = uninitialized DB::Connection
+                begin
+                  checked = @database.checkout
+                rescue ex
+                  meter.checkout = Time.instant - checkout_started
+                  raise ex
+                end
+                begin
+                  run.call(checked)
+                ensure
+                  checked.release
+                end
+              end
+            }
+            if Altair::Record.checkout_hooks?
+              run_checkout { callback.call(inner) }
+            else
+              callback.call(inner)
+            end
+          end
+        rescue ex
+          success = false
+          meter.checkout = Time.instant - started if meter.checkout.zero? && !active_connection
+          raise ex
+        ensure
+          if Altair::Record.query_event_handlers?
+            Altair::Record.notify_query_event(
+              sql, @adapter.class.name, op,
+              meter.checkout, meter.sql, meter.decode, success
+            )
+          end
+          if Altair::Record.query_handlers?
+            Altair::Record.notify_query(sql, Time.instant - started)
+          end
+        end
+        result
+      end
+
+      # Pool statistics read on demand (for observability). Reading them is
+      # opt-in and never runs in the hot path.
+      def pool_stats : DB::Pool::Stats?
+        @database.pool.stats
+      end
+    end
+
+    # Accumulates timing for a single statement, shared between the measured
+    # runner and the row-reading block so decode time can be summed across
+    # many rows without leaking through the block's return value.
+    class QueryMeter
+      property checkout : Time::Span = Time::Span::ZERO
+      property sql : Time::Span = Time::Span::ZERO
+      property decode : Time::Span = Time::Span::ZERO
+
+      # Adds a row-reading span to the running decode total.
+      def add_decode(span : Time::Span) : Nil
+        @decode += span
       end
     end
   end

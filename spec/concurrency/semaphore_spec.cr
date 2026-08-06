@@ -17,7 +17,7 @@ describe Altair::Concurrency::Semaphore do
       completed.send(true)
     end
     select
-    when received = completed.receive
+    when completed.receive
       fail "acquire should have blocked once the permits ran out"
     when timeout(100.milliseconds)
     end
@@ -33,7 +33,7 @@ describe Altair::Concurrency::Semaphore do
     end
     Fiber.yield
     select
-    when released = completed.receive
+    when completed.receive
       fail "acquire should have blocked"
     when timeout(100.milliseconds)
     end
@@ -72,9 +72,38 @@ describe Altair::Concurrency::Semaphore do
       completed.send(true)
     end
     select
-    when received = completed.receive
+    when completed.receive
     when timeout(100.milliseconds)
       fail "with_permit should put the permit back after the block raised"
     end
+  end
+
+  it "times out acquiring a permit that never becomes available" do
+    sem = Altair::Concurrency::Semaphore.new(1)
+    sem.acquire
+    acquired = Channel(Bool).new
+    spawn do
+      acquired.send(sem.acquire(40.milliseconds))
+    end
+    sem.release
+    acquired.receive.should be_true
+    sem.acquire(timeout: 1.millisecond).should be_false
+  end
+
+  it "acquires within a short deadline when a permit is free" do
+    sem = Altair::Concurrency::Semaphore.new(1)
+    sem.acquire(10.milliseconds).should be_true
+  end
+
+  it "raises Concurrency::Timeout past the deadline and leaves the permit intact" do
+    sem = Altair::Concurrency::Semaphore.new(1)
+    sem.acquire
+    expect_raises(Altair::Concurrency::Timeout) do
+      sem.with_permit(20.milliseconds) { }
+    end
+    # The timed-out acquire never took a permit, so releasing the held one
+    # makes it available again and the next acquire succeeds.
+    sem.release
+    sem.acquire(10.milliseconds).should be_true
   end
 end

@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Granular query instrumentation**: `Altair::Record.on_query_event`
+  receives a `QueryEvent` per statement with `checkout_wait`, `sql_time`
+  and `decode_time` reported separately — so pool and admission wait are
+  never mistaken for SQL time. The event also carries the operation type
+  (`Query`/`Insert`/`Update`/`Delete`/`Other`), the adapter name and a
+  `success` flag, and it fires in an `ensure` so failed statements are
+  reported too (without ever exposing bind values). The legacy `on_query`
+  hook keeps its single-total-duration contract unchanged. A bare app with
+  no handler still pays zero clock reads.
+- **`Connection#pool_stats`**: on-demand open/idle/in-flight/max connection
+  counts for observability; opt-in and never on the hot path.
+- **Bounded admission wait**: `config.db_admission_timeout` (default 5s)
+  caps how long a request waits on the FIFO permit gate for a database
+  permit. Past the deadline the request raises
+  `Altair::Concurrency::Timeout` (a 503 by default) instead of parking in
+  the gate forever, and any partially-acquired permit is released.
+
+### Changed
+
+- **`Altair::Record.connection` is lock-free once open**: the steady path
+  reads the cached connection directly; the init mutex is only taken to
+  open, close or reopen the pool (double-checked). High-concurrency first
+  touch still opens exactly one pool.
+- **The admission gate is clamped to the pool's maximum** — a
+  `db_max_active_queries` larger than `db_max_pool_size` caps nothing, so
+  it is clamped (and logged) instead of arming a meaningless bound.
+- **`belongs_to` memoizes an explicitly preloaded/assigned `nil`**, so
+  touching an eager-loaded owner whose foreign key has no row never issues
+  a per-record query — the loader no longer degrades into an N+1 when a
+  foreign key is missing.
+
 - **Database admission control**: `config.db_max_active_queries` caps how
   many fibers may hold a pooled connection at once. Requests past the
   limit wait on a FIFO permit gate outside the pool, so under overload the

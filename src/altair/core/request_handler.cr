@@ -24,7 +24,24 @@ class Altair::Core::RequestHandler
     @router = Altair::Routing::Router.new(Altair::Routing.route_set_for(@app.class).routes)
     @chain = build_chain
     Altair::Record::NDetector.enable(Altair.env, @app.config.detect_n_plus_one?, @app.config.n_plus_one_threshold)
-    Altair::Record::PermitGate.enable(@app.config.db_max_active_queries)
+    Altair::Record::PermitGate.enable(admission_limit, @app.config.db_admission_timeout)
+  end
+
+  # The configured admission gate limit, clamped to the pool's maximum. A
+  # gate wider than the pool caps nothing (the pool is the real limit), so
+  # the documented behavior is to clamp rather than boot with a meaningless
+  # bound.
+  private def admission_limit : Int32
+    configured = @app.config.db_max_active_queries
+    pool = @app.config.db_max_pool_size
+    if configured > 0 && pool > 0 && configured > pool
+      @app.config.logger.info do
+        "clamping db_max_active_queries=#{configured} to db_max_pool_size=#{pool}"
+      end
+      pool
+    else
+      configured
+    end
   end
 
   def call(context : ::HTTP::Server::Context) : Nil

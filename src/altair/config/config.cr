@@ -64,6 +64,12 @@ module Altair
     # keeps tail latency bounded under overload. `0` disables the gate.
     property db_max_active_queries : Int32 = 0
 
+    # How long a request waits on the admission gate for a database permit
+    # before raising `Altair::Concurrency::Timeout` (a 503 by default). A
+    # deadline keeps saturated requests from parking in the FIFO queue
+    # forever; `db_checkout_timeout` bounds the pool wait separately.
+    property db_admission_timeout : Time::Span = 5.seconds
+
     # The initial number of connections opened when the pool is created.
     # Starting warm avoids connection-creation bursts under the first wave
     # of concurrent requests.
@@ -79,7 +85,9 @@ module Altair
     # before raising, in seconds.
     property db_checkout_timeout : Float64 = 5.0
 
-    # The per-query timeout applied to statements.
+    # The per-query timeout applied to statements. PostgreSQL receives this as
+    # a server-side `statement_timeout` during connection startup; adapters
+    # that do not support cancellation may only use it for checkout policy.
     property db_query_timeout : Time::Span = 5.seconds
 
     # Whether the development-mode N+1 detector is active. It counts

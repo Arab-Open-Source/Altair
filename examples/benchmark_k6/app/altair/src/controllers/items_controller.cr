@@ -22,14 +22,23 @@ class ItemsController < ApplicationController
 
   # POST /items — insert one row from a JSON body.
   def create : Nil
-    raw = request.body
-    if raw.nil? || raw.empty?
+    # Reuse the JSON body the framework already parsed on the request (see
+    # Altair::HTTP::Request#parse_json_body); re-parsing `request.body` here
+    # was a redundant parse on every write. The expected shape is a flat
+    # object like {"name":"...","price":12.5}.
+    json = request.json
+    unless body = json
       render json: %({"error":"body required"}), status: ::HTTP::Status::BAD_REQUEST
       return
     end
-    payload = JSON.parse(raw)
-    name = payload["name"]?.try(&.as_s)
-    price = payload["price"]? ? payload["price"].try(&.as_f) : nil
+    object = body.as_h?
+    unless object
+      render json: %({"error":"name and numeric price required"}), status: ::HTTP::Status::BAD_REQUEST
+      return
+    end
+    name = object["name"]?.try(&.as_s)
+    price_value = object["price"]?
+    price = price_value ? price_value.try(&.as_f) : nil
     if name.nil? || price.nil?
       render json: %({"error":"name and numeric price required"}), status: ::HTTP::Status::BAD_REQUEST
       return

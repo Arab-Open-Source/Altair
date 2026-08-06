@@ -20,6 +20,13 @@ ulimit -n 65535
 # comparable across frameworks: p99 and p99.9 expose the multi-second outliers.
 TREND_STATS="avg,med,p(90),p(95),p(99),p(99.9),max"
 
+# Load profile: defaults retain the original stress profile (2000 VUs, 90s).
+# The committed comparison uses the lower-saturation 1000-VU/60s profile.
+# Override
+# for a lower-saturation rerun, e.g. `VUS=1000 DURATION=90 ./scripts/bench.sh ..`
+VUS="${VUS:-2000}"
+DURATION="${DURATION:-90}"
+
 DB_URL="postgres://bench:bench@127.0.0.1:55433/bench"
 mkdir -p results
 
@@ -94,7 +101,7 @@ PG() { env PGPASSWORD=bench psql -h 127.0.0.1 -p 55433 -U bench -d bench "$@"; }
 
 # Write phase: empty table, POSTs add rows.
 PG -c "TRUNCATE $TABLE RESTART IDENTITY;" > /dev/null
-k6 run -e "BASE_URL=http://127.0.0.1:$PORT" -e VUS=2000 -e DURATION=90 \
+k6 run -e "BASE_URL=http://127.0.0.1:$PORT" -e VUS="$VUS" -e DURATION="$DURATION" \
   --summary-trend-stats "$TREND_STATS" --summary-export "results/$FRAMEWORK-write.json" k6/write.js
 
 # Read phase: reseed 10,000 rows then GET them.
@@ -106,7 +113,7 @@ SELECT g, 'item-' || g, ROUND((random() * 1000)::numeric, 2)
 FROM generate_series(1, 10000) AS g;
 SELECT setval('${TABLE}_id_seq', 10000);
 SQL
-k6 run -e "BASE_URL=http://127.0.0.1:$PORT" -e VUS=2000 -e DURATION=90 \
+k6 run -e "BASE_URL=http://127.0.0.1:$PORT" -e VUS="$VUS" -e DURATION="$DURATION" \
   --summary-trend-stats "$TREND_STATS" --summary-export "results/$FRAMEWORK-read.json" k6/read.js
 
 echo "== done: results/$FRAMEWORK-write.json, results/$FRAMEWORK-read.json =="

@@ -18,6 +18,13 @@ if (cluster.isPrimary && workers > 1) {
   app.use(express.json());
 
   const table = process.env.BENCH_TABLE || "items";
+
+  // Build the query strings once per process. The table name is fixed for the
+  // lifetime of the server, so re-interpolating it on every request only added
+  // allocation; node-postgres never prepares the statement anyway.
+  const insertQuery = `INSERT INTO ${table} (name, price) VALUES ($1, $2) RETURNING id`;
+  const selectQuery = `SELECT id, name, price FROM ${table} WHERE id = $1`;
+
   // The pool is split across cluster workers so the process-wide connection
   // count equals BENCH_POOL (each worker holds BENCH_POOL / workers).
   const poolTotal = Number(process.env.BENCH_POOL || 10);
@@ -34,18 +41,12 @@ if (cluster.isPrimary && workers > 1) {
     if (!name || typeof price !== "number") {
       return res.status(400).json({ error: "name and numeric price required" });
     }
-    const result = await pool.query(
-      `INSERT INTO ${table} (name, price) VALUES ($1, $2) RETURNING id`,
-      [name, price]
-    );
+    const result = await pool.query(insertQuery, [name, price]);
     res.status(201).json({ id: result.rows[0].id });
   });
 
   app.get("/items/:id", async (req, res) => {
-    const result = await pool.query(
-      `SELECT id, name, price FROM ${table} WHERE id = $1`,
-      [req.params.id]
-    );
+    const result = await pool.query(selectQuery, [req.params.id]);
     if (result.rowCount === 0) {
       return res.status(404).json({ error: "not found" });
     }

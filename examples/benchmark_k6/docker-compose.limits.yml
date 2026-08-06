@@ -1,0 +1,13 @@
+# Lower-saturation fairness re-run: PostgreSQL pinned to 3 CPUs / 3 GiB.
+# Use with:
+#   docker compose -f docker-compose.yml -f docker-compose.limits.yml up -d postgres
+# The apps in the host-native bench.sh run unconstrained on the host; only the
+# DB budget changes, so the framework ceiling is lower (less saturated) and raw
+# per-request cost is exposed.
+services:
+  postgres:
+    deploy:
+      resources:
+        limits:
+          cpus: "3.0"
+          memory: 3G

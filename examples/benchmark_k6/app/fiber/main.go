@@ -1,8 +1,8 @@
 // Altair benchmark - Fiber (Go) server.
 //
-// Tuned: GOMAXPROCS is pinned to the number of CPUs the container is
-// granted, and the pgx pool is sized explicitly. The HTTP layer uses
-// Fiber's default (single-process, preemptive goroutine scheduling).
+// Tuned: GOMAXPROCS tracks the deployment CPU budget, and the pgx pool is
+// sized explicitly. The HTTP layer uses Fiber's default
+// (single-process, preemptive goroutine scheduling).
 package main
 
 import (
@@ -12,8 +12,10 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"sync"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -24,28 +26,61 @@ func env(key, fallback string) string {
 	return fallback
 }
 
+// itemBody is pooled to avoid a per-request allocation on the write path.
+type itemBody struct {
+	Name  string  `json:"name"`
+	Price float64 `json:"price"`
+}
+
+var bodyPool = sync.Pool{
+	New: func() any { return new(itemBody) },
+}
+
 func main() {
-	// Tune: pin the Go scheduler to the same worker count as the other
-	// runtimes (BENCH_WORKERS), defaulting to all available CPUs.
+	// GOMAXPROCS defaults to NumCPU; BENCH_WORKERS (if set) overrides it so the
+	// Go scheduler matches the other runtimes' worker budget.
 	if w := env("BENCH_WORKERS", ""); w != "" {
-		n, _ := strconv.Atoi(w)
-		if n > 0 {
+		if n, err := strconv.Atoi(w); err == nil && n > 0 {
 			runtime.GOMAXPROCS(n)
 		}
 	}
 
-	pool, err := pgxpool.New(context.Background(), env("DATABASE_URL", "postgres://bench:bench@postgres:5432/bench"))
+	// Build the query strings once per process. The table is fixed for the
+	// process lifetime, so re-interpolating it on every request only added
+	// allocation; the original code ran fmt.Sprintf on each request.
+	table := env("BENCH_TABLE", "items")
+	insertQuery := fmt.Sprintf("INSERT INTO %s (name, price) VALUES ($1, $2) RETURNING id", table)
+	selectQuery := fmt.Sprintf("SELECT name, price FROM %s WHERE id = $1", table)
+
+	// Configure the pool from the same DSN the other runtimes use, then size it
+	// to match them and prepare once per physical connection so steady-state
+	// traffic reuses named prepared statements instead of re-describing on
+	// every QueryRow.
+	config, err := pgxpool.ParseConfig(env("DATABASE_URL", "postgres://bench:bench@postgres:5432/bench"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	maxConns, _ := strconv.Atoi(env("BENCH_POOL", "30"))
+	config.MaxConns = int32(maxConns)
+	config.MinConns = int32(maxConns)
+	config.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		// Prepare the named statements once per physical connection so the
+		// QueryRow/Query calls below reuse them (one round trip each) instead
+		// of re-describing the statement on every request.
+		if _, err := conn.Prepare(ctx, "insert_item", insertQuery); err != nil {
+			return fmt.Errorf("prepare insert: %w", err)
+		}
+		if _, err := conn.Prepare(ctx, "select_item", selectQuery); err != nil {
+			return fmt.Errorf("prepare select: %w", err)
+		}
+		return nil
+	}
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer pool.Close()
-	// Tune: pool sized to match the other runtimes (BENCH_POOL), eagerly
-	// keeping all connections warm.
-	maxConns, _ := strconv.Atoi(env("BENCH_POOL", "30"))
-	pool.Config().MaxConns = int32(maxConns)
-	pool.Config().MinConns = int32(maxConns)
 
-	table := env("BENCH_TABLE", "items")
 	port := env("PORT", "8080")
 
 	app := fiber.New()
@@ -54,17 +89,22 @@ func main() {
 		return c.JSON(map[string]bool{"ok": true})
 	})
 
+	ctx := context.Background()
+
 	app.Post("/items", func(c *fiber.Ctx) error {
-		var body struct {
-			Name  string  `json:"name"`
-			Price float64 `json:"price"`
-		}
-		if err := c.BodyParser(&body); err != nil || body.Name == "" {
+		bp := bodyPool.Get().(*itemBody)
+		bp.Name = ""
+		bp.Price = 0
+		defer func() {
+			bp.Name = ""
+			bp.Price = 0
+			bodyPool.Put(bp)
+		}()
+		if err := c.BodyParser(bp); err != nil || bp.Name == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name and numeric price required"})
 		}
 		var id int64
-		query := fmt.Sprintf("INSERT INTO %s (name, price) VALUES ($1, $2) RETURNING id", table)
-		if err := pool.QueryRow(context.Background(), query, body.Name, body.Price).Scan(&id); err != nil {
+		if err := pool.QueryRow(ctx, "insert_item", bp.Name, bp.Price).Scan(&id); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 		}
 		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
@@ -77,8 +117,7 @@ func main() {
 		}
 		var name string
 		var price float64
-		query := fmt.Sprintf("SELECT name, price FROM %s WHERE id = $1", table)
-		if err := pool.QueryRow(context.Background(), query, id).Scan(&name, &price); err != nil {
+		if err := pool.QueryRow(ctx, "select_item", id).Scan(&name, &price); err != nil {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "not found"})
 		}
 		return c.JSON(fiber.Map{"id": id, "name": name, "price": price})

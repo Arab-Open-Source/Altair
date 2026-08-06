@@ -17,6 +17,7 @@ module Altair
       @@enabled = false
       @@registered = false
       @@semaphore : Altair::Concurrency::Semaphore? = nil
+      @@timeout = 5.seconds
       @@lock = Mutex.new
 
       # Whether the gate is currently armed.
@@ -27,9 +28,13 @@ module Altair
       # Arms the gate with `max_active` concurrent connections when the
       # value is positive, registering the checkout hook once. A
       # non-positive value disarms it. Called whenever a request handler is
-      # built for an application.
-      def self.enable(max_active : Int32) : Nil
+      # built for an application. `timeout` bounds how long a fiber waits on
+      # the FIFO gate; past the deadline it raises
+      # `Altair::Concurrency::Timeout` instead of waiting forever, and no
+      # permit is left stranded.
+      def self.enable(max_active : Int32, timeout : Time::Span = 5.seconds) : Nil
         @@lock.synchronize do
+          @@timeout = timeout
           @@semaphore = max_active > 0 ? Altair::Concurrency::Semaphore.new(max_active) : nil
           @@enabled = max_active > 0
           register if @@enabled && !@@registered
@@ -39,7 +44,7 @@ module Altair
       private def self.register : Nil
         Altair::Record.on_checkout do |run|
           if semaphore = @@semaphore
-            semaphore.with_permit { run.call }
+            semaphore.with_permit(@@timeout) { run.call }
           else
             run.call
           end

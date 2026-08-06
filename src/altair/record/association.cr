@@ -29,21 +29,32 @@ module Altair
         {% fk = foreign_key ? foreign_key.id : "#{name.id}_id" %}
 
         @{{ assoc.id }} : {{ model.id }}?
+        @{{ assoc.id }}_loaded : Bool = false
 
-        # The associated record, loaded lazily and cached.
+        # The associated record, loaded lazily and cached. An explicitly
+        # preloaded or assigned `nil` is memoized, so accessing it after
+        # eager loading never issues another query — the loader must not
+        # degrade into a per-record lookup when a foreign key is missing.
         def {{ assoc.id }} : {{ model.id }}?
-          @{{ assoc.id }} ||= @{{ fk.id }}.try { |id| {{ model.id }}.find(id) }
+          if @{{ assoc.id }}_loaded
+            @{{ assoc.id }}
+          else
+            @{{ assoc.id }}_loaded = true
+            @{{ assoc.id }} = @{{ fk.id }}.try { |id| {{ model.id }}.find(id) }
+          end
         end
 
         # Assigns the associated record and its foreign key.
         def {{ assoc.id }}=(owner : {{ model.id }}?) : Nil
           @{{ assoc.id }} = owner
+          @{{ assoc.id }}_loaded = true
           @{{ fk.id }} = owner.try(&.id)
         end
 
         # Sets the cached record during eager loading.
         protected def __set_preloaded_{{ assoc.id }}(owner : {{ model.id }}?) : Nil
           @{{ assoc.id }} = owner
+          @{{ assoc.id }}_loaded = true
         end
 
         # Loads every associated record in one batched query, grouped by

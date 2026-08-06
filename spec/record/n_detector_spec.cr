@@ -82,7 +82,7 @@ describe Altair::Record::NDetector do
       posts = seed_posts(4)
       output = with_log_capture do
         Altair::Record::NDetector.begin_request
-        posts.each { |post| post.comments.size }
+        posts.each(&.comments.size)
         Altair::Record::NDetector.end_request
       end
       output.should contain("likely N+1")
@@ -96,7 +96,7 @@ describe Altair::Record::NDetector do
       posts = seed_posts(2)
       output = with_log_capture do
         Altair::Record::NDetector.begin_request
-        posts.each { |post| post.comments.size }
+        posts.each(&.comments.size)
         Altair::Record::NDetector.end_request
       end
       output.should_not contain("likely N+1")
@@ -109,7 +109,7 @@ describe Altair::Record::NDetector do
       posts = seed_posts(9)
       output = with_log_capture do
         Altair::Record::NDetector.begin_request
-        posts.each { |post| post.comments.size }
+        posts.each(&.comments.size)
         Altair::Record::NDetector.end_request
       end
       output.scan("likely N+1").size.should eq(1)
@@ -122,10 +122,10 @@ describe Altair::Record::NDetector do
       posts = seed_posts(4)
       output = with_log_capture do
         Altair::Record::NDetector.begin_request
-        posts.first(2).each { |post| post.comments.size }
+        posts.first(2).each(&.comments.size)
         Altair::Record::NDetector.end_request
         Altair::Record::NDetector.begin_request
-        posts.last(2).each { |post| post.comments.size }
+        posts.last(2).each(&.comments.size)
         Altair::Record::NDetector.end_request
       end
       output.should_not contain("likely N+1")
@@ -137,7 +137,7 @@ describe Altair::Record::NDetector do
       arm_detector
       posts = seed_posts(9)
       output = with_log_capture do
-        posts.each { |post| post.comments.size }
+        posts.each(&.comments.size)
       end
       output.should_not contain("likely N+1")
     end
@@ -149,7 +149,7 @@ describe Altair::Record::NDetector do
       posts = seed_posts(5)
       output = with_log_capture do
         Altair::Record::NDetector.begin_request
-        posts.each { |post| post.comments.size }
+        posts.each(&.comments.size)
         Altair::Record::NDetector.end_request
       end
       output.should_not contain("likely N+1")
@@ -162,8 +162,8 @@ describe Altair::Record::NDetector do
       posts = seed_posts(4)
       output = with_log_capture do
         Altair::Record::NDetector.begin_request
-        posts.each { |post| post.comments.size }
-        posts.each { |post| post.comments.each { |comment| comment.post_id } }
+        posts.each(&.comments.size)
+        posts.each { |post| post.comments.each(&.post_id) }
         Altair::Record::NDetector.end_request
       end
       output.scan("likely N+1").size.should eq(1)

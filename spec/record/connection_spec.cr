@@ -309,4 +309,129 @@ describe Altair::Record::Connection do
     end
     around.should eq(1)
   end
+
+  it "reports granular timing through on_query_event with operation and adapter" do
+    conn = spec_connection
+    events = [] of Altair::Record::QueryEvent
+    Altair::Record.on_query_event { |e| events << e }
+    begin
+      conn.exec("INSERT INTO widgets (name) VALUES (?)", "evt")
+      conn.query_one("SELECT name FROM widgets WHERE name = ?", "evt") { |rs| rs.read(String) }
+    ensure
+      conn.close
+    end
+    events.size.should eq(2)
+    events[0].operation.should eq(Altair::Record::QueryEvent::Operation::Insert)
+    events[1].operation.should eq(Altair::Record::QueryEvent::Operation::Query)
+    events[0].adapter.should contain("SQLite")
+    events.each do |e|
+      e.success?.should be_true
+      e.sql_time.should be >= Time::Span::ZERO
+      e.total.should eq(e.checkout_wait + e.sql_time + e.decode_time)
+    end
+  end
+
+  it "records zero checkout wait for statements inside a transaction" do
+    conn = spec_connection
+    events = [] of Altair::Record::QueryEvent
+    Altair::Record.on_query_event { |e| events << e }
+    begin
+      conn.transaction do
+        conn.exec("INSERT INTO widgets (name) VALUES (?)", "txn")
+        conn.query_one("SELECT COUNT(*) FROM widgets") { |rs| rs.read(Int64) }
+      end
+    ensure
+      conn.close
+    end
+    events.should_not be_empty
+    events.all?(&.checkout_wait.zero?).should be_true
+  end
+
+  it "keeps transaction decode time out of sql time" do
+    conn = spec_connection
+    events = [] of Altair::Record::QueryEvent
+    Altair::Record.on_query_event { |e| events << e }
+    begin
+      conn.transaction do
+        conn.query_one("SELECT COUNT(*) FROM widgets") do |rs|
+          sleep 25.milliseconds
+          rs.read(Int64)
+        end
+      end
+    ensure
+      conn.close
+    end
+    events.size.should eq(1)
+    events[0].decode_time.should be > events[0].sql_time
+  end
+
+  it "notifies on_query_event when a statement fails, without a leak" do
+    conn = spec_connection
+    events = [] of Altair::Record::QueryEvent
+    Altair::Record.on_query_event { |e| events << e }
+    begin
+      expect_raises(Exception) do
+        # Inserting NULL into a NOT NULL column violates the constraint.
+        conn.exec("INSERT INTO widgets (name) VALUES (?)", nil)
+      end
+      # The failed statement's connection returned to the pool and a fresh
+      # statement still works on it.
+      stats = conn.database.pool.stats
+      stats.idle_connections.should eq(stats.open_connections)
+      conn.query_one("SELECT COUNT(*) FROM widgets") { |rs| rs.read(Int64) }.should eq(0)
+    ensure
+      # Closing a SQLite pool re-raises the last failed statement's residual
+      # error on finalize — a crystal-sqlite3 quirk independent of Altair
+      # that happens on the legacy path too. Tolerate it here.
+      begin
+        conn.close
+      rescue SQLite3::Exception
+      end
+    end
+    failing = events.find { |e| !e.success? }
+    failing.should_not be_nil
+    failing.not_nil!.operation.should eq(Altair::Record::QueryEvent::Operation::Insert)
+  end
+
+  it "measures decode time across query rows" do
+    conn = spec_connection
+    conn.exec("DELETE FROM widgets")
+    3.times { |i| conn.exec("INSERT INTO widgets (name) VALUES (?)", "row#{i}") }
+    events = [] of Altair::Record::QueryEvent
+    Altair::Record.on_query_event { |e| events << e }
+    begin
+      conn.query("SELECT name FROM widgets") { |rs| rs.each { rs.read(String) } }
+    ensure
+      conn.close
+    end
+    events.size.should eq(1)
+    events[0].decode_time.should be >= Time::Span::ZERO
+    events[0].success?.should be_true
+  end
+
+  it "exposes on-demand pool statistics" do
+    conn = spec_connection
+    begin
+      stats = conn.pool_stats
+      stats.not_nil!.open_connections.should be > 0
+      stats.not_nil!.idle_connections.should eq(stats.not_nil!.open_connections)
+    ensure
+      conn.close
+    end
+  end
+
+  it "shares one cached connection across concurrent first touch" do
+    Altair.application_instance = SpecApp.instance
+    Altair::Record.close_connection
+    results = Channel(Altair::Record::Connection).new
+    n = 16
+    n.times do
+      spawn { results.send(Altair::Record.connection) }
+    end
+    first = results.receive
+    (n - 1).times do
+      results.receive.should be(first)
+    end
+    Altair::Record.close_connection
+  end
 end

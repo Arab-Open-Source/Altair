@@ -42,16 +42,14 @@ describe Altair::Record::PermitGate do
       n = 8
       n.times do
         spawn do
-          begin
-            lock.synchronize do
-              current += 1
-              peak = current if current > peak
-            end
-            conn.exec("INSERT INTO gates DEFAULT VALUES")
-          ensure
-            lock.synchronize { current -= 1 }
-            done.send(true)
+          lock.synchronize do
+            current += 1
+            peak = current if current > peak
           end
+          conn.exec("INSERT INTO gates DEFAULT VALUES")
+        ensure
+          lock.synchronize { current -= 1 }
+          done.send(true)
         end
       end
       n.times { done.receive }
@@ -70,5 +68,30 @@ describe Altair::Record::PermitGate do
     ensure
       conn.close
     end
+  end
+
+  it "raises a bounded timeout when no permit frees up within the deadline" do
+    Altair::Record::PermitGate.enable(1, 30.milliseconds)
+    began = Channel(Nil).new
+    release = Channel(Nil).new
+    finished = Channel(Bool).new
+    # Hold the single permit on another fiber until told otherwise.
+    spawn do
+      Altair::Record.run_checkout_hooks do
+        began.send(nil)
+        release.receive
+      end
+    ensure
+      finished.send(true)
+    end
+    began.receive
+    # A contended acquisition must time out instead of parking forever.
+    expect_raises(Altair::Concurrency::Timeout) do
+      Altair::Record.run_checkout_hooks { }
+    end
+    release.send(nil)
+    finished.receive.should be_true
+    # The held permit was returned, so a fresh acquisition succeeds.
+    Altair::Record.run_checkout_hooks { }.should be_nil
   end
 end
