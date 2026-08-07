@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Showcase — the project command wrapper.
+#
+# Shims `crystal run` so `bin/altair server` runs directly.
+exec crystal run "$(dirname "$0")/altair.cr" -- "$@"

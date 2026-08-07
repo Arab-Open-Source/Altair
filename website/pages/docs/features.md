@@ -1,6 +1,6 @@
 # What is implemented
 
-Altair is built in phases, each ending with something working and visible. Everything below is implemented, tested and shipped. Each area has a guide: [Routing](/docs/routing.html), [Controllers](/docs/controllers.html), [Views](/docs/views.html) and [Record](/docs/record.html).
+Altair is built in phases, each ending with something working and visible. Everything below is implemented, tested and shipped. Each area has a guide: [Routing](/docs/routing.html), [Controllers](/docs/controllers.html), [Views](/docs/views.html), [Record](/docs/record.html), [Sessions and auth](/docs/sessions.html), [Configuration](/docs/configuration.html), [Security](/docs/security.html) and [Uploads](/docs/uploads.html).
 
 ## Phase 0 — Foundation
 
@@ -31,7 +31,7 @@ A type-checked controller base with actions, parameters and rendering hooks. A w
 - ECR templates
 - Auto-escaping by default — XSS-safe out of the box
 - Layouts with `yield`, partials (`render "form"`)
-- Helpers: `link_to`, `content_tag`, a basic form builder
+- Helpers: `link_to`, `content_tag`, a basic form builder, and an htmx layer
 
 ## Phase 4 — Record (ORM)
 
@@ -50,6 +50,32 @@ Three vertical waves:
 - `altair update` checks GitHub for a newer release, verifies the checksum and swaps the binary atomically
 - Prebuilt binaries for Linux, macOS and Windows (amd64 + arm64) published with checksums; verified one-command installers
 
+## Phase 6 — Hardening
+
+Sessions, authentication, file-driven configuration, multipart uploads and a
+security middleware set, shipped in waves:
+
+- **Sessions + flash + CSRF** — signed-cookie sessions with a `session`
+  hash view, one-request `flash` messages, `protect_from_forgery` with
+  constant-time token verification, and login helpers (`sign_in`,
+  `sign_out`, `require_login`, `authenticate!`, `current_user_id`)
+- **JWT auth** — `Altair::Auth::JWT`, a minimal HS256 implementation for
+  stateless API auth
+- **Configuration** — `.env` (real env vars win; `.env.<environment>`
+  overrides `.env`) and `config/database.yml` per-environment settings,
+  merged into `config` at boot by `Altair::Config::DotEnv` /
+  `Altair::Config::Database`; `altair new` generates both files
+- **Multipart uploads** — `multipart/form-data` bodies parse into the
+  parameter bag (scalar fields as params, files as
+  `Altair::HTTP::UploadedFile` via `params.upload("avatar")`, with
+  `UploadedFile#save` + `#content`)
+- **Security middleware set** — `SecurityHeaders` (default `nosniff` /
+  `SAMEORIGIN` / referrer policy, driven by `config.security_headers`),
+  `RequestId` (`request.request_id`, echo-back through
+  `config.request_id_header`, appended to the request log line), and
+  opt-in `Cors` (`config.cors.origins` enables it; preflight answered
+  directly)
+
 ## Performance hardening
 
 - `find_each` streams bounded batches that keep the scoped `where` filters and `includes` preloaders
@@ -57,6 +83,7 @@ Three vertical waves:
 - The server resizes the execution context to the available workers on boot (honors `CRYSTAL_WORKERS`; `config.parallel_execution` opt-out)
 - Warm connection-pool defaults: `initial 2 / idle 2 / max 10`
 - A development-mode N+1 detector warns on identical SQL fired more than `config.n_plus_one_threshold` times in one request
+- A database admission-control gate (`config.db_max_active_queries`, off by default) parks excess request fibers on a FIFO semaphore outside the pool, bounding tail latency under saturation
 - The record hot path builds each SQL statement once per connection
   (`Connection#sql_template`): `find`, `find_by_*` and `insert` cache their
   quoted statements, halving the write-path allocations (PostgreSQL:
@@ -65,11 +92,10 @@ Three vertical waves:
 
 ## Testing and quality
 
-- 634 specs passing (5 pending: the PostgreSQL concurrency contract tests; the full PostgreSQL contract suite runs when `ALTAIR_TEST_PG_URL` is set)
+- 705 specs passing (6 pending: the PostgreSQL concurrency contract tests; the full PostgreSQL contract suite runs when `ALTAIR_TEST_PG_URL` is set)
 - Formatter clean, linter silent on framework sources
 - Smart error pages: 404 with route suggestions, 405 with `_method` explanation, detailed 500 diagnostics in debug mode only
 
 ## What is planned next
 
-- **Phase 6 (Hardening):** sessions + flash + CSRF, `database.yml` / `.env` config, real project quality
 - **Phase 7 (Post-release):** background jobs, full authentication, asset pipeline, rich query DSL, testing utilities

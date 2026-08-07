@@ -1,0 +1,6 @@
+<% form_for("/submit", method: :post) do |f| %>
+  <%= f.submit("Save") %>
+<% end %>
+<% form_for(route(1), method: :delete, class: "inline") do |f| %>
+  <%= f.submit("Delete") %>
+<% end %>

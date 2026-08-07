@@ -1,0 +1,11 @@
+# Showcase — the database configuration.
+# The active environment's section is applied at boot by
+# `Altair::Config::Database`; `ENV["DATABASE_URL"]` overrides `url`.
+development:
+  url: "sqlite3://./db/showcase.db"
+
+test:
+  url: "sqlite3://./db/showcase_test.db"
+
+production:
+  url: "sqlite3://./db/showcase_production.db"

@@ -12,13 +12,16 @@
 <body>
   <header class="site-header">
     <nav class="site-nav" aria-label="Main">
-      <a class="brand" href="../">Altair</a>
+      <a class="brand" href="../">
+        <img class="brand-logo" src="../assets/img/logo.png" alt="" width="30" height="30">
+        Altair
+      </a>
       <div class="nav-links">
         <a href="../">Home</a>
         <a href="../docs/">Docs</a>
         <a href="../docs/routing.html">Guides</a>
         <a href="../docs/install.html">Install</a>
-        <a href="../docs/usage.html">Usage</a>
+        <a href="../docs/usage.html" class="is-active" aria-current="page">Usage</a>
         <a href="../docs/benchmarks.html">Benchmarks</a>
         <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
       </div>
@@ -26,14 +29,14 @@
   </header>
 
   <main class="site-main">
-    <h1>Usage</h1>
+    <div class="docs-layout"><nav class="docs-sidebar" aria-label="Docs"><h4>Getting started</h4><ul><li><a href="install.html">Install</a></li><li><a href="usage.html" class="is-active" aria-current="page">Usage</a></li><li><a href="update.html">Updating</a></li></ul><h4>Guides</h4><ul><li><a href="routing.html">Routing</a></li><li><a href="controllers.html">Controllers</a></li><li><a href="views.html">Views</a></li><li><a href="record.html">Record (ORM)</a></li><li><a href="sessions.html">Sessions and auth</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="security.html">Security</a></li><li><a href="uploads.html">Uploads</a></li></ul><h4>Reference</h4><ul><li><a href="features.html">What is implemented</a></li><li><a href="cli.html">CLI reference</a></li><li><a href="benchmarks.html">Benchmarks</a></li></ul></nav><article class="docs-content"><h1>Usage</h1>
 <p>Altair projects are generated with the <code>altair</code> CLI. Every command is type-checked and compile-time safe: a wrong argument is a compile error, not a runtime surprise.</p>
 <h2>Create a new project</h2>
 <pre><code class="language-sh">altair new blog
 cd blog
 shards install
 </code></pre>
-<p>This generates the standard layout: <code>src/</code>, <code>db/</code>, <code>public/</code>, and the <code>bin/altair</code> wrapper script.</p>
+<p>This generates the standard layout: <code>src/</code>, <code>db/</code>, <code>public/</code>, the <code>bin/altair</code> wrapper script, plus <code>.env</code> and <code>config/database.yml</code> — so a fresh project&#39;s configuration is file-driven, not code-driven. See the <a href="../docs/configuration.html">Configuration guide</a>.</p>
 <h2>Run the server</h2>
 <pre><code class="language-sh">altair server
 </code></pre>
@@ -68,6 +71,8 @@ altair db:rollback   # roll back the last migration
 db/             migrations and db/schema.cr
 public/         static assets served as-is
 bin/altair      the per-project command wrapper
+.env            environment settings (.env.&lt;environment&gt; overrides)
+config/database.yml   per-environment database settings
 </code></pre>
 <h2>Try the demo</h2>
 <p>The repository ships <code>examples/hello_world</code>, the always-running demo app:</p>
@@ -76,12 +81,12 @@ shards install
 crystal run src/hello_world.cr
 </code></pre>
 <p><code>examples/blog</code> is the persistence demo — posts and comments survive restarts.</p>
-
+<div class="docs-pager"><a href="install.html"><span class="label">Previous</span>Install</a><a class="right" href="update.html"><span class="label">Next</span>Updating</a></div></article></div>
   </main>
 
   <footer class="site-footer">
-    <p>Altair — batteries-included web framework for Crystal.</p>
-    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></p>
+    <p><span class="footer-brand">Altair</span> — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a> &middot; <a href="../docs/features.html">What is implemented</a></p>
   </footer>
 
   <script src="../assets/js/docs.js" defer></script>

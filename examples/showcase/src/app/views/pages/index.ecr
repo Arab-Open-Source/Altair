@@ -1,0 +1,29 @@
+<h1>Altair Showcase</h1>
+
+<p><code>examples/showcase</code> is the full-stack Altair demo — Record,
+sessions &amp; CSRF, multipart uploads, <code>.env</code> configuration,
+security headers, JSON + JWT and streaming, all behind the routing DSL.
+Browse the feed, sign up, submit a post with an image, publish it, and
+read it back as JSON (append <code>.json</code>) or over a stream.</p>
+
+<p>
+  <%= link_to "Browse all posts", posts_path %> ·
+  <%= link_to "Submit a post", new_post_path %> ·
+  <%= link_to "Live stream", stream_path %>
+</p>
+
+<h2>Latest posts</h2>
+<% if posts.empty? %>
+  <p>No posts yet. <%= link_to "Sign up", new_user_path %> and
+  <%= link_to "write the first one", new_post_path %> — it reaches the
+  feed once you publish it.</p>
+<% else %>
+  <ul class="feed">
+    <% posts.each do |post| %>
+      <li>
+        <a class="feed-title" href="/posts/<%= post.id %>"><%= post.title %></a>
+        <span class="meta">by <%= post.user.try(&.name) %></span>
+      </li>
+    <% end %>
+  </ul>
+<% end %>

@@ -1,0 +1,15 @@
+<h1>Sign in</h1>
+
+<p>Use the account you created at <%= link_to "Create account", new_user_path %>.</p>
+
+<% form_for("/session", method: :post) do |f| %>
+  <p>
+    <%= f.label("email", "Email") %>
+    <%= f.email_field("email") %>
+  </p>
+  <p>
+    <%= f.label("password", "Password") %>
+    <%= f.password_field("password") %>
+  </p>
+  <p><%= f.submit("Sign in") %></p>
+<% end %>

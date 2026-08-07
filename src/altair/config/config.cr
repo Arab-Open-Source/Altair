@@ -37,6 +37,36 @@ module Altair
     # errors. Applications may swap it for their own `Log` instance.
     property logger : Log = Log.for("altair")
 
+    # The secret used to sign session cookies (and later CSRF tokens and
+    # JWT signatures). Reads `SECRET_KEY_BASE` from the environment when
+    # not set explicitly. Must be set in production — signing without a
+    # real secret lets an attacker forge session cookies.
+    property secret_key_base : String? = ENV["SECRET_KEY_BASE"]?
+
+    # The name of the session cookie used by the default `SignedCookieStore`.
+    # Applications with several Altair apps behind one host should give each
+    # its own name.
+    property session_cookie_name : String = "_altair_session"
+
+    # The lifetime of the session cookie. `nil` (the default) makes it a
+    # browser-session cookie that expires when the client closes; set a
+    # `Time::Span` such as `30.days` to keep users logged in across restarts.
+    property session_expiry : Time::Span? = nil
+
+    # Whether the session cookie carries the `Secure` attribute. `nil`
+    # (the default) turns it on only in production; force on/off with `true`
+    # or `false`.
+    property session_cookie_secure : Bool? = nil
+
+    # The session store the controllers use, built lazily from the
+    # `session_*` settings. Applications that need a custom backend (e.g.
+    # server-side storage) assign their own `Altair::Session::Store` here.
+    property session_store : Altair::Session::Store? = nil
+
+    # The path the `require_login` filter redirects unauthenticated
+    # requests to.
+    property login_path : String = "/login"
+
     # The maximum request body size in bytes, applied while reading the
     # body before any parsing — a request that exceeds it answers 413
     # Payload Too Large. Raise it (or set it to `nil` to disable the
@@ -109,12 +139,35 @@ module Altair
     # The middleware stack, run in order on every request before routing.
     # Each entry is a factory proc that builds one middleware for the
     # application, e.g. `->(app : Altair::Application) { MyMiddleware.new(app) }`.
-    # Defaults to request logging and static-file serving from `public/`;
-    # assign an empty array to disable both, or build your own stack.
+    # Defaults to request logging, request-id assignment, the default
+    # security headers and static-file serving from `public/`; CORS is
+    # present but a pass-through until `config.cors.origins` is filled.
+    # Assign an empty array to disable all of them, or build your own stack.
     property middleware : Array(Proc(Altair::Application, Altair::Middleware)) = [
       ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::Logger.new(app) },
+      ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::RequestId.new(app) },
+      ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::SecurityHeaders.new(app) },
+      ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::Cors.new(app) },
       ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::Static.new(app) },
     ]
+
+    # The header carrying the request identifier assigned by the
+    # `RequestId` middleware. A client-supplied value for this header is
+    # honored; otherwise a fresh UUID is generated and echoed back.
+    property request_id_header : String = "X-Request-Id"
+
+    # The security headers stamped on every response by the
+    # `SecurityHeaders` middleware. Entries are only written when the
+    # response does not already carry the header. Set to `{} of
+    # String => String` to disable the layer.
+    property security_headers : Hash(String, String) = {
+      "X-Content-Type-Options" => "nosniff",
+      "X-Frame-Options"        => "SAMEORIGIN",
+      "Referrer-Policy"        => "strict-origin-when-cross-origin",
+    }
+
+    # Cross-origin resource sharing settings driving the `Cors` middleware.
+    getter cors : Cors = Cors.new
 
     # Global debug flag, inherited from the active environment's settings.
     property? debug : Bool = false
@@ -157,6 +210,62 @@ module Altair
         @development = Environment.new(debug: true)
         @production = Environment.new(eager_load: true)
         @test = Environment.new(debug: true)
+      end
+    end
+
+    # Cross-origin resource sharing settings. `origins` is the only knob
+    # that matters for enabling CORS: an empty list (the default) leaves the
+    # `Cors` middleware a pass-through. Everything else is optional tailoring.
+    #
+    # ```
+    # config.cors.origins = ["https://app.example.com"]
+    # config.cors.credentials = true
+    # ```
+    class Cors
+      # The allowed origins, exact-match against the `Origin` header. A
+      # `"*"` entry grants any origin. Empty (the default) disables CORS.
+      property origins : Array(String) = [] of String
+
+      # The methods allowed in preflight responses, e.g.
+      # `"GET, POST, PATCH, PUT, DELETE, OPTIONS"`.
+      property methods : String = "GET, HEAD, POST, PATCH, PUT, DELETE, OPTIONS"
+
+      # The request headers echoed back in preflight responses. When the
+      # client's `Access-Control-Request-Headers` names extra headers, that
+      # list is honored instead.
+      property headers : String = "Content-Type, Authorization, X-CSRF-Token"
+
+      # Whether the `Access-Control-Allow-Credentials` header is included,
+      # admitting cookies on cross-origin requests. Methods that rely on
+      # `Origin`-scoped credentials should combine this with the framework's
+      # signed session cookie, which carries `SameSite=Lax` by default.
+      property? credentials : Bool = false
+
+      # The `Access-Control-Max-Age` value in seconds for preflight
+      # caching, or `nil` to omit the header.
+      property max_age : Int64? = nil
+
+      # Whether `origin` is on the allowed list (or the list carries `"*"`).
+      def origin_allowed?(origin : String) : String?
+        return "*" if origins.includes?("*")
+        origins.includes?(origin) ? origin : nil
+      end
+
+      # The value written to `Access-Control-Allow-Origin`: the literal
+      # opening the wildcard unless credentials are requested, in which case
+      # the exact origin is echoed so the browser keeps credentials.
+      def allow_origin_header(origin : String) : String
+        if origins.includes?("*") && !credentials?
+          "*"
+        else
+          origin
+        end
+      end
+
+      # The `Access-Control-Allow-Headers` value: the configured list, or
+      # the client-requested headers when the echo-back is needed.
+      def allow_headers(requested : String?) : String
+        requested && !requested.empty? ? requested : headers
       end
     end
   end

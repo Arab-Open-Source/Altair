@@ -12,7 +12,10 @@
 <body>
   <header class="site-header">
     <nav class="site-nav" aria-label="Main">
-      <a class="brand" href="../">Altair</a>
+      <a class="brand" href="../">
+        <img class="brand-logo" src="../assets/img/logo.png" alt="" width="30" height="30">
+        Altair
+      </a>
       <div class="nav-links">
         <a href="../">Home</a>
         <a href="../docs/">Docs</a>
@@ -26,8 +29,8 @@
   </header>
 
   <main class="site-main">
-    <h1>What is implemented</h1>
-<p>Altair is built in phases, each ending with something working and visible. Everything below is implemented, tested and shipped. Each area has a guide: <a href="../docs/routing.html">Routing</a>, <a href="../docs/controllers.html">Controllers</a>, <a href="../docs/views.html">Views</a> and <a href="../docs/record.html">Record</a>.</p>
+    <div class="docs-layout"><nav class="docs-sidebar" aria-label="Docs"><h4>Getting started</h4><ul><li><a href="install.html">Install</a></li><li><a href="usage.html">Usage</a></li><li><a href="update.html">Updating</a></li></ul><h4>Guides</h4><ul><li><a href="routing.html">Routing</a></li><li><a href="controllers.html">Controllers</a></li><li><a href="views.html">Views</a></li><li><a href="record.html">Record (ORM)</a></li><li><a href="sessions.html">Sessions and auth</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="security.html">Security</a></li><li><a href="uploads.html">Uploads</a></li></ul><h4>Reference</h4><ul><li><a href="features.html" class="is-active" aria-current="page">What is implemented</a></li><li><a href="cli.html">CLI reference</a></li><li><a href="benchmarks.html">Benchmarks</a></li></ul></nav><article class="docs-content"><h1>What is implemented</h1>
+<p>Altair is built in phases, each ending with something working and visible. Everything below is implemented, tested and shipped. Each area has a guide: <a href="../docs/routing.html">Routing</a>, <a href="../docs/controllers.html">Controllers</a>, <a href="../docs/views.html">Views</a>, <a href="../docs/record.html">Record</a>, <a href="../docs/sessions.html">Sessions and auth</a>, <a href="../docs/configuration.html">Configuration</a>, <a href="../docs/security.html">Security</a> and <a href="../docs/uploads.html">Uploads</a>.</p>
 <h2>Phase 0 — Foundation</h2>
 <p>The core request/response loop: <code>Altair::Application</code>, request handling, error pages and configuration.</p>
 <h2>Phase 1 — Router</h2>
@@ -54,7 +57,7 @@
 <li>ECR templates</li>
 <li>Auto-escaping by default — XSS-safe out of the box</li>
 <li>Layouts with <code>yield</code>, partials (<code>render &quot;form&quot;</code>)</li>
-<li>Helpers: <code>link_to</code>, <code>content_tag</code>, a basic form builder</li>
+<li>Helpers: <code>link_to</code>, <code>content_tag</code>, a basic form builder, and an htmx layer</li>
 </ul>
 <h2>Phase 4 — Record (ORM)</h2>
 <p>Three vertical waves:</p>
@@ -72,6 +75,31 @@
 <li><code>altair update</code> checks GitHub for a newer release, verifies the checksum and swaps the binary atomically</li>
 <li>Prebuilt binaries for Linux, macOS and Windows (amd64 + arm64) published with checksums; verified one-command installers</li>
 </ul>
+<h2>Phase 6 — Hardening</h2>
+<p>Sessions, authentication, file-driven configuration, multipart uploads and a
+security middleware set, shipped in waves:</p>
+<ul>
+<li><strong>Sessions + flash + CSRF</strong> — signed-cookie sessions with a <code>session</code>
+hash view, one-request <code>flash</code> messages, <code>protect_from_forgery</code> with
+constant-time token verification, and login helpers (<code>sign_in</code>,
+<code>sign_out</code>, <code>require_login</code>, <code>authenticate!</code>, <code>current_user_id</code>)</li>
+<li><strong>JWT auth</strong> — <code>Altair::Auth::JWT</code>, a minimal HS256 implementation for
+stateless API auth</li>
+<li><strong>Configuration</strong> — <code>.env</code> (real env vars win; <code>.env.&lt;environment&gt;</code>
+overrides <code>.env</code>) and <code>config/database.yml</code> per-environment settings,
+merged into <code>config</code> at boot by <code>Altair::Config::DotEnv</code> /
+<code>Altair::Config::Database</code>; <code>altair new</code> generates both files</li>
+<li><strong>Multipart uploads</strong> — <code>multipart/form-data</code> bodies parse into the
+parameter bag (scalar fields as params, files as
+<code>Altair::HTTP::UploadedFile</code> via <code>params.upload(&quot;avatar&quot;)</code>, with
+<code>UploadedFile#save</code> + <code>#content</code>)</li>
+<li><strong>Security middleware set</strong> — <code>SecurityHeaders</code> (default <code>nosniff</code> /
+<code>SAMEORIGIN</code> / referrer policy, driven by <code>config.security_headers</code>),
+<code>RequestId</code> (<code>request.request_id</code>, echo-back through
+<code>config.request_id_header</code>, appended to the request log line), and
+opt-in <code>Cors</code> (<code>config.cors.origins</code> enables it; preflight answered
+directly)</li>
+</ul>
 <h2>Performance hardening</h2>
 <ul>
 <li><code>find_each</code> streams bounded batches that keep the scoped <code>where</code> filters and <code>includes</code> preloaders</li>
@@ -79,6 +107,7 @@
 <li>The server resizes the execution context to the available workers on boot (honors <code>CRYSTAL_WORKERS</code>; <code>config.parallel_execution</code> opt-out)</li>
 <li>Warm connection-pool defaults: <code>initial 2 / idle 2 / max 10</code></li>
 <li>A development-mode N+1 detector warns on identical SQL fired more than <code>config.n_plus_one_threshold</code> times in one request</li>
+<li>A database admission-control gate (<code>config.db_max_active_queries</code>, off by default) parks excess request fibers on a FIFO semaphore outside the pool, bounding tail latency under saturation</li>
 <li>The record hot path builds each SQL statement once per connection
 (<code>Connection#sql_template</code>): <code>find</code>, <code>find_by_*</code> and <code>insert</code> cache their
 quoted statements, halving the write-path allocations (PostgreSQL:
@@ -87,21 +116,20 @@ quoted statements, halving the write-path allocations (PostgreSQL:
 </ul>
 <h2>Testing and quality</h2>
 <ul>
-<li>634 specs passing (5 pending: the PostgreSQL concurrency contract tests; the full PostgreSQL contract suite runs when <code>ALTAIR_TEST_PG_URL</code> is set)</li>
+<li>705 specs passing (6 pending: the PostgreSQL concurrency contract tests; the full PostgreSQL contract suite runs when <code>ALTAIR_TEST_PG_URL</code> is set)</li>
 <li>Formatter clean, linter silent on framework sources</li>
 <li>Smart error pages: 404 with route suggestions, 405 with <code>_method</code> explanation, detailed 500 diagnostics in debug mode only</li>
 </ul>
 <h2>What is planned next</h2>
 <ul>
-<li><strong>Phase 6 (Hardening):</strong> sessions + flash + CSRF, <code>database.yml</code> / <code>.env</code> config, real project quality</li>
 <li><strong>Phase 7 (Post-release):</strong> background jobs, full authentication, asset pipeline, rich query DSL, testing utilities</li>
 </ul>
-
+<div class="docs-pager"><a href="uploads.html"><span class="label">Previous</span>Uploads</a><a class="right" href="cli.html"><span class="label">Next</span>CLI reference</a></div></article></div>
   </main>
 
   <footer class="site-footer">
-    <p>Altair — batteries-included web framework for Crystal.</p>
-    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></p>
+    <p><span class="footer-brand">Altair</span> — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a> &middot; <a href="../docs/features.html">What is implemented</a></p>
   </footer>
 
   <script src="../assets/js/docs.js" defer></script>

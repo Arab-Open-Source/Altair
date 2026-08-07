@@ -1,15 +1,26 @@
 <div class="hero">
   <img class="logo" src="{{root}}assets/img/logo.png" alt="Altair logo">
   <h1>Altair</h1>
-  <p class="tagline">Batteries-included web framework for Crystal.</p>
+  <p class="tagline">Batteries-included web framework for Crystal. The full
+  stack — routing, controllers, views, an ORM, generators and a CLI — with
+  sane defaults.</p>
+  <div class="badges">
+    <span class="badge">Crystal</span>
+    <span class="badge"><b>705</b> specs passing</span>
+    <span class="badge">SQLite + PostgreSQL</span>
+    <span class="badge">Linux &middot; macOS &middot; Windows</span>
+  </div>
   <div class="button-row">
     <a class="btn btn-primary" href="/docs/install.html">Get started</a>
+    <a class="btn btn-secondary" href="/docs/routing.html">Read the guides</a>
     <a class="btn btn-secondary" href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
   </div>
   <div class="copy-box">
     <code>curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.sh | sh</code>
   </div>
 </div>
+
+<div class="content-narrow">
 
 ## What Altair is
 
@@ -35,15 +46,27 @@ project automatically — `altair server`, `altair routes` and
   </div>
   <div class="feature">
     <h3>Controllers</h3>
-    <p>Actions, parameters, filters and rendering hooks built on a type-checked base class.</p>
+    <p>Actions, typed parameters, filters, callbacks and rendering hooks on a type-checked base class.</p>
   </div>
   <div class="feature">
     <h3>Views</h3>
-    <p>ECR templates with auto-escaping, layouts, partials and a form builder.</p>
+    <p>ECR templates with auto-escaping, layouts, partials, helpers and a form builder.</p>
   </div>
   <div class="feature">
     <h3>Record (ORM)</h3>
     <p>SQLite3 and PostgreSQL adapters, migrations, validations, callbacks and associations.</p>
+  </div>
+  <div class="feature">
+    <h3>Sessions and auth</h3>
+    <p>Signed-cookie sessions, flash messages, CSRF protection and login helpers.</p>
+  </div>
+  <div class="feature">
+    <h3>Security</h3>
+    <p>Safe-by-default headers, request ids and opt-in CORS in the middleware stack.</p>
+  </div>
+  <div class="feature">
+    <h3>Configuration</h3>
+    <p><code>.env</code> and <code>config/database.yml</code> merged into typed per-environment config at boot.</p>
   </div>
   <div class="feature">
     <h3>CLI + Generators</h3>
@@ -79,7 +102,9 @@ curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/i
 
 - [Install](/docs/install.html) — download and set up Altair on your platform.
 - [Usage](/docs/usage.html) — create a project, generate a scaffold and run the server.
-- [Guides](/docs/routing.html) — routing, controllers, views and the Record ORM.
+- [Guides](/docs/routing.html) — routing, controllers, views, the Record ORM, sessions, configuration, security and uploads.
 - [What is implemented](/docs/features.html) — the current state of the framework, phase by phase.
 - [CLI reference](/docs/cli.html) — every command and generator.
 - [Benchmarks](/docs/benchmarks.html) — Altair vs Express and Fiber under real HTTP load.
+
+</div>

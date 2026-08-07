@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Signed-cookie sessions, flash messages, CSRF protection and login helpers in Altair.">
+  <title>Sessions and auth guide — Altair</title>
+  <link rel="icon" href="../favicon.png" type="image/png">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/docs.css">
+</head>
+<body>
+  <header class="site-header">
+    <nav class="site-nav" aria-label="Main">
+      <a class="brand" href="../">
+        <img class="brand-logo" src="../assets/img/logo.png" alt="" width="30" height="30">
+        Altair
+      </a>
+      <div class="nav-links">
+        <a href="../">Home</a>
+        <a href="../docs/">Docs</a>
+        <a href="../docs/routing.html" class="is-active" aria-current="page">Guides</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/usage.html">Usage</a>
+        <a href="../docs/benchmarks.html">Benchmarks</a>
+        <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="site-main">
+    <div class="docs-layout"><nav class="docs-sidebar" aria-label="Docs"><h4>Getting started</h4><ul><li><a href="install.html">Install</a></li><li><a href="usage.html">Usage</a></li><li><a href="update.html">Updating</a></li></ul><h4>Guides</h4><ul><li><a href="routing.html">Routing</a></li><li><a href="controllers.html">Controllers</a></li><li><a href="views.html">Views</a></li><li><a href="record.html">Record (ORM)</a></li><li><a href="sessions.html" class="is-active" aria-current="page">Sessions and auth</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="security.html">Security</a></li><li><a href="uploads.html">Uploads</a></li></ul><h4>Reference</h4><ul><li><a href="features.html">What is implemented</a></li><li><a href="cli.html">CLI reference</a></li><li><a href="benchmarks.html">Benchmarks</a></li></ul></nav><article class="docs-content"><h1>Sessions and auth</h1>
+<p>Sessions, flash messages, CSRF protection and login helpers ship as a
+cohesive layer. The session rides a <strong>signed cookie</strong> — values are stored
+client-side but a keyed signature makes them unforgeable, so no server-side
+store is needed out of the box.</p>
+<h2>Enabling sessions</h2>
+<p>Sessions need a signing secret. <code>altair new</code> generates a <code>.env</code> with a real
+<code>SECRET_KEY_BASE</code>; in code you can also set it explicitly:</p>
+<pre><code class="language-crystal">class Blog &lt; Altair::Application
+  config.secret_key_base = ENV[&quot;SECRET_KEY_BASE&quot;] || &quot;dev-only-secret&quot;
+end
+</code></pre>
+<p>Production must use a real secret — signing without one lets an attacker
+forge session cookies. The framework refuses to build a session store
+without a secret.</p>
+<h2>Reading and writing the session</h2>
+<p>Controllers expose <code>session</code>, a hash-like view over the signed cookie:</p>
+<pre><code class="language-crystal">session[&quot;user_id&quot;] = user.id.to_s   # persists a new cookie
+session[&quot;theme&quot;]?                    # String? — absent key is nil
+session.delete(&quot;theme&quot;)
+session.key?(&quot;theme&quot;)                # Bool
+session.clear                        # wipe everything
+session.destroy                      # clear + expire the cookie
+</code></pre>
+<p>A session is only persisted when it <strong>changes</strong> — a request that just reads
+session state sends no new cookie.</p>
+<h2>Flash messages</h2>
+<p><code>flash</code> is the one-request message store: values written through it appear
+on the <em>next</em> request and then vanish. <code>flash.now</code> writes values visible
+only on the current request (for re-rendered forms).</p>
+<pre><code class="language-crystal">def create : Nil
+  post = Post.create(title: params[&quot;title&quot;]?)
+  if post.valid?
+    flash[:notice] = &quot;Post created&quot;
+    redirect_to posts_path
+  else
+    flash.now[:alert] = &quot;Post could not be saved&quot;
+    render :new, locals: {post: post}
+  end
+end
+</code></pre>
+<p>The flash rides the same signed cookie under a reserved key and never leaks
+into user-facing session state (<code>session.to_h</code> hides it).</p>
+<h2>CSRF protection</h2>
+<p>A controller opts in with <code>protect_from_forgery</code>. Every state-changing
+request (<code>POST</code>/<code>PATCH</code>/<code>PUT</code>/<code>DELETE</code>) must then carry the session&#39;s
+authenticity token — as a hidden <code>_csrf</code> field or an <code>X-CSRF-Token</code> header —
+or it answers <strong>422</strong>. Tokens are compared in constant time, so a timing
+attack cannot distinguish a wrong token from a missing one.</p>
+<pre><code class="language-crystal">class PostsController &lt; ApplicationController
+  protect_from_forgery
+end
+</code></pre>
+<p>The form helpers embed the token automatically:</p>
+<pre><code class="language-ecr">&lt;% form_for(&quot;/posts&quot;) do |f| %&gt;
+  &lt;%= f.text_field(&quot;title&quot;) %&gt;
+  &lt;%= f.submit(&quot;Create&quot;) %&gt;
+&lt;% end %&gt;
+&lt;!-- renders a hidden &lt;input name=&quot;_csrf&quot; value=&quot;...&quot;&gt; --&gt;
+</code></pre>
+<p>API clients send the same token as a header:</p>
+<pre><code class="language-crystal">HTTP::Client.post(&quot;/posts&quot;, headers: {&quot;X-CSRF-Token&quot; =&gt; token})
+</code></pre>
+<p>The token itself comes from <code>form_authenticity_token</code>, created on first
+use. Only controllers that declared <code>protect_from_forgery</code> embed one.</p>
+<h2>Login helpers</h2>
+<p>The minimal signed-in contract is a <code>user_id</code> key in the session, with
+helpers around it:</p>
+<pre><code class="language-crystal">class SessionsController &lt; ApplicationController
+  def create : Nil
+    user = User.find_by_email(params[&quot;email&quot;]?)
+    if user &amp;&amp; user.authenticate(params[&quot;password&quot;]?)
+      sign_in(user.id.to_s)                    # session[&quot;user_id&quot;] = ...
+      redirect_to dashboard_path
+    else
+      flash.now[:alert] = &quot;Bad email or password&quot;
+      render :new
+    end
+  end
+
+  def destroy : Nil
+    sign_out                               # clears the session
+    redirect_to root_path
+  end
+end
+</code></pre>
+<p>Available helpers:</p>
+<ul>
+<li><code>logged_in?</code> — true when the session carries a <code>user_id</code></li>
+<li><code>current_user_id</code> — the id, or <code>nil</code>; load the full record yourself:
+<code>current_user_id.try { |id| User.find(id.to_i) }</code></li>
+<li><code>sign_in(user_id)</code> — store the id</li>
+<li><code>sign_out</code> — clear the session, preserving flash</li>
+<li><code>reset_session</code> — clear, preserving flash</li>
+<li><code>require_login</code> — a <code>before_action</code> filter that redirects to
+<code>config.login_path</code> (default <code>/login</code>) when not signed in</li>
+<li><code>authenticate!</code> — a filter that answers <strong>401</strong> instead of
+redirecting; the JSON/API counterpart</li>
+</ul>
+<pre><code class="language-crystal">class Admin::PostsController &lt; ApplicationController
+  before_action :require_login, except: [:index, :show]
+  # or, for an API controller:
+  before_action :authenticate!
+end
+</code></pre>
+<h2>Stateless JWT auth</h2>
+<p>For APIs that cannot use cookies, <code>Altair::Auth::JWT</code> signs and verifies
+HS256 tokens. Verification is constant-time and returns <code>nil</code> on any
+failure, so callers guard with a plain <code>unless</code>:</p>
+<pre><code class="language-crystal">token = Altair::Auth::JWT.sign(
+  {&quot;sub&quot; =&gt; user.id.to_s},
+  secret,
+  expires_in: 1.hour
+)
+
+claims = Altair::Auth::JWT.verify(token, secret)   # Hash(String, String)?
+if claims
+  user_id = claims[&quot;sub&quot;]
+end
+</code></pre>
+<p>An <code>exp</code> claim is honored as-is; <code>expires_in:</code> sets the lifetime from now
+when the claims carry none.</p>
+<div class="docs-pager"><a href="record.html"><span class="label">Previous</span>Record (ORM)</a><a class="right" href="configuration.html"><span class="label">Next</span>Configuration</a></div></article></div>
+  </main>
+
+  <footer class="site-footer">
+    <p><span class="footer-brand">Altair</span> — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a> &middot; <a href="../docs/features.html">What is implemented</a></p>
+  </footer>
+
+  <script src="../assets/js/docs.js" defer></script>
+</body>
+</html>

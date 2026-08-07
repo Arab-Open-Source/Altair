@@ -14,6 +14,10 @@ The Altair documentation, generated from markdown. All content lives in `website
 - [Controllers](/docs/controllers.html) — actions, typed parameters, rendering and templates.
 - [Views](/docs/views.html) — ECR templates, escaping, layouts, partials, helpers and the form builder.
 - [Record (ORM)](/docs/record.html) — models, migrations, validations, callbacks and associations.
+- [Sessions and auth](/docs/sessions.html) — signed-cookie sessions, flash, CSRF and login helpers.
+- [Configuration](/docs/configuration.html) — `.env`, `config/database.yml` and typed per-environment settings.
+- [Security](/docs/security.html) — default headers, request ids and opt-in CORS.
+- [Uploads](/docs/uploads.html) — multipart file uploads through `params`.
 
 ## Reference
 

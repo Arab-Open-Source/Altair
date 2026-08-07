@@ -1,0 +1,10 @@
+/lib/
+/.altair/
+/tmp/
+/bin/showcase
+/db/*.db
+/db/*.db-wal
+/db/*.db-shm
+/.env
+/public/uploads/*
+!/public/uploads/.gitkeep

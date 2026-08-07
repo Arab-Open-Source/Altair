@@ -12,26 +12,29 @@
 <body>
   <header class="site-header">
     <nav class="site-nav" aria-label="Main">
-      <a class="brand" href="{{home}}">Altair</a>
+      <a class="brand" href="{{home}}">
+        <img class="brand-logo" src="{{root}}assets/img/logo.png" alt="" width="30" height="30">
+        Altair
+      </a>
       <div class="nav-links">
-        <a href="{{home}}">Home</a>
-        <a href="{{root}}docs/">Docs</a>
-        <a href="{{root}}docs/routing.html">Guides</a>
-        <a href="{{root}}docs/install.html">Install</a>
-        <a href="{{root}}docs/usage.html">Usage</a>
-        <a href="{{root}}docs/benchmarks.html">Benchmarks</a>
+        <a href="{{home}}"{{home_active}}>Home</a>
+        <a href="{{root}}docs/"{{docs_active}}>Docs</a>
+        <a href="{{root}}docs/routing.html"{{routing_active}}>Guides</a>
+        <a href="{{root}}docs/install.html"{{install_active}}>Install</a>
+        <a href="{{root}}docs/usage.html"{{usage_active}}>Usage</a>
+        <a href="{{root}}docs/benchmarks.html"{{benchmarks_active}}>Benchmarks</a>
         <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
       </div>
     </nav>
   </header>
 
   <main class="site-main">
-    {{content}}
+    {{docs_layout}}
   </main>
 
   <footer class="site-footer">
-    <p>Altair — batteries-included web framework for Crystal.</p>
-    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></p>
+    <p><span class="footer-brand">Altair</span> — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a> &middot; <a href="{{root}}docs/features.html">What is implemented</a></p>
   </footer>
 
   <script src="{{root}}assets/js/docs.js" defer></script>

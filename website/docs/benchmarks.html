@@ -12,21 +12,24 @@
 <body>
   <header class="site-header">
     <nav class="site-nav" aria-label="Main">
-      <a class="brand" href="../">Altair</a>
+      <a class="brand" href="../">
+        <img class="brand-logo" src="../assets/img/logo.png" alt="" width="30" height="30">
+        Altair
+      </a>
       <div class="nav-links">
         <a href="../">Home</a>
         <a href="../docs/">Docs</a>
         <a href="../docs/routing.html">Guides</a>
         <a href="../docs/install.html">Install</a>
         <a href="../docs/usage.html">Usage</a>
-        <a href="../docs/benchmarks.html">Benchmarks</a>
+        <a href="../docs/benchmarks.html" class="is-active" aria-current="page">Benchmarks</a>
         <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
       </div>
     </nav>
   </header>
 
   <main class="site-main">
-    <h1>Benchmarks</h1>
+    <div class="docs-layout"><nav class="docs-sidebar" aria-label="Docs"><h4>Getting started</h4><ul><li><a href="install.html">Install</a></li><li><a href="usage.html">Usage</a></li><li><a href="update.html">Updating</a></li></ul><h4>Guides</h4><ul><li><a href="routing.html">Routing</a></li><li><a href="controllers.html">Controllers</a></li><li><a href="views.html">Views</a></li><li><a href="record.html">Record (ORM)</a></li><li><a href="sessions.html">Sessions and auth</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="security.html">Security</a></li><li><a href="uploads.html">Uploads</a></li></ul><h4>Reference</h4><ul><li><a href="features.html">What is implemented</a></li><li><a href="cli.html">CLI reference</a></li><li><a href="benchmarks.html" class="is-active" aria-current="page">Benchmarks</a></li></ul></nav><article class="docs-content"><h1>Benchmarks</h1>
 <p>Altair is compared against <strong>Express</strong> (Node.js) and <strong>Fiber</strong> (Go) on
 identical PostgreSQL-backed CRUD endpoints, driven by k6 over real HTTP. The
 harness lives in the repository at <code>examples/benchmark_k6</code> and can be re-run
@@ -141,12 +144,12 @@ split theirs across 8 workers; Altair uses one shared pool).</li>
 investigation, the per-second GC pause measurement and the allocation
 findings — and the repository&#39;s <code>CHANGELOG.md</code> for what changed between
 measurement passes.</p>
-
+<div class="docs-pager"><a href="cli.html"><span class="label">Previous</span>CLI reference</a><span></span></div></article></div>
   </main>
 
   <footer class="site-footer">
-    <p>Altair — batteries-included web framework for Crystal.</p>
-    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></p>
+    <p><span class="footer-brand">Altair</span> — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a> &middot; <a href="../docs/features.html">What is implemented</a></p>
   </footer>
 
   <script src="../assets/js/docs.js" defer></script>

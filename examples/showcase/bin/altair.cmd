@@ -1,0 +1,1 @@
+@crystal run bin\altair.cr -- %*

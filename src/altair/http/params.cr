@@ -13,8 +13,11 @@ module Altair
       @query : URI::Params
       @body : URI::Params
       @json : Hash(String, String)
+      @uploads : Hash(String, Altair::HTTP::UploadedFile)
 
-      def initialize(@query : URI::Params, @body : URI::Params = URI::Params.new, @json : Hash(String, String) = {} of String => String)
+      def initialize(@query : URI::Params, @body : URI::Params = URI::Params.new,
+                     @json : Hash(String, String) = {} of String => String,
+                     @uploads : Hash(String, Altair::HTTP::UploadedFile) = {} of String => Altair::HTTP::UploadedFile)
       end
 
       # Returns the parameter value for the given key, or raises `KeyError`
@@ -152,6 +155,21 @@ module Altair
       # Returns `true` when a parameter with the given key exists.
       def has_key?(key : String) : Bool
         !self[key]?.nil?
+      end
+
+      # Returns the uploaded file for the given field name, or `nil` when
+      # that field did not carry a file:
+      #
+      # ```
+      # params.upload("avatar")?.try { |file| file.save(Path.new("public/#{file.original_filename}")) }
+      # ```
+      def upload(key : String) : Altair::HTTP::UploadedFile?
+        @uploads[key]?
+      end
+
+      # Returns every uploaded file, keyed by form field name.
+      def uploads : Hash(String, Altair::HTTP::UploadedFile)
+        @uploads
       end
 
       # Returns all parameters as a plain `Hash`, JSON body values taking the

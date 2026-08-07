@@ -154,13 +154,16 @@ abstract class Altair::Application
     server.start
   end
 
-  # Creates the application instance, wires up the configuration and
-  # resolves the root directory. Raises `Altair::ConfigurationError` when
-  # an application instance already exists.
+  # Creates the application instance, loads `.env` and `database.yml`,
+  # wires up the configuration and resolves the root directory. Raises
+  # `Altair::ConfigurationError` when an application instance already
+  # exists.
   def initialize
     raise Altair::ConfigurationError.new("an Altair::Application instance has already been created") if Altair.application_instance
-    @config = Altair::Config.new
     @root = Path.new(Dir.current)
+    Altair::Config::DotEnv.load(@root)
+    @config = Altair::Config.new
+    Altair::Config::Database.apply(@config, @root)
     apply_environment_config
   end
 

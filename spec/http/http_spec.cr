@@ -271,6 +271,90 @@ describe Altair::HTTP::Request do
     request.params["q"].should eq("altair")
     request.params["q"].should eq("altair")
   end
+
+  describe "multipart form data" do
+    it "reads scalar fields and uploaded files from the body" do
+      boundary = "AaB03x"
+      body = "--#{boundary}\r\n" \
+             "Content-Disposition: form-data; name=\"title\"\r\n" \
+             "\r\n" \
+             "Hello World\r\n" \
+             "--#{boundary}\r\n" \
+             "Content-Disposition: form-data; name=\"avatar\"; filename=\"portrait.png\"\r\n" \
+             "Content-Type: image/png\r\n" \
+             "\r\n" \
+             "\x89PNG\r\n" \
+             "--#{boundary}--\r\n"
+      raw = HTTP::Request.new("POST", "/posts")
+      raw.headers["Content-Type"] = "multipart/form-data; boundary=#{boundary}"
+      raw.body = body
+      request = Altair::HTTP::Request.new(raw)
+
+      request.params["title"].should eq("Hello World")
+      upload = request.params.upload("avatar").not_nil!
+      upload.original_filename.should eq("portrait.png")
+      upload.content_type.should eq("image/png")
+      upload.content.should eq("\x89PNG")
+    end
+
+    it "exposes an empty uploads bag for non-multipart requests" do
+      raw = HTTP::Request.new("GET", "/")
+      Altair::HTTP::Request.new(raw).uploads.should be_empty
+    end
+
+    it "reads a form-urlencoded upload-like field as a regular string" do
+      raw = HTTP::Request.new("POST", "/posts")
+      raw.headers["Content-Type"] = "application/x-www-form-urlencoded"
+      raw.body = "title=Hello"
+      request = Altair::HTTP::Request.new(raw)
+      request.params["title"].should eq("Hello")
+      request.uploads.should be_empty
+    end
+
+    it "survives a missing boundary" do
+      raw = HTTP::Request.new("POST", "/posts")
+      raw.headers["Content-Type"] = "multipart/form-data"
+      raw.body = "anything"
+      request = Altair::HTTP::Request.new(raw)
+      request.params.to_h.should be_empty
+      request.uploads.should be_empty
+    end
+
+    it "survives a malformed multipart body" do
+      raw = HTTP::Request.new("POST", "/posts")
+      raw.headers["Content-Type"] = "multipart/form-data; boundary=abc"
+      raw.body = "--abc-- not really multipart"
+      request = Altair::HTTP::Request.new(raw)
+      request.uploads.should be_empty
+    end
+
+    it "exposes name, size, read and save on an uploaded file" do
+      boundary = "AaB03x"
+      body = "--#{boundary}\r\n" \
+             "Content-Disposition: form-data; name=\"avatar\"; filename=\"portrait.png\"\r\n" \
+             "Content-Type: image/png\r\n" \
+             "\r\n" \
+             "\x89PNG\r\n" \
+             "--#{boundary}--\r\n"
+      raw = HTTP::Request.new("POST", "/posts")
+      raw.headers["Content-Type"] = "multipart/form-data; boundary=#{boundary}"
+      raw.body = body
+      request = Altair::HTTP::Request.new(raw)
+      upload = request.uploads["avatar"]
+
+      upload.name.should eq("avatar")
+      upload.size.should eq(4)
+      upload.read.should eq("\x89PNG")
+
+      target = Path.new(Dir.tempdir, "altair_upload_#{Random.rand(100_000)}.png")
+      begin
+        upload.save(target).should eq(target)
+        File.read(target).should eq("\x89PNG")
+      ensure
+        File.delete(target) if File.exists?(target)
+      end
+    end
+  end
 end
 
 describe Altair::HTTP::Response do

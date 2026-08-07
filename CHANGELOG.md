@@ -7,7 +7,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-08-07
+
+### Added
+
+- **Website redesign**: the docs site was redesigned to match the logo
+  palette (deep navy, slate, red) with a hero, badges, a feature grid, and
+  a docs layout with a sticky sidebar, active-state navigation and next/
+  previous paging across the guides.
+
+- **New docs pages**: sessions and auth (signed-cookie sessions, flash,
+  CSRF protection, login helpers, JWT), configuration (`.env` and
+  `config/database.yml`), security (default headers, request ids, CORS)
+  and multipart uploads — each with worked code examples. The features
+  page now reports 705 specs passing with Phase 6 marked complete.
+
+- **Request id in the request log**: the `Logger` middleware appends the
+  request identifier to its per-request line when the `RequestId`
+  middleware assigned one, so a log entry and the echoed `X-Request-Id`
+  response header correlate across distributed traces.
+
+- **Security middleware set**: the default stack now carries three new
+  layers — `Altair::Middleware::SecurityHeaders` stamps `nosniff`,
+  `SAMEORIGIN` and a strict referrer policy on every response (driven by
+  `config.security_headers`, only filling headers the application did not
+  set itself); `Altair::Middleware::RequestId` honors an inbound
+  `X-Request-Id` (or `config.request_id_header`) or generates a UUID, and
+  exposes it as `request.request_id` while echoing it back on the response
+  for traceable logs; `Altair::Middleware::Cors` is a pass-through until
+  `config.cors.origins` names the origins an application trusts, then it
+  stamps `Access-Control-Allow-*` on permitted requests and answers
+  preflight `OPTIONS` directly (methods, headers, credentials, max age)
+  without reaching the router.
+
+- **Multipart form parsing**: a `multipart/form-data` request body is parsed
+  into the parameter bag on first access. Scalar text fields behave like any
+  other form field (`params["title"]`); file parts arrive as
+  `Altair::HTTP::UploadedFile` objects carrying the client filename, content
+  type and buffered bytes, read through `params.upload("avatar")` (or the
+  `params.uploads` hash). Uploads are exposed as `UploadedFile#save(path)`
+  and `#content`. A malformed body or missing boundary degrades gracefully.
+
+- **`.env` + `database.yml` configuration**: the framework loads a `.env`
+  file from the application root at boot (with an `.env.<environment>`
+  overlaid for the active environment), so secrets and per-deploy settings
+  never need to live in code. A `config/database.yml` holds per-environment
+  database settings — `url`, `pool`, `initial_pool`, `max_idle_pool`,
+  `checkout_timeout`, `query_timeout` — parsed by `Altair::Config::Database`
+  and merged into `config` from the active environment's section. `altair new`
+  ships both files (`database.yml`, `.env.example` + gitignored `.env`) and
+  the generated `application.cr` no longer hardcodes a database URL:
+  production configuration is a file edit, not a code change.
+
+- **Auth helpers**: controllers get `current_user_id`, `sign_in(user_id)`,
+  `sign_out`, and two ready-made `before_action` filters — `require_login`
+  (redirects guests to `config.login_path`, default `/login`) and
+  `authenticate!` (answers `401 Unauthorized` for JSON/API requests).
+- **`Altair::Auth::JWT`**: a self-contained HS256 JSON Web Token
+  implementation. `JWT.sign(claims, secret, expires_in:)` issues a token,
+  `JWT.verify(token, secret)` returns the claims or `nil` for malformed,
+  tampered, wrongly-signed or expired tokens — a stateless authentication
+  path for API clients.
+
+- **CSRF protection**: `protect_from_forgery` on a controller verifies that
+  every state-changing request (`POST`/`PUT`/`PATCH`/`DELETE`) carries the
+  session's authenticity token, either as a hidden `_csrf` form field or an
+  `X-CSRF-Token` header, compared in constant time; mismatches answer `422`.
+  `form_for` and `button_to` embed the field automatically on protected
+  controllers, and the check plays along with the existing callback DSL —
+  `skip_before_action :verify_authenticity_token` and `only:`/`except:`
+  filters work unchanged.
+
+- **Sessions**: `Altair::Session` exposes a hash-like controller session
+  backed by a pluggable `Altair::Session::Store`. The default
+  `SignedCookieStore` keeps the session in an HMAC-SHA256 signed cookie
+  (`_altair_session`) with `HttpOnly` + `SameSite=Lax` and a `` `/` `` path,
+  honoring `config.secret_key_base`, `session_cookie_name`,
+  `session_expiry` and `session_cookie_secure`. Read-only requests never
+  rewrite the cookie; tampered cookies fall back to an empty session.
+  Controllers get `session`, `logged_in?` and `reset_session`.
+- **Flash**: `Altair::Session::Flash` carries one-request messages written
+  through `flash["key"] = value` and read on the next request;
+  `flash.now` writes current-request-only values. Flash rides inside the
+  session and is hidden from `session.to_h`.
+
 ### Fixed
+
+- **`form_for` and `button_to` in templates with helper actions**: the
+  template transpiler split `form_for(...)` args on the first `(`; a helper
+  action such as `form_for(post_path(post.id), ...)` (nested parens) was
+  silently truncated into a parse error, and the block form (`form_for
+  ... do |f|`) called a macro `split` overload that never compiled. Both
+  branches now rebuild the argument span from the split parts, so helper
+  actions and block forms transpile correctly.
 
 - **`altair update` follows redirects**: release assets are served behind an
   HTTP redirect, which `HTTP::Client` no longer follows automatically on

@@ -101,6 +101,9 @@ module Altair
             {"src/#{@name}.cr", source_entry},
             {"src/config/application.cr", application},
             {"src/config/routes.cr", routes},
+            {"config/database.yml", database_yml},
+            {".env.example", env_example},
+            {".env", env_default},
             {"src/app/controllers/application_controller.cr", application_controller},
             {"src/app/views/layouts/application.ecr", application_layout},
             {"src/app/models/.gitkeep", ""},
@@ -204,14 +207,56 @@ module Altair
             io << "class #{app_class} < Altair::Application\n"
             io << "  config.name = \"#{app_class}\"\n"
             io << "  config.port = 3000\n"
-            io << "  config.db_url = ENV[\"DATABASE_URL\"]? || \"sqlite3://./db/#{@name}.db\"\n"
             io << "end\n"
+            io << "\n"
+            io << "# Database and secrets come from `config/database.yml` and\n"
+            io << "# `.env` — edit those, not this file. `ENV[\"DATABASE_URL\"]`\n"
+            io << "# overrides the file when set.\n"
             io << "\n"
             io << "# Predefined so `config/routes.cr` can include the helpers\n"
             io << "# even before the first route is declared.\n"
             io << "module #{app_class}::RouteHelpers\n"
             io << "end\n"
           end
+        end
+
+        # Per-environment database settings, consumed by
+        # `Altair::Config::Database` at boot. `ENV["DATABASE_URL"]`
+        # overrides the `url` here when set.
+        private def database_yml : String
+          String.build do |io|
+            io << "# #{app_class} — the database configuration.\n"
+            io << "# The active environment's section is applied at boot by\n"
+            io << "# `Altair::Config::Database`; `ENV[\"DATABASE_URL\"]` overrides `url`.\n"
+            io << "#\n"
+            io << "development:\n"
+            io << "  url: \"sqlite3://./db/#{@name}.db\"\n"
+            io << "\n"
+            io << "test:\n"
+            io << "  url: \"sqlite3://./db/#{@name}_test.db\"\n"
+            io << "\n"
+            io << "production:\n"
+            io << "  url: \"sqlite3://./db/#{@name}_production.db\"\n"
+          end
+        end
+
+        # The shipped, committed list of environment variables the project
+        # honours. Copy it to `.env` and fill in real values; `.env` is
+        # git-ignored so secrets never land in the repository.
+        private def env_example : String
+          String.build do |io|
+            io << "# Copy to `.env` and edit — `.env` is gitignored.\n"
+            io << "# Leave unset to use the defaults in `config/database.yml`.\n"
+            io << "# DATABASE_URL=postgres://user:pass@localhost/#{@name}_production\n"
+            io << "# SECRET_KEY_BASE=<generate with: openssl rand -hex 64>\n"
+            io << "# PORT=3000\n"
+          end
+        end
+
+        # A working starting value of `.env`: every variable commented out,
+        # so the project runs on the `database.yml` defaults immediately.
+        private def env_default : String
+          env_example
         end
 
         # The routes file. Starts with an empty `routes do` block so
@@ -287,7 +332,7 @@ module Altair
         end
 
         private def regex_gitignore : String
-          "/lib/\n/.altair/\n/tmp/\n/db/*.db\n"
+          "/lib/\n/.altair/\n/tmp/\n/db/*.db\n/.env\n"
         end
 
         # The project readme, pointing at the two commands.

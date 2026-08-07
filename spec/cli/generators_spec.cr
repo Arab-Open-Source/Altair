@@ -197,6 +197,10 @@ module Altair::CLI
         File.read("blog/src/blog.cr").should contain "Blog.run!"
         File.read("blog/src/config/application.cr").should contain "class Blog < Altair::Application"
         File.read("blog/src/config/routes.cr").should contain "routes do"
+        File.read("blog/config/database.yml").should contain "sqlite3://./db/blog.db"
+        File.read("blog/.env.example").should contain "DATABASE_URL="
+        File.exists?("blog/.env").should be_true
+        File.read("blog/.gitignore").should contain "/.env"
         File.exists?("blog/src/app/models/.gitkeep").should be_true
         File.exists?("blog/db/migrations/.gitkeep").should be_true
         File.read("blog/db/schema.cr").should contain "META = {} of Symbol => Hash(Symbol, Hash(Symbol, String))"

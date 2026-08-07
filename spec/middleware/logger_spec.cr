@@ -51,4 +51,20 @@ describe Altair::Middleware::Logger do
       SpecApp.instance.config.logger = Log.for("altair")
     end
   end
+
+  it "appends the request id when one is assigned" do
+    io, log, unbind = capture_logger
+    logger = Altair::Middleware::Logger.new(SpecApp.instance)
+    SpecApp.instance.config.logger = log
+    request = logger_request("GET", "/posts")
+    request.request_id = "req-7"
+    begin
+      logger.call(request, logger_response, -> { })
+      io.to_s.should contain("GET /posts -> 200")
+      io.to_s.should contain("(req-7)")
+    ensure
+      unbind.call
+      SpecApp.instance.config.logger = Log.for("altair")
+    end
+  end
 end

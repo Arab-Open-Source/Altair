@@ -93,12 +93,12 @@ macro templates(dir, root = nil, layout = nil, **views)
               {% if body.strip == "yield" %}
                 __io__ << content
               {% elsif body.strip.starts_with?("form_for(") %}
-                {% form_name, form_args = body.strip.split("(") %}
-                {{ form_name.id }}(__io__, {{ form_args.id }}
+                {% form_parts = body.strip.split("(") %}
+                {{ form_parts[0].id }}(__io__, {{ form_parts[1..].join("(").id }}
               {% elsif body.strip.starts_with?("form_for ") %}
-                {% form_parts = body.strip.split(" do ", 2) %}
+                {% form_parts = body.strip.split(" do ") %}
                 {% if form_parts.size > 1 %}
-                  form_for(__io__, {{ form_parts[0][9..].id }}) do {{ form_parts[1].id }}
+                  form_for(__io__, {{ form_parts[0][9..].id }}) do {{ form_parts[1..].join(" do ").id }}
                 {% else %}
                   form_for(__io__, {{ form_parts[0][9..].id }})
                 {% end %}
@@ -172,12 +172,12 @@ macro templates(dir, root = nil, layout = nil, **views)
               {% if body.strip == "yield" %}
                 __io__ << content
               {% elsif body.strip.starts_with?("form_for(") %}
-                {% form_name, form_args = body.strip.split("(") %}
-                {{ form_name.id }}(__io__, {{ form_args.id }}
+                {% form_parts = body.strip.split("(") %}
+                {{ form_parts[0].id }}(__io__, {{ form_parts[1..].join("(").id }}
               {% elsif body.strip.starts_with?("form_for ") %}
-                {% form_parts = body.strip.split(" do ", 2) %}
+                {% form_parts = body.strip.split(" do ") %}
                 {% if form_parts.size > 1 %}
-                  form_for(__io__, {{ form_parts[0][9..].id }}) do {{ form_parts[1].id }}
+                  form_for(__io__, {{ form_parts[0][9..].id }}) do {{ form_parts[1..].join(" do ").id }}
                 {% else %}
                   form_for(__io__, {{ form_parts[0][9..].id }})
                 {% end %}

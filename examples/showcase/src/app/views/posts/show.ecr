@@ -1,0 +1,47 @@
+<h1><%= post.title %></h1>
+
+<p class="meta">
+  by <%= post.user.try(&.name) %>
+  <% if year = post.created_at.try(&.year) %>
+    · <%= year %>
+  <% end %>
+</p>
+
+<% if post.image %>
+  <img class="post-image" src="<%= post.image %>" alt="">
+<% end %>
+
+<div class="body"><%= post.body %></div>
+
+<% if logged_in? && current_user.not_nil!.id == post.user_id %>
+  <p class="actions">
+    <%= link_to "Edit", edit_post_path(post.id.not_nil!) %>
+    <% form_for(post_path(post.id.not_nil!), method: :delete) do |f| %>
+      <%= f.submit("Delete", class: "as-link danger") %>
+    <% end %>
+    <% form_for(publish_post_path(post.id.not_nil!), method: :post) do |f| %>
+      <%= f.submit(post.published ? "Unpublish" : "Publish", class: "as-link") %>
+    <% end %>
+  </p>
+<% end %>
+
+<h2>Comments (<%= comments.size %>)</h2>
+<% comments.each do |comment| %>
+  <div class="comment">
+    <p class="meta"><strong><%= comment.user.try(&.name) %></strong></p>
+    <p><%= comment.body %></p>
+    <% if logged_in? && current_user.not_nil!.id == comment.user_id %>
+      <%= button_to "Delete", "/posts/#{post.id}/comments/#{comment.id}", method: :delete %>
+    <% end %>
+  </div>
+<% end %>
+
+<% if logged_in? %>
+  <h3>Add a comment</h3>
+  <% form_for("/posts/#{post.id}/comments", method: :post) do |f| %>
+    <p><textarea name="body" rows="3" cols="40"></textarea></p>
+    <p><%= f.submit("Add comment") %></p>
+  <% end %>
+<% else %>
+  <p><%= link_to "Sign in", new_session_path %> to add a comment.</p>
+<% end %>

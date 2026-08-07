@@ -139,6 +139,26 @@ module Altair
       )
     end
 
+    # Enables CSRF protection for the controller. Every state-changing
+    # request — anything but `GET`, `HEAD`, `OPTIONS` and `TRACE` — must
+    # then carry the session's authenticity token, either as a `_csrf`
+    # form field or an `X-CSRF-Token` header, verified in constant time.
+    # `form_for` and `button_to` embed the token automatically, so the
+    # framework's own forms are covered out of the box:
+    #
+    # ```
+    # class ApplicationController < Altair::Controller
+    #   protect_from_forgery
+    # end
+    # ```
+    #
+    # `only:` / `except:` restrict the actions verified, mirroring
+    # `before_action`, and a controller may skip the check with
+    # `skip_before_action :verify_authenticity_token`.
+    macro protect_from_forgery(only = nil, except = nil)
+      before_action :verify_authenticity_token, only: {{ only }}, except: {{ except }}
+    end
+
     # Registers a handler for exceptions raised by the action or any of its
     # callbacks. The handler must accept the exception and return nothing:
     #
@@ -178,7 +198,137 @@ module Altair
       )
     end
 
-    # The framework's request wrapper for this request.
+    # The controller's session, lazily built from the application's
+    # configured session store. Read `session["key"]`, write with
+    # `session["key"] = value`, see `Altair::Session` for the full API.
+    #
+    # ```
+    # session["user_id"] = user.id.to_s
+    # logged_in?
+    # ```
+    def session : Altair::Session
+      app = Altair.application_instance
+      raise Altair::ConfigurationError.new("no application instance is set") unless app
+      @session ||= Altair::Session.new(
+        @request,
+        @response,
+        Altair::Session.store_for(app.config)
+      )
+    end
+
+    # The controller's flash: one-request messages written through `flash[:key] = value`
+    # and read on the next render.
+    def flash : Altair::Session::Flash
+      @flash ||= Altair::Session::Flash.new(session)
+    end
+
+    # True when the session carries a `user_id` — the minimal "logged in"
+    # contract the framework ships, used by the hardening-wave login helpers.
+    def logged_in? : Bool
+      session["user_id"]?.nil?.!
+    end
+
+    # The id of the signed-in user, or `nil`. On top of this minimal
+    # `user_id` contract controllers load the full record themselves:
+    #
+    # ```
+    # def current_user : User?
+    #   current_user_id.try { |id| User.find(id.to_i) }
+    # end
+    # ```
+    def current_user_id : String?
+      session["user_id"]?
+    end
+
+    # Signs the user in by storing their id in the session, and returns the
+    # id stored (so `sign_in` can feed a `session["user_id"]` flow).
+    def sign_in(user_id : String) : String
+      session["user_id"] = user_id
+    end
+
+    # Signs the user out, preserving any flash messages.
+    def sign_out : Nil
+      reset_session
+    end
+
+    # A `before_action` filter that redirects unauthenticated requests to
+    # `login_path` (default `/login`). Works with the callback DSL:
+    #
+    # ```
+    # before_action :require_login, except: [:index, :show]
+    # ```
+    def require_login : Nil
+      return if logged_in?
+      flash["alert"] = "Please sign in"
+      app = Altair.application_instance
+      redirect_to(app ? app.config.login_path : "/login")
+    end
+
+    # A `before_action` filter that answers `401 Unauthorized` for
+    # unauthenticated requests — the JSON/API counterpart to `require_login`
+    # that never bounce-redirects:
+    #
+    # ```
+    # before_action :authenticate!
+    # ```
+    def authenticate! : Nil
+      return if logged_in?
+      raise Altair::HTTP::Unauthorized.new
+    end
+
+    # Resets the session, preserving any flash messages.
+    def reset_session : Nil
+      session.clear
+    end
+
+    # The authenticity token for state-changing forms: the session's token,
+    # created on first use. `form_for` and `button_to` embed it as a hidden
+    # `_csrf` field automatically; API clients may send it as an
+    # `X-CSRF-Token` header instead.
+    #
+    # ```
+    # <%= f.hidden_field("_csrf", value: form_authenticity_token) %>
+    # ```
+    def form_authenticity_token : String
+      session["_csrf_token"]? || begin
+        token = Random::Secure.urlsafe_base64(32)
+        session["_csrf_token"] = token
+        token
+      end
+    end
+
+    # The token the view helpers embed: `form_authenticity_token` when the
+    # controller class declared `protect_from_forgery`, else `""` so forms
+    # in unprotected controllers stay token-free. The helper seam returns
+    # `""` unless this override supplies it.
+    def authenticity_token : String
+      self.class.forgery_protected? ? form_authenticity_token : ""
+    end
+
+    # The callback behind `protect_from_forgery`: answers 422 when a
+    # state-changing request does not carry the session's authenticity
+    # token. Tokens are compared in constant time, so a timing attack
+    # cannot distinguish a wrong token from a missing one.
+    def verify_authenticity_token : Nil
+      return if request.method.in?("GET", "HEAD", "OPTIONS", "TRACE")
+      expected = session["_csrf_token"]?
+      actual = params["_csrf"]? || request.headers["X-CSRF-Token"]?
+      unless expected && actual && Crypto::Subtle.constant_time_compare(expected, actual)
+        raise Altair::HTTP::InvalidCsrfToken.new
+      end
+    end
+
+    # True when the controller class (or an ancestor) declared
+    # `protect_from_forgery` — the form helpers use it to decide whether to
+    # embed the token field.
+    def self.forgery_protected? : Bool
+      Altair::Controller::Callbacks.chain_of(name).any? do |class_name|
+        Altair::Controller::Callbacks.list(:before, class_name).any? do |callback|
+          callback.method_name == "verify_authenticity_token"
+        end
+      end
+    end
+
     getter request : Altair::HTTP::Request
 
     # The framework's response wrapper for this request.
@@ -288,6 +438,11 @@ module Altair
       io << '>'
       unless method.in?(:get, :post)
         io << "<input type=\"hidden\" name=\"_method\" value=\"" << method.to_s.upcase << "\">"
+      end
+      unless method == :get
+        if self.class.forgery_protected?
+          io << "<input type=\"hidden\" name=\"_csrf\" value=\"" << Altair::View.escape(form_authenticity_token) << "\">"
+        end
       end
       yield Altair::View::FormBuilder.new(method)
       io << "</form>"

@@ -23,8 +23,19 @@ module Altair
       # The request headers.
       getter headers : ::HTTP::Headers
 
+      # The cookies sent by the client, parsed lazily.
+      def cookies : ::HTTP::Cookies
+        @request.cookies
+      end
+
       # The request body as a `String`, or `nil` when the request has none.
       getter body : String?
+
+      # The request identifier assigned by the `RequestId` middleware: the
+      # client's `X-Request-Id` when present, else a generated UUID. `nil`
+      # until the middleware runs, so controller code may rely on it being
+      # set.
+      property request_id : String? = nil
 
       @query_done = false
       @query_memo : URI::Params? = nil
@@ -33,6 +44,8 @@ module Altair
       @route_params : Hash(String, String)? = nil
       @params_done = false
       @params_memo : Altair::HTTP::Params? = nil
+      @multipart_done = false
+      @multipart_memo : Hash(String, Altair::HTTP::UploadedFile)? = nil
 
       # The parsed JSON body, or `nil` when the request has no JSON body.
       # The body is parsed on first access, so a request that never reads its
@@ -61,12 +74,22 @@ module Altair
       def params : Altair::HTTP::Params
         unless @params_done
           @params_done = true
-          @params_memo = Altair::HTTP::Params.new(query_params, form_params, json_params)
+          @params_memo = Altair::HTTP::Params.new(query_params, form_params, json_params, uploads)
           if route_params = @route_params
             @params_memo.not_nil!.merge_route(route_params)
           end
         end
         @params_memo.not_nil!
+      end
+
+      # The uploaded files of a `multipart/form-data` body, parsed on first
+      # access. A request without a multipart body yields an empty hash.
+      def uploads : Hash(String, Altair::HTTP::UploadedFile)
+        unless @multipart_done
+          @multipart_done = true
+          @multipart_memo = parse_multipart
+        end
+        @multipart_memo.not_nil!
       end
 
       # The route that matched this request, assigned by the router just
@@ -100,6 +123,8 @@ module Altair
         @route_params = nil
         @params_done = false
         @params_memo = nil
+        @multipart_done = false
+        @multipart_memo = nil
       end
 
       # Registers the route parameters as the unified bag's highest-precedence
@@ -148,10 +173,63 @@ module Altair
       private def form_params : URI::Params
         return URI::Params.new unless body = @body
         content_type = @headers["Content-Type"]?
+        return multipart_scalar_fields if content_type.try(&.starts_with?("multipart/form-data"))
         return URI::Params.new unless content_type.try(&.starts_with?("application/x-www-form-urlencoded"))
         URI::Params.parse(body)
       rescue URI::Error
         URI::Params.new
+      end
+
+      # The scalar (non-file) fields of a multipart body — submitted as
+      # `multipart/form-data`, a plain text input arrives in its own part.
+      private def multipart_scalar_fields : URI::Params
+        fields = URI::Params.new
+        begin
+          parse_parts do |part|
+            next if part.filename
+            fields[part.name] = part.body.gets_to_end
+          end
+        rescue ::MIME::Multipart::Error
+        end
+        fields
+      end
+
+      # The uploaded files of a multipart body, keyed by field name. An
+      # invalid boundary or malformed body silently yields nothing — an
+      # upload that cannot be parsed becomes an empty file bag the same way
+      # an unscannable JSON body stays `nil`.
+      def parse_multipart : Hash(String, Altair::HTTP::UploadedFile)
+        parsed = {} of String => Altair::HTTP::UploadedFile
+        return parsed unless @body
+        content_type = @headers["Content-Type"]?
+        return parsed unless content_type.try(&.starts_with?("multipart/form-data"))
+        begin
+          parse_parts do |part|
+            next unless filename = part.filename
+            content = part.body.gets_to_end
+            parsed[part.name] = Altair::HTTP::UploadedFile.new(
+              part.name,
+              filename,
+              part.headers["Content-Type"]?,
+              content.size.to_i64,
+              content
+            )
+          end
+        rescue ::MIME::Multipart::Error
+        end
+        parsed
+      end
+
+      # Parses each part of a `multipart/form-data` body, yielding it to the
+      # block. The body buffers the request payload, so the part IO is
+      # safe to read inside the block only; parse the content before using
+      # it after.
+      private def parse_parts(&block : ::HTTP::FormData::Part ->) : Nil
+        return unless body = @body
+        content_type = @headers["Content-Type"]?
+        return unless content_type
+        return unless boundary = ::MIME::Multipart.parse_boundary(content_type)
+        ::HTTP::FormData.parse(IO::Memory.new(body), boundary, &block)
       end
 
       # Parses the body as JSON when the request carries an

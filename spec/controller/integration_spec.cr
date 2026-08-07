@@ -157,6 +157,35 @@ describe "controller integration" do
     end
   end
 
+  it "stamps the default security headers on responses" do
+    with_books_server do |port|
+      response = HTTP::Client.get("http://127.0.0.1:#{port}/health")
+      response.headers["X-Content-Type-Options"].should eq("nosniff")
+      response.headers["X-Frame-Options"].should eq("SAMEORIGIN")
+      response.headers["Referrer-Policy"].should eq("strict-origin-when-cross-origin")
+    end
+  end
+
+  it "echoes the client's request id and answers the health path" do
+    with_books_server do |port|
+      response = HTTP::Client.get(
+        "http://127.0.0.1:#{port}/health",
+        headers: HTTP::Headers{"X-Request-Id" => "req-42"}
+      )
+      response.headers["X-Request-Id"].should eq("req-42")
+    end
+  end
+
+  it "generates a fresh request id when the client sends none" do
+    with_books_server do |port|
+      first = HTTP::Client.get("http://127.0.0.1:#{port}/health")
+      second = HTTP::Client.get("http://127.0.0.1:#{port}/health")
+      first.headers["X-Request-Id"].should_not be_nil
+      second.headers["X-Request-Id"].should_not be_nil
+      first.headers["X-Request-Id"].should_not eq(second.headers["X-Request-Id"])
+    end
+  end
+
   it "streams a file with its mime type and length" do
     with_books_server do |port|
       response = HTTP::Client.get("http://127.0.0.1:#{port}/file")

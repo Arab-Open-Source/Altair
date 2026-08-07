@@ -1,0 +1,25 @@
+<% post.errors.full_messages.each do |message| %>
+  <p class="flash alert"><%= message %></p>
+<% end %>
+
+<% form_for(action, method: method, enctype: "multipart/form-data") do |f| %>
+  <p>
+    <%= f.label("title", "Title") %>
+    <%= f.text_field("title", value: post.title.to_s) %>
+  </p>
+  <p>
+    <%= f.label("body", "Body") %>
+    <textarea name="body" rows="8" cols="60"><%= post.body.to_s %></textarea>
+  </p>
+  <p>
+    <%= f.label("image", "Image (optional)") %>
+    <input type="file" name="image">
+  </p>
+  <p>
+    <label for="published">
+      <input type="checkbox" name="published" value="1" <% if post.published %>checked<% end %>>
+      Published
+    </label>
+  </p>
+  <p><%= f.submit("Save") %></p>
+<% end %>

@@ -14,6 +14,7 @@ class ViewApp < Altair::Application
     get "/posts", to: "view_posts#index"
     get "/posts/raw", to: "view_posts#show"
     get "/posts/list", to: "view_posts#list"
+    get "/posts/forms", to: "view_posts#forms"
     post "/posts", to: "view_posts#create"
   end
 end
@@ -36,7 +37,12 @@ class ViewPostsController < Altair::Controller
     index: {title: String, posts: Array(Int32)},
     show: {title: String, raw: String},
     form: {title: String},
-    list: NamedTuple.new
+    list: NamedTuple.new,
+    forms: NamedTuple.new
+
+  def route(id : Int32) : String
+    "/posts/#{id}"
+  end
 
   def index : Nil
     render :index, layout: !request.hx_request?, locals: {title: "Posts", posts: [1, 2, 3]}
@@ -48,6 +54,10 @@ class ViewPostsController < Altair::Controller
 
   def list : Nil
     render :list, layout: false
+  end
+
+  def forms : Nil
+    render :forms
   end
 
   def create : Nil
@@ -128,6 +138,17 @@ describe "view rendering" do
     with_view_server do |port|
       response = HTTP::Client.get("http://127.0.0.1:#{port}/posts/list")
       response.body.should eq("<section>\n  <label>inner</label>\n</section>\n")
+    end
+  end
+
+  it "renders form_for blocks with helpers as actions, including nested parens" do
+    with_view_server do |port|
+      response = HTTP::Client.get("http://127.0.0.1:#{port}/posts/forms")
+      response.status_code.should eq(200)
+      response.body.should contain("<form action=\"/submit\"")
+      response.body.should contain "<form action=\"/posts/1\" method=\"post\" class=\"inline\">"
+      response.body.should contain(">Delete</button>")
+      response.body.should contain(">Save</button>")
     end
   end
 

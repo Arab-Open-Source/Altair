@@ -1,0 +1,101 @@
+:root {
+  --bg: #f4f5f7;
+  --card: #ffffff;
+  --ink: #1c2333;
+  --muted: #5b6478;
+  --line: #e2e5ec;
+  --brand: #102030;
+  --brand-2: #2e4a6b;
+  --accent: #d05050;
+  --ok: #1d7a4f;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.55;
+}
+
+a { color: var(--brand-2); }
+a:hover { color: var(--brand); }
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--brand);
+  color: #fff;
+}
+.topbar a, .topbar .as-link { color: #d7deea; }
+.topbar a:hover { color: #fff; }
+.topbar .brand { font-weight: 700; font-size: 1.15rem; color: #fff; text-decoration: none; }
+.topbar nav { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.topbar .who { color: #aebacf; font-size: 0.9rem; }
+
+main {
+  max-width: 46rem;
+  margin: 2rem auto 3rem;
+  padding: 0 1.5rem;
+}
+
+footer {
+  text-align: center;
+  color: var(--muted, #7a8699);
+  font-size: 0.85rem;
+  padding: 1.5rem;
+}
+
+.flash { border-radius: 6px; padding: 0.6rem 0.9rem; margin: 0.4rem 0; }
+.flash.notice { background: #e7f5ec; color: var(--ok); }
+.flash.alert { background: #fdecec; color: var(--accent); }
+
+.feed { list-style: none; padding: 0; }
+.feed li { margin: 0.35rem 0; }
+.feed-title { font-weight: 600; }
+
+.meta { color: var(--muted); font-size: 0.85rem; }
+
+.post, .comment {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+}
+.post h2 { margin-top: 0; }
+.post-image img { max-width: 100%; border-radius: 6px; }
+.body { white-space: pre-wrap; }
+
+.actions { display: flex; align-items: center; gap: 0.8rem; }
+.as-link {
+  border: 0; background: none; padding: 0; color: var(--brand-2);
+  font: inherit; cursor: pointer; text-decoration: underline;
+}
+.as-link:hover { color: var(--brand); }
+.as-link.danger { color: var(--accent); }
+
+input[type=text], input[type=email], input[type=password], textarea {
+  width: 100%; max-width: 26rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+}
+label { display: block; margin-bottom: 2px; }
+
+button[type=submit], input[type=submit] {
+  border: 0;
+  border-radius: 6px;
+  background: var(--brand);
+  color: #fff;
+  padding: 0.45rem 1rem;
+  font: inherit;
+  cursor: pointer;
+}
+button[type=submit]:hover { background: var(--brand-2); }

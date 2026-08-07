@@ -6,8 +6,8 @@ before touching the codebase.
 
 ## The short version
 
-- **Status:** Phases 0–2 done (Foundation, Router, Controllers).
-  **Phase 3 (Views)** is next. 155 specs passing.
+- **Status:** Phases 0–6 done (Foundation, Router, Controllers, Views, ORM,
+  CLI, Hardening). **Phase 7 (post-release)** is next. 705 specs passing.
 - **Contract:** specs from day one, never skip a phase's exit criterion,
   never mention "Rails" in the repo, no emojis, no obvious comments.
 - **Plan:** `ROADMAP.md` holds the phase table + exit criteria; detailed
@@ -40,8 +40,10 @@ Acceptance bar: formatter clean, Ameba silent, specs green, CHANGELOG
 
 `src/altair.cr` requires components **in dependency order** — register new
 files there or they never load. `core/ http/ routing/ controller/
-middleware/ config/ support/ exceptions/ server/` under `src/altair/`.
-`spec/` mirrors it. `examples/hello_world/` is the runnable demo.
+middleware/ config/ session/ auth/ view/ record/ cli/ server/ support/
+exceptions/ concurrency/` under `src/altair/`. `spec/` mirrors it.
+`examples/hello_world/` is the runnable demo; `examples/blog` is the
+persistence demo.
 
 ## Costly gotchas
 

@@ -31,6 +31,12 @@ module Altair
       # The response headers.
       getter headers : ::HTTP::Headers
 
+      # The cookies to be sent with this response. Any cookie added here is
+      # written into the `Set-Cookie` header when the response closes.
+      def cookies : ::HTTP::Cookies
+        @response.cookies
+      end
+
       # Sets the response status, e.g. `response.status = 404` to signal a
       # missing resource.
       def status=(status : ::HTTP::Status) : ::HTTP::Status

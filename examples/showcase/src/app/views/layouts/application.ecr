@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Altair Showcase</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">Altair Showcase</a>
+    <nav>
+      <%= link_to "Posts", posts_path %>
+      <%= link_to "Recent", recent_posts_path %>
+      <%= link_to "About", "/about" %>
+      <% if logged_in? %>
+        <span class="who">Signed in as <%= current_user.not_nil!.name %></span>
+        <% form_for(session_path, method: :delete) do |f| %>
+          <%= f.submit("Sign out", class: "as-link") %>
+        <% end %>
+      <% else %>
+        <%= link_to "Sign in", new_session_path %>
+        <%= link_to "Create account", new_user_path %>
+      <% end %>
+    </nav>
+  </header>
+
+  <% if notice = flash["notice"]? %>
+    <p class="flash notice"><%= notice %></p>
+  <% end %>
+  <% if alert = flash["alert"]? %>
+    <p class="flash alert"><%= alert %></p>
+  <% end %>
+
+  <main><% yield %></main>
+
+  <footer>Altair Showcase — every phase in one running app.</footer>
+</body>
+</html>

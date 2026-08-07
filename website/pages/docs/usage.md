@@ -10,7 +10,7 @@ cd blog
 shards install
 ```
 
-This generates the standard layout: `src/`, `db/`, `public/`, and the `bin/altair` wrapper script.
+This generates the standard layout: `src/`, `db/`, `public/`, the `bin/altair` wrapper script, plus `.env` and `config/database.yml` — so a fresh project's configuration is file-driven, not code-driven. See the [Configuration guide](/docs/configuration.html).
 
 ## Run the server
 
@@ -69,6 +69,8 @@ src/            your application code
 db/             migrations and db/schema.cr
 public/         static assets served as-is
 bin/altair      the per-project command wrapper
+.env            environment settings (.env.<environment> overrides)
+config/database.yml   per-environment database settings
 ```
 
 ## Try the demo

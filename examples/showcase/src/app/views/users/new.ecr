@@ -1,0 +1,21 @@
+<h1>Create your account</h1>
+
+<% errors.each do |message| %>
+  <p class="flash alert"><%= message %></p>
+<% end %>
+
+<% form_for("/users", method: :post) do |f| %>
+  <p>
+    <%= f.label("name", "Name") %>
+    <%= f.text_field("name", value: user.name.to_s) %>
+  </p>
+  <p>
+    <%= f.label("email", "Email") %>
+    <%= f.email_field("email", value: user.email.to_s) %>
+  </p>
+  <p>
+    <%= f.label("password", "Password") %>
+    <%= f.password_field("password", value: user.password.to_s) %>
+  </p>
+  <p><%= f.submit("Create account") %></p>
+<% end %>

@@ -12,10 +12,13 @@
 <body>
   <header class="site-header">
     <nav class="site-nav" aria-label="Main">
-      <a class="brand" href="../">Altair</a>
+      <a class="brand" href="../">
+        <img class="brand-logo" src="../assets/img/logo.png" alt="" width="30" height="30">
+        Altair
+      </a>
       <div class="nav-links">
         <a href="../">Home</a>
-        <a href="../docs/">Docs</a>
+        <a href="../docs/" class="is-active" aria-current="page">Docs</a>
         <a href="../docs/routing.html">Guides</a>
         <a href="../docs/install.html">Install</a>
         <a href="../docs/usage.html">Usage</a>
@@ -26,7 +29,7 @@
   </header>
 
   <main class="site-main">
-    <h1>Documentation</h1>
+    <div class="docs-layout"><nav class="docs-sidebar" aria-label="Docs"><h4>Getting started</h4><ul><li><a href="install.html">Install</a></li><li><a href="usage.html">Usage</a></li><li><a href="update.html">Updating</a></li></ul><h4>Guides</h4><ul><li><a href="routing.html">Routing</a></li><li><a href="controllers.html">Controllers</a></li><li><a href="views.html">Views</a></li><li><a href="record.html">Record (ORM)</a></li><li><a href="sessions.html">Sessions and auth</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="security.html">Security</a></li><li><a href="uploads.html">Uploads</a></li></ul><h4>Reference</h4><ul><li><a href="features.html">What is implemented</a></li><li><a href="cli.html">CLI reference</a></li><li><a href="benchmarks.html">Benchmarks</a></li></ul></nav><article class="docs-content"><h1>Documentation</h1>
 <p>The Altair documentation, generated from markdown. All content lives in <code>website/pages/</code>.</p>
 <h2>Getting started</h2>
 <ul>
@@ -40,6 +43,10 @@
 <li><a href="../docs/controllers.html">Controllers</a> — actions, typed parameters, rendering and templates.</li>
 <li><a href="../docs/views.html">Views</a> — ECR templates, escaping, layouts, partials, helpers and the form builder.</li>
 <li><a href="../docs/record.html">Record (ORM)</a> — models, migrations, validations, callbacks and associations.</li>
+<li><a href="../docs/sessions.html">Sessions and auth</a> — signed-cookie sessions, flash, CSRF and login helpers.</li>
+<li><a href="../docs/configuration.html">Configuration</a> — <code>.env</code>, <code>config/database.yml</code> and typed per-environment settings.</li>
+<li><a href="../docs/security.html">Security</a> — default headers, request ids and opt-in CORS.</li>
+<li><a href="../docs/uploads.html">Uploads</a> — multipart file uploads through <code>params</code>.</li>
 </ul>
 <h2>Reference</h2>
 <ul>
@@ -49,12 +56,12 @@
 </ul>
 <h2>Contribute</h2>
 <p>Altair is open source. Source code, issues and releases live on <a href="https://github.com/Arab-Open-Source/Altair">GitHub</a>.</p>
-
+</article></div>
   </main>
 
   <footer class="site-footer">
-    <p>Altair — batteries-included web framework for Crystal.</p>
-    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></p>
+    <p><span class="footer-brand">Altair</span> — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a> &middot; <a href="../docs/features.html">What is implemented</a></p>
   </footer>
 
   <script src="../assets/js/docs.js" defer></script>

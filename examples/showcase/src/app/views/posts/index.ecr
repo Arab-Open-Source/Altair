@@ -1,0 +1,17 @@
+<h1>Posts</h1>
+
+<p>
+  <%= link_to "New post", new_post_path %> ·
+  <%= link_to "Recent", recent_posts_path %> ·
+  <%= link_to "Feed as JSON", "/posts.json" %>
+</p>
+
+<% posts.each do |post| %>
+  <article class="post">
+    <h2><a href="/posts/<%= post.id %>"><%= post.title %></a></h2>
+    <p class="meta">by <%= post.user.try(&.name) %></p>
+    <% if image = post.image %>
+      <p class="post-image"><img src="<%= image %>" alt=""></p>
+    <% end %>
+  </article>
+<% end %>

@@ -62,7 +62,9 @@ module Altair
 
       # Renders a form button that submits to `path`. Non-GET verbs are
       # sent through the `_method` override, so a `DELETE` works from a
-      # plain form. htmx attributes can be passed straight through:
+      # plain form. When the controller class declared `protect_from_forgery`
+      # the form carries the hidden `_csrf` token too. htmx attributes can
+      # be passed straight through:
       #
       # ```
       # button_to "Delete", post_path(post.id), method: :delete,
@@ -79,8 +81,19 @@ module Altair
           unless method.in?(:get, :post)
             io << "<input type=\"hidden\" name=\"_method\" value=\"" << method.to_s.upcase << "\">"
           end
+          unless (token = authenticity_token).empty?
+            io << "<input type=\"hidden\" name=\"_csrf\" value=\"" << Altair::View.escape(token) << "\">"
+          end
           io << "<button>" << Altair::View.escape(name) << "</button></form>"
         end
+      end
+
+      # The CSRF authenticity token to embed in state-changing forms, an
+      # empty string when the host does not provide one. Controllers that
+      # call `protect_from_forgery` supply one through this seam; plain
+      # helper hosts get `""` and no token field.
+      def authenticity_token : String
+        ""
       end
 
       # Includes a script tag. The only built-in asset is `:htmx`; the

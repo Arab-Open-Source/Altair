@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Altair configuration: .env, config/database.yml, per-environment settings and the config object.">
+  <title>Configuration guide — Altair</title>
+  <link rel="icon" href="../favicon.png" type="image/png">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/docs.css">
+</head>
+<body>
+  <header class="site-header">
+    <nav class="site-nav" aria-label="Main">
+      <a class="brand" href="../">
+        <img class="brand-logo" src="../assets/img/logo.png" alt="" width="30" height="30">
+        Altair
+      </a>
+      <div class="nav-links">
+        <a href="../">Home</a>
+        <a href="../docs/">Docs</a>
+        <a href="../docs/routing.html" class="is-active" aria-current="page">Guides</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/usage.html">Usage</a>
+        <a href="../docs/benchmarks.html">Benchmarks</a>
+        <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="site-main">
+    <div class="docs-layout"><nav class="docs-sidebar" aria-label="Docs"><h4>Getting started</h4><ul><li><a href="install.html">Install</a></li><li><a href="usage.html">Usage</a></li><li><a href="update.html">Updating</a></li></ul><h4>Guides</h4><ul><li><a href="routing.html">Routing</a></li><li><a href="controllers.html">Controllers</a></li><li><a href="views.html">Views</a></li><li><a href="record.html">Record (ORM)</a></li><li><a href="sessions.html">Sessions and auth</a></li><li><a href="configuration.html" class="is-active" aria-current="page">Configuration</a></li><li><a href="security.html">Security</a></li><li><a href="uploads.html">Uploads</a></li></ul><h4>Reference</h4><ul><li><a href="features.html">What is implemented</a></li><li><a href="cli.html">CLI reference</a></li><li><a href="benchmarks.html">Benchmarks</a></li></ul></nav><article class="docs-content"><h1>Configuration</h1>
+<p>Altair is configured by code <em>and</em> by files. Sensitive or environment-specific
+values live in <code>.env</code> and <code>config/database.yml</code>; the rest is typed properties
+on <code>config</code>, each with a sane default and most tunable per environment.</p>
+<h2>The layered picture</h2>
+<p>At boot the framework merges settings from low to high precedence:</p>
+<ol>
+<li><p><strong>Defaults</strong> — every <code>config.*</code> property has a sane default.</p>
+</li>
+<li><p><strong><code>.env</code></strong> — <code>.env</code> sets dev/test defaults; <strong><code>.env.&lt;environment&gt;</code></strong>
+(e.g. <code>.env.production</code>) overrides it.</p>
+</li>
+<li><p><strong>Real environment variables</strong> — a variable already in the process
+environment always wins over any <code>.env</code> file, so</p>
+<pre><code class="language-sh">export SECRET_KEY_BASE=&quot;$(openssl rand -hex 64)&quot; altair server
+</code></pre>
+<p>beats a checked-in fallback.</p>
+</li>
+<li><p><strong><code>config/database.yml</code></strong> — the active environment&#39;s section is merged
+into the database settings.</p>
+</li>
+</ol>
+<p><code>altair new</code> generates both <code>.env</code> and <code>config/database.yml</code>, so a fresh
+project is file-driven from day one.</p>
+<h2><code>.env</code></h2>
+<p><code>KEY=VALUE</code> pairs loaded into the process environment. Handles <code>export</code>,
+quoted and unquoted values and <code>#</code> comments:</p>
+<pre><code class="language-ini"># .env — dev/test defaults
+SECRET_KEY_BASE=change-me-dev-secret
+DATABASE_URL=sqlite3://./db/blog.db
+</code></pre>
+<pre><code class="language-ini"># .env.production — overrides for production
+SECRET_KEY_BASE=8f2a…  # keep out of the repository
+</code></pre>
+<h2><code>config/database.yml</code></h2>
+<p>Per-environment database settings. Only the section matching the active
+environment is applied:</p>
+<pre><code class="language-yaml">production:
+  url: postgresql://user:pass@localhost/blog_production
+  pool: 25
+  initial_pool: 4
+  max_idle_pool: 4
+  checkout_timeout: 5.0
+  query_timeout: 5.0
+
+test:
+  url: sqlite3://./db/test.db
+</code></pre>
+<p>Recognised keys are the <code>url</code> and the <code>db_*</code> pool settings (<code>pool</code>,
+<code>initial_pool</code>, <code>max_idle_pool</code>, <code>checkout_timeout</code>, <code>query_timeout</code>).</p>
+<h2>The <code>config</code> object</h2>
+<p>Everything is a typed property on the application&#39;s <code>config</code>, so a typo is
+a compile error:</p>
+<pre><code class="language-crystal">class Blog &lt; Altair::Application
+  config.name = &quot;Blog&quot;
+  config.port = 3000
+  config.secret_key_base = ENV[&quot;SECRET_KEY_BASE&quot;] || &quot;dev-only-secret&quot;
+
+  config.db_url = &quot;sqlite3://./db/blog.db&quot;
+  config.db_max_pool_size = 10
+
+  config.login_path = &quot;/login&quot;
+  config.max_body_size = 10.megabytes
+end
+</code></pre>
+<h3>Per-environment settings</h3>
+<p>Environments carry their own bags, addressed as
+<code>config.environments.&lt;env&gt;.&lt;setting&gt;</code>. Development and test default to debug
+on; production defaults to eager loading on:</p>
+<pre><code class="language-crystal">config.environments.production.eager_load = true
+config.environments.production.max_body_size = 100.megabytes
+</code></pre>
+<p>or programmatically with <code>config.environment(name)</code>.</p>
+<h3>The middleware stack</h3>
+<p><code>config.middleware</code> holds the stack run on every request before routing,
+each entry a factory proc. The default stack is logging, request-id
+assignment, the default security headers, CORS and static files:</p>
+<pre><code class="language-crystal">config.middleware = [
+  -&gt;(app : Altair::Application) : Altair::Middleware { Altair::Middleware::Logger.new(app) },
+  -&gt;(app : Altair::Application) : Altair::Middleware { Altair::Middleware::Static.new(app) },
+]
+</code></pre>
+<p>Assign an empty array to disable them all, or build your own stack. CORS is
+a pass-through until <code>config.cors.origins</code> is filled (see
+<a href="../docs/security.html">Security</a>).</p>
+<h2>Reference</h2>
+<p>A selection of the settings available:</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>port</code> / <code>host</code></td>
+<td><code>3000</code> / <code>0.0.0.0</code></td>
+<td>Where the server listens</td>
+</tr>
+<tr>
+<td><code>parallel_execution</code></td>
+<td><code>true</code></td>
+<td>Resize the execution context to available workers on boot</td>
+</tr>
+<tr>
+<td><code>secret_key_base</code></td>
+<td>env <code>SECRET_KEY_BASE</code></td>
+<td>Signs session cookies, CSRF tokens and JWTs</td>
+</tr>
+<tr>
+<td><code>session_cookie_name</code></td>
+<td><code>_altair_session</code></td>
+<td>The session cookie&#39;s name</td>
+</tr>
+<tr>
+<td><code>session_expiry</code></td>
+<td><code>nil</code></td>
+<td>Cookie lifetime; <code>nil</code> = browser session</td>
+</tr>
+<tr>
+<td><code>session_cookie_secure</code></td>
+<td>on in production</td>
+<td>The cookie&#39;s <code>Secure</code> attribute</td>
+</tr>
+<tr>
+<td><code>login_path</code></td>
+<td><code>/login</code></td>
+<td>Where <code>require_login</code> redirects</td>
+</tr>
+<tr>
+<td><code>max_body_size</code></td>
+<td><code>2 MB</code></td>
+<td>Request body limit (raise it for uploads)</td>
+</tr>
+<tr>
+<td><code>db_url</code></td>
+<td><code>nil</code></td>
+<td>The database connection URL</td>
+</tr>
+<tr>
+<td><code>db_*_pool_size</code></td>
+<td>warm defaults</td>
+<td>Connection pool tuning</td>
+</tr>
+<tr>
+<td><code>router_cache_size</code></td>
+<td><code>1024</code></td>
+<td>Memoized route lookups (<code>0</code> disables)</td>
+</tr>
+<tr>
+<td><code>security_headers</code></td>
+<td><code>nosniff</code> / <code>SAMEORIGIN</code> / referrer policy</td>
+<td>Headers stamped by <code>SecurityHeaders</code></td>
+</tr>
+<tr>
+<td><code>request_id_header</code></td>
+<td><code>X-Request-Id</code></td>
+<td>Header carrying the request id</td>
+</tr>
+<tr>
+<td><code>cors</code></td>
+<td>origin pass-through</td>
+<td>Cross-origin settings (see Security)</td>
+</tr>
+</tbody></table>
+<div class="docs-pager"><a href="sessions.html"><span class="label">Previous</span>Sessions and auth</a><a class="right" href="security.html"><span class="label">Next</span>Security</a></div></article></div>
+  </main>
+
+  <footer class="site-footer">
+    <p><span class="footer-brand">Altair</span> — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a> &middot; <a href="../docs/features.html">What is implemented</a></p>
+  </footer>
+
+  <script src="../assets/js/docs.js" defer></script>
+</body>
+</html>

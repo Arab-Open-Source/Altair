@@ -21,7 +21,7 @@ generators on top of that stack.
 | 3 | Views (templates, layouts, partials, htmx) | Completed |
 | 4 | ORM (`Altair::Record`, 3 waves) | Completed |
 | 5 | CLI + Generators & scaffolding | Completed |
-| 6 | Hardening (sessions, flash, CSRF, config) | Planned |
+| 6 | Hardening (sessions, flash, CSRF, config, security) | Completed |
 | 7 | Post-release features | Planned |
 
 > **Note on the CLI:** the original Phase 4 plan listed `altair new` /
@@ -129,12 +129,13 @@ pushing a `v*` tag, which triggers `release.yml`.
 
 ## Phase 6: Hardening
 
-| Task | Exit criterion |
-|------|----------------|
-| Sessions + flash + CSRF | Simple login works; state-changing forms protected |
-| `database.yml` / `.env` config | Production-ready configuration, no code edits |
-| Multipart form parsing | File uploads work through `params` |
-| Maintenance: Ameba (linter) + specs everywhere | Real-project quality gate |
+| Task | Exit criterion | Status |
+|------|----------------|--------|
+| Sessions + flash + CSRF | Simple login works; state-changing forms protected | Completed |
+| `database.yml` / `.env` config | Production-ready configuration, no code edits | Completed |
+| Multipart form parsing | File uploads work through `params` | Completed |
+| Security headers + CORS + request ID | Safe-by-default headers, opt-in cross-origin, traceable requests | Completed |
+| Maintenance: Ameba (linter) + specs everywhere | Real-project quality gate | Completed |
 
 > Note: "beautiful error pages in development" and the compile-time view
 > safety already shipped early as pre-Phase-3 gifts and are live in the

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Default security headers, CORS and request ids: the security middleware that ships with Altair.">
+  <title>Security guide — Altair</title>
+  <link rel="icon" href="../favicon.png" type="image/png">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/docs.css">
+</head>
+<body>
+  <header class="site-header">
+    <nav class="site-nav" aria-label="Main">
+      <a class="brand" href="../">
+        <img class="brand-logo" src="../assets/img/logo.png" alt="" width="30" height="30">
+        Altair
+      </a>
+      <div class="nav-links">
+        <a href="../">Home</a>
+        <a href="../docs/">Docs</a>
+        <a href="../docs/routing.html" class="is-active" aria-current="page">Guides</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/usage.html">Usage</a>
+        <a href="../docs/benchmarks.html">Benchmarks</a>
+        <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="site-main">
+    <div class="docs-layout"><nav class="docs-sidebar" aria-label="Docs"><h4>Getting started</h4><ul><li><a href="install.html">Install</a></li><li><a href="usage.html">Usage</a></li><li><a href="update.html">Updating</a></li></ul><h4>Guides</h4><ul><li><a href="routing.html">Routing</a></li><li><a href="controllers.html">Controllers</a></li><li><a href="views.html">Views</a></li><li><a href="record.html">Record (ORM)</a></li><li><a href="sessions.html">Sessions and auth</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="security.html" class="is-active" aria-current="page">Security</a></li><li><a href="uploads.html">Uploads</a></li></ul><h4>Reference</h4><ul><li><a href="features.html">What is implemented</a></li><li><a href="cli.html">CLI reference</a></li><li><a href="benchmarks.html">Benchmarks</a></li></ul></nav><article class="docs-content"><h1>Security</h1>
+<p>The default middleware stack ships three security layers, safe-by-default
+and each overridable through <code>config</code>. Combined with
+<a href="../docs/sessions.html">CSRF protection</a> and the signed session cookie, a
+generated project is hardened without writing a line of it yourself.</p>
+<h2>Security headers</h2>
+<p><code>Altair::Middleware::SecurityHeaders</code> stamps conservative headers on every
+response:</p>
+<ul>
+<li><code>X-Content-Type-Options: nosniff</code></li>
+<li><code>X-Frame-Options: SAMEORIGIN</code></li>
+<li><code>Referrer-Policy: strict-origin-when-cross-origin</code></li>
+</ul>
+<p>Each header is only written when the application did not set it itself.
+The set is driven by <code>config.security_headers</code>, so it is a plain hash you
+can extend or replace:</p>
+<pre><code class="language-crystal">config.security_headers[&quot;X-Content-Type-Options&quot;] = &quot;nosniff&quot;
+config.security_headers[&quot;Content-Security-Policy&quot;] = &quot;default-src &#39;self&#39;&quot;
+</code></pre>
+<p>Set the hash to <code>{} of String =&gt; String</code> to disable the layer entirely.</p>
+<h2>Request ids</h2>
+<p><code>Altair::Middleware::RequestId</code> gives every request an identifier you can
+carry end-to-end:</p>
+<ul>
+<li>An inbound <code>X-Request-Id</code> header is <strong>honored</strong> (echoed back, not replaced).</li>
+<li>Otherwise a fresh UUID is generated.</li>
+<li>The value is exposed as <code>request.request_id</code>, echoed back on the response
+header, and appended to the request log line — so a log entry and the
+response header correlate across distributed traces.</li>
+</ul>
+<p>The header name is configurable via <code>config.request_id_header</code>:</p>
+<pre><code class="language-crystal">config.request_id_header = &quot;X-Correlation-Id&quot;
+</code></pre>
+<h2>CORS</h2>
+<p><code>Altair::Middleware::Cors</code> is a <strong>pass-through until you opt in</strong> by naming
+the origins you trust. Fill <code>config.cors.origins</code> and it stamps
+<code>Access-Control-Allow-*</code> on permitted requests and answers preflight
+<code>OPTIONS</code> directly (methods, headers, credentials, max age):</p>
+<pre><code class="language-crystal">config.cors.origins = [&quot;https://app.example.com&quot;]
+config.cors.credentials = true        # admit cookies cross-origin
+config.cors.max_age = 3600            # seconds, preflight caching
+</code></pre>
+<p>Or allow any origin:</p>
+<pre><code class="language-crystal">config.cors.origins = [&quot;*&quot;]
+</code></pre>
+<p>Notes:</p>
+<ul>
+<li>Origins are exact-matched against the <code>Origin</code> header; <code>&quot;*&quot;</code> grants any.</li>
+<li>With <code>credentials = true</code> and a <code>&quot;*&quot;</code> entry, the <strong>exact</strong> origin is
+echoed instead of the wildcard — browsers refuse wildcard-plus-credentials.</li>
+<li><code>config.cors.methods</code> and <code>config.cors.headers</code> tailor the preflight
+answer; requested headers are honored when the client names extra ones.</li>
+<li>Combine CORS with the framework&#39;s signed session cookie, which carries
+<code>SameSite=Lax</code> by default, to keep cross-origin sessions honest.</li>
+</ul>
+<h2>The full stack</h2>
+<p>The default <code>config.middleware</code> runs, in order:</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Job</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Logger</code></td>
+<td>Request logging with the request id appended</td>
+</tr>
+<tr>
+<td><code>RequestId</code></td>
+<td>Assign and echo a request identifier</td>
+</tr>
+<tr>
+<td><code>SecurityHeaders</code></td>
+<td>Stamp safe-by-default response headers</td>
+</tr>
+<tr>
+<td><code>Cors</code></td>
+<td>Opt-in cross-origin support (pass-through by default)</td>
+</tr>
+<tr>
+<td><code>Static</code></td>
+<td>Serve <code>public/</code> files as-is</td>
+</tr>
+</tbody></table>
+<p>See <a href="../docs/configuration.html">Configuration</a> for building your own stack.</p>
+<div class="docs-pager"><a href="configuration.html"><span class="label">Previous</span>Configuration</a><a class="right" href="uploads.html"><span class="label">Next</span>Uploads</a></div></article></div>
+  </main>
+
+  <footer class="site-footer">
+    <p><span class="footer-brand">Altair</span> — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a> &middot; <a href="../docs/features.html">What is implemented</a></p>
+  </footer>
+
+  <script src="../assets/js/docs.js" defer></script>
+</body>
+</html>

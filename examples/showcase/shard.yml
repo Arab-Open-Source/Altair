@@ -1,0 +1,12 @@
+name: showcase
+version: 0.1.0
+
+crystal: '>= 1.21.0'
+
+targets:
+  showcase:
+    main: src/showcase.cr
+
+dependencies:
+  altair:
+    path: ../..

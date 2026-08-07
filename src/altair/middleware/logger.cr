@@ -17,6 +17,11 @@ class Altair::Middleware::Logger < Altair::Middleware
     started = Time.instant
     chain.call
     elapsed = (Time.instant - started).total_milliseconds.round(1)
-    app.config.logger.info { "#{request.method} #{request.path} -> #{response.status.value} (#{elapsed}ms)" }
+    suffix = if id = request.request_id
+               " (#{id})"
+             else
+               ""
+             end
+    app.config.logger.info { "#{request.method} #{request.path} -> #{response.status.value} (#{elapsed}ms)#{suffix}" }
   end
 end

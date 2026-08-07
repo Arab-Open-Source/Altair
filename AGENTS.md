@@ -41,8 +41,25 @@ Nothing ships unless someone can look at it, click it, and see it work.
 - **Phases 0–5 done** (Foundation, Router, Controllers, Views, Record/ORM,
   CLI + Generators). `examples/blog` is the always-running persistence demo
   — its posts and comments survive restarts.
-- 634 specs passing (5 pending: the PostgreSQL concurrency contract tests, plus the fuller PostgreSQL contract suite gated on
+- 705 specs passing (6 pending: the PostgreSQL concurrency contract
+  tests, plus the fuller PostgreSQL contract suite gated on
   `ALTAIR_TEST_PG_URL`), formatter clean, Ameba silent on framework sources.
+- Phase 6 hardening shipped in waves: sessions + flash + CSRF + auth
+  (`require_login` / `authenticate!` + `Altair::Auth::JWT`), then a
+  configuration wave — `.env` (real env vars win; `.env.<environment>`
+  overrides `.env`) and `config/database.yml` per-environment settings are
+  merged into `config` at boot by `Altair::Config::DotEnv` /
+  `Altair::Config::Database`, and `altair new` generates both files so a
+  fresh project's configuration is file-driven, not code-driven — and a
+  multipart wave: `multipart/form-data` bodies parse into the parameter
+  bag (scalar fields as params, files as `Altair::HTTP::UploadedFile` via
+  `params.upload("avatar")`, with `UploadedFile#save` + `#content`). The
+  default middleware stack shipped a security wave:
+  `SecurityHeaders` (default `nosniff` / `SAMEORIGIN` / referrer policy,
+  driven by `config.security_headers`), `RequestId` (`request.request_id`,
+  echo-back through `config.request_id_header`, appended to the request log
+  line), and opt-in `Cors` (`config.cors.origins` enables it; preflight
+  answered directly).
 - The router shipped three post-Phase-1 waves: `resources` blocks
   (`member`/`collection`/nested, Phase 1 era), constraints + implicit
   format suffix, and `redirect` / glob segments / singular `resource`
@@ -146,6 +163,7 @@ Three vertical waves, each ending green with something visible:
 ### Phase 6: Hardening
 - Sessions + flash + CSRF — a simple login works.
 - `database.yml` / `.env` config — production-ready project.
+- Multipart form parsing + security middleware set.
 - Maintenance: Ameba + specs everywhere — real project quality.
 
 ### Phase 7: Post-release

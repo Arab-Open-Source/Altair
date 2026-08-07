@@ -56,4 +56,14 @@ describe Altair::Config do
     config.debug?.should be_false
     Altair.env = previous
   end
+
+  it "ships safe-by-default security settings" do
+    config = Altair::Config.new
+    config.request_id_header.should eq("X-Request-Id")
+    config.security_headers["X-Content-Type-Options"].should eq("nosniff")
+    config.security_headers["X-Frame-Options"].should eq("SAMEORIGIN")
+    config.cors.origins.should be_empty
+    config.cors.credentials?.should be_false
+    config.middleware.size.should eq(5)
+  end
 end

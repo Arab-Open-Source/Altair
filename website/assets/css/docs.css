@@ -79,30 +79,7 @@
   font-size: 0.88rem;
 }
 
-/* The homepage hero's one-liner install command gets the same treatment. */
-.copy-box {
-  position: relative;
-  background: var(--code-panel);
-  border-color: var(--code-border);
-  color: var(--code-text);
-}
-
-.copy-box code {
-  display: block;
-  color: var(--code-text);
-  padding-right: 4.5rem;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
-.copy-box .code-block__copy {
-  position: absolute;
-  top: 50%;
-  right: 0.6rem;
-  transform: translateY(-50%);
-}
-
-/* Inline code: slightly warmer than before, no surrounding box clutter. */
+/* Inline code: subtle, no box clutter. */
 code {
   background: #eef1f6;
   border: 1px solid var(--border);

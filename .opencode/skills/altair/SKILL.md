@@ -35,7 +35,13 @@ executable (`--check` / `--force` supported). Distributions: `release.yml`
 (pushed on `v*` tags)
 builds Linux/macOS/Windows (amd64+arm64) binaries with `SHA256SUMS`, and
 `scripts/install.sh` / `install.ps1` / `install.cmd` give a verified
-one-command install on each platform. 561 specs passing (6 pending: the PostgreSQL contract suite on `ALTAIR_TEST_PG_URL`).
+one-command install on each platform.
+Phase 6 hardening shipped in waves: sessions + flash + CSRF + auth
+(`require_login` / `authenticate!` + `Altair::Auth::JWT`), file-driven
+configuration (`.env` / `database.yml`), multipart uploads
+(`params.upload`, `Altair::HTTP::UploadedFile`), and a security
+middleware set (`SecurityHeaders`, `RequestId`, opt-in `Cors`) in the
+default stack. 705 specs passing (6 pending: the PostgreSQL contract suite on `ALTAIR_TEST_PG_URL`).
 The record layer shipped a post-Phase-4 performance wave: `find_each`
 keeps scoped `where` filters + `includes` preloaders across batches,
 `Relation#count`/`size` run `COUNT(*)` without materializing rows, the
@@ -48,7 +54,7 @@ N+1 detector warns on identical SQL past `config.n_plus_one_threshold`
 | Phase | Focus | Status |
 |---|---|---|
 | 0–5 | Foundation / Router / Controllers / Views / ORM / CLI + Generators | Completed |
-| 6 | Hardening (sessions, CSRF, env config) | Planned |
+| 6 | Hardening (sessions, CSRF, config, security) | Completed |
 | 7 | Post-release (jobs, auth, assets, rich queries) | Planned |
 
 Exit criteria per phase and golden rules are in `ROADMAP.md`.
@@ -63,7 +69,7 @@ core/        Application, request handling, error pages
 http/        Request, Response, Params
 routing/     Router, DSL, Route, RouteSet, Segment (segment-based, no regex)
 controller/  Controller base
-middleware/  Base, Logger, Static (factory procs, not class instantiation)
+middleware/  Base, Logger, Static, SecurityHeaders, RequestId, Cors
 config/      Config, Env, environments/
 support/     Inflector, utilities
 exceptions/  Exception hierarchy

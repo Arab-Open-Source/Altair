@@ -12,11 +12,14 @@
 <body>
   <header class="site-header">
     <nav class="site-nav" aria-label="Main">
-      <a class="brand" href="../">Altair</a>
+      <a class="brand" href="../">
+        <img class="brand-logo" src="../assets/img/logo.png" alt="" width="30" height="30">
+        Altair
+      </a>
       <div class="nav-links">
         <a href="../">Home</a>
         <a href="../docs/">Docs</a>
-        <a href="../docs/routing.html">Guides</a>
+        <a href="../docs/routing.html" class="is-active" aria-current="page">Guides</a>
         <a href="../docs/install.html">Install</a>
         <a href="../docs/usage.html">Usage</a>
         <a href="../docs/benchmarks.html">Benchmarks</a>
@@ -26,7 +29,7 @@
   </header>
 
   <main class="site-main">
-    <h1>Routing</h1>
+    <div class="docs-layout"><nav class="docs-sidebar" aria-label="Docs"><h4>Getting started</h4><ul><li><a href="install.html">Install</a></li><li><a href="usage.html">Usage</a></li><li><a href="update.html">Updating</a></li></ul><h4>Guides</h4><ul><li><a href="routing.html" class="is-active" aria-current="page">Routing</a></li><li><a href="controllers.html">Controllers</a></li><li><a href="views.html">Views</a></li><li><a href="record.html">Record (ORM)</a></li><li><a href="sessions.html">Sessions and auth</a></li><li><a href="configuration.html">Configuration</a></li><li><a href="security.html">Security</a></li><li><a href="uploads.html">Uploads</a></li></ul><h4>Reference</h4><ul><li><a href="features.html">What is implemented</a></li><li><a href="cli.html">CLI reference</a></li><li><a href="benchmarks.html">Benchmarks</a></li></ul></nav><article class="docs-content"><h1>Routing</h1>
 <p>The router parses URL segments directly — no regex over the whole path — and
 every route is declared inside the application&#39;s <code>routes do</code> block, which
 runs at compile time. A typo in a route is a compile error, and the generated
@@ -150,12 +153,12 @@ under <code>ANY</code> and never appear in that list.</li>
 <li><code>HEAD</code> requests match <code>GET</code> routes; the response body is dropped.</li>
 </ul>
 <p>With no routes at all, <code>/</code> renders the welcome page.</p>
-
+<div class="docs-pager"><a href="update.html"><span class="label">Previous</span>Updating</a><a class="right" href="controllers.html"><span class="label">Next</span>Controllers</a></div></article></div>
   </main>
 
   <footer class="site-footer">
-    <p>Altair — batteries-included web framework for Crystal.</p>
-    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></p>
+    <p><span class="footer-brand">Altair</span> — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a> &middot; <a href="../docs/features.html">What is implemented</a></p>
   </footer>
 
   <script src="../assets/js/docs.js" defer></script>
