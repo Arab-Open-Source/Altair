@@ -103,4 +103,4 @@ jobs:
         with:
           files: dist/*
           fail_on_unmatched_files: true
-          overwrite: true
+          overwrite_files: true
