@@ -70,6 +70,11 @@ module Altair
       struct Unset
       end
 
+      # The bind-parameter ceiling a single bulk statement stays under,
+      # whatever the adapter's real limit is (SQLite historically 999,
+      # PostgreSQL 65535).
+      INSERT_ALL_MAX_BINDS = 900
+
       # The validation errors of a record, keyed by attribute.
       class Errors
         # The messages per attribute.
@@ -221,6 +226,19 @@ module Altair
 
         def self.timestamp_columns : Array(Symbol)
           [:created_at, :updated_at].select { |column| column_names.includes?(column.to_s) }
+        end
+
+        # The logical column type of every non-primary-key column, keyed by
+        # column name. Bulk paths (`insert_all`) resolve types through this
+        # at runtime, since their row shapes are caller-supplied.
+        def self.column_types : Hash(Symbol, Symbol)
+          {
+            {% for col_name, col in columns %}
+              {% unless col[:primary] %}
+                {{ col_name }}: :{{ col[:type].id }},
+              {% end %}
+            {% end %}
+          }.to_h
         end
 
         # The `SELECT` prefix over every column, in schema order — expanded
@@ -409,6 +427,98 @@ module Altair
           end
         end
 
+        # Inserts many rows in as few statements as possible and returns
+        # the number of rows inserted. This is the bulk load path: it
+        # bypasses validations, callbacks and dirty tracking, and binds
+        # every value as a parameter. Rows may carry any subset of the
+        # table's columns; keys missing from a row bind as `NULL`, while
+        # timestamp columns absent from every row auto-fill like `create`
+        # (one `Time.utc` shared by the whole call). A set too large for
+        # one statement's bind limit is chunked inside a single
+        # transaction, so the call stays all-or-nothing.
+        #
+        # ```
+        # Post.insert_all([{title: "a", views: 1}, {title: "b", views: 2}])
+        # ```
+        def self.insert_all(rows : Enumerable(NamedTuple)) : Int64
+          normalized = normalize_insert_rows(rows)
+          return 0_i64 if normalized.empty?
+
+          columns = [] of Symbol
+          normalized.each do |attrs|
+            attrs.each_key { |key| columns << key unless columns.includes?(key) }
+          end
+
+          chunk_size = {INSERT_ALL_MAX_BINDS // columns.size, 1}.max
+          total = 0_i64
+          execute = ->(chunk : Array(Hash(Symbol, Value))) do
+            args = [] of Value
+            chunk.each do |attrs|
+              columns.each do |column|
+                args << connection.adapter.encode_column(attrs[column]?, column_types[column])
+              end
+            end
+            result = connection.exec(insert_all_sql(columns, chunk.size), args: args)
+            result.rows_affected.to_i64
+          end
+
+          if normalized.size <= chunk_size
+            total += execute.call(normalized)
+          else
+            connection.transaction do
+              normalized.each_slice(chunk_size) do |chunk|
+                total += execute.call(chunk)
+              end
+            end
+          end
+          total
+        end
+
+        # Validates and flattens caller-supplied rows: unknown columns and
+        # primary-key keys raise, values must be storable types, and
+        # missing timestamps fill with a single shared `Time.utc`.
+        private def self.normalize_insert_rows(rows : Enumerable(NamedTuple)) : Array(Hash(Symbol, Value))
+          stamps = timestamp_columns
+          fill = stamps.empty? ? nil : Time.utc
+          rows.map do |row|
+            attrs = {} of Symbol => Value
+            row.to_a.each do |pair|
+              key = pair[0]
+              if key == :{{ pk_name }}
+                raise ArgumentError.new("insert_all does not set #{key} — primary keys are assigned by the database")
+              end
+              unless column_types.has_key?(key)
+                raise ArgumentError.new("Unknown column :#{key} for #{table_name} (columns: #{column_types.keys.join(", ")})")
+              end
+              value = pair[1]
+              unless value.is_a?(Value)
+                raise ArgumentError.new("Unsupported value type #{value.class} for #{table_name}.#{key}")
+              end
+              attrs[key] = value.as(Value)
+            end
+            stamps.each do |stamp|
+              next if attrs.has_key?(stamp)
+              attrs[stamp] = fill.not_nil!
+            end
+            attrs
+          end
+        end
+
+        # The cached multi-row INSERT for a given column set and row
+        # count — bulk loads of a steady shape reuse one compiled string.
+        # The column list is passed in so the placeholders always pair
+        # with the values exactly as the caller bound them.
+        private def self.insert_all_sql(columns : Array(Symbol), row_count : Int32) : String
+          connection.sql_template("{{ @type.id }}#insert_all_#{columns.join("_")}_#{row_count}") do
+            quoted = columns.map { |column| connection.adapter.quote_identifier(column.to_s) }
+            row_groups = row_count.times.map do |row_index|
+              "(#{columns.size.times.map { |col_index| connection.adapter.placeholder(row_index * columns.size + col_index) }.join(", ")})"
+            end
+            "INSERT INTO #{connection.adapter.quote_identifier(table_name)} " \
+            "(#{quoted.join(", ")}) VALUES #{row_groups.join(", ")}"
+          end
+        end
+
         private def insert : Nil
           conn = connection
           {% args = [] of String %}
@@ -525,6 +635,12 @@ module Altair
         ) { |rs| from_row(rs) }
       rescue DB::NoResultsError
         nil
+      end
+
+      # Bulk-insert hook; the `table` macro provides the real
+      # implementation for models backed by a schema.
+      def self.insert_all(rows : Enumerable(NamedTuple)) : Int64
+        raise Altair::Error.new("#{self} has no table — declare one with `table :name`")
       end
 
       # Finds the record with the given id, raising `RecordNotFound` when
