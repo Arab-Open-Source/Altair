@@ -101,6 +101,9 @@ class Post < Altair::Record::Model
   validates_numericality_of :views, greater_than: -1
   validate :title_must_not_be_reserved
 
+  scope :published, published: true
+  scope :popular { |query| query.where(:views, :>=, 50).order(:views, :desc) }
+
   def title_must_not_be_reserved : Nil
     errors.add(:title, "is reserved") if title == "reserved"
   end

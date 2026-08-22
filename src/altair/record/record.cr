@@ -162,6 +162,25 @@ module Altair
       @@checkout_handlers << handler
     end
 
+    # Applies an include spec to already-loaded records: a Symbol loads
+    # that association in one batched query; a NamedTuple loads each named
+    # association and recurses into the rows it read. Dispatch goes
+    # through the records' metaclass, so one call covers every model, and
+    # every level stays a single batched statement — never per-record.
+    def self.__apply_nested(records : Array(Model), spec : Symbol | NamedTuple) : Nil
+      case spec
+      when Symbol
+        records.first.class.__preloader_for(spec).call(records)
+      when NamedTuple
+        spec.each do |key, sub|
+          children = records.first.class.__preloader_for(key).call(records)
+          __apply_nested(children, sub) unless children.empty?
+        end
+      else
+        raise ArgumentError.new("Unsupported include spec: #{spec.inspect}")
+      end
+    end
+
     # Whether any checkout hook is registered. The connection takes its
     # zero-cost path when this is false.
     def self.checkout_hooks? : Bool

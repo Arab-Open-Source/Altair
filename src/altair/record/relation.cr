@@ -15,7 +15,7 @@ module Altair
       include Enumerable(T)
 
       @records : Array(T)?
-      @preloaders = [] of Proc(Array(T), Nil)
+      @preloaders = [] of Proc(Array(Altair::Record::Model), Array(Altair::Record::Model))
       @where = [] of String
       @binds = [] of Model::Value
       @order : String?
@@ -27,6 +27,25 @@ module Altair
         to_a.each { |record| yield record }
       end
 
+      # Combines another relation's scope into this one: their `where`
+      # clauses AND together (binds included), and an `order`, `limit` or
+      # `offset` on `other` replaces the one here. This is how two scopes
+      # compose — Crystal has no dynamic dispatch, so
+      # `Post.published.merge(Post.popular)` is the chaining form:
+      #
+      # ```
+      # Post.published.merge(Post.popular).to_a
+      # ```
+      def merge(other : self) : self
+        @where.concat(other.@where)
+        @binds.concat(other.@binds)
+        @order = other.@order if other.@order
+        @limit = other.@limit if other.@limit
+        @offset = other.@offset if other.@offset
+        other.@preloaders.each { |preloader| @preloaders << preloader }
+        self
+      end
+
       # Materializes the records, running the scheduled eager loads.
       def to_a : Array(T)
         @records ||= begin
@@ -34,7 +53,10 @@ module Altair
           T.connection.query(T.select_sql + clause_sql, values: @binds) do |rs|
             rs.each { rows << T.from_row(rs) }
           end
-          @preloaders.each(&.call(rows))
+          unless @preloaders.empty?
+            model_rows = rows.map(&.as(Altair::Record::Model))
+            @preloaders.each(&.call(model_rows))
+          end
           rows
         end
       end
@@ -172,7 +194,7 @@ module Altair
 
       # Copies the scoped state of another relation onto this one.
       protected def adopt_state(where : Array(String), binds : Array(Model::Value),
-                                preloaders : Array(Proc(Array(T), Nil))) : self
+                                preloaders : Array(Proc(Array(Altair::Record::Model), Array(Altair::Record::Model)))) : self
         @where = where
         @binds = binds
         @preloaders = preloaders
@@ -186,9 +208,28 @@ module Altair
       # ```
       # Post.all.includes(:comments)
       # ```
-      def includes(*associations : Symbol) : self
+      # Schedules batched eager loading of the given associations before
+      # the first iteration. Plain names load one level:
+      #
+      # ```
+      # Post.all.includes(:comments).to_a
+      # ```
+      #
+      # Named pairs nest further, applying each subsequent level to the
+      # rows the previous one loaded — still one batched query per level,
+      # never per record. Nesting recurses through NamedTuple values too
+      # (`includes(posts: {comments: :post})`).
+      def includes(*associations, **nested) : self
         associations.each do |name|
           @preloaders << T.__preloader_for(name)
+        end
+        nested.each do |name, sub_spec|
+          base = T.__preloader_for(name)
+          @preloaders << ->(records : Array(Altair::Record::Model)) do
+            children = base.call(records)
+            Altair::Record.__apply_nested(children, sub_spec) unless children.empty?
+            children
+          end
         end
         self
       end

@@ -57,11 +57,11 @@ module Altair
           @{{ assoc.id }}_loaded = true
         end
 
-        # Loads every associated record in one batched query, grouped by
-        # foreign key.
-        private def self.__load_{{ assoc.id }}(records : Array({{ @type.id }})) : Nil
+        # Loads every associated owner in one batched query and returns
+        # the rows it read (empty when there were no keys to look up).
+        private def self.__load_{{ assoc.id }}(records : Array({{ @type.id }})) : Array({{ model.id }})
           ids = records.compact_map(&.{{ fk.id }}).uniq
-          return if ids.empty?
+          return [] of {{ model.id }} if ids.empty?
           placeholders = ids.each_index.map { |index| connection.adapter.placeholder(index) }
           rows = [] of {{ model.id }}
           connection.query(
@@ -73,9 +73,12 @@ module Altair
           end
           by_id = rows.to_h { |owner| {owner.id.not_nil!, owner} }
           records.each { |record| record.__set_preloaded_{{ assoc.id }}(by_id[record.{{ fk.id }}]?) }
+          rows
         end
 
-        @@preloaders[:{{ assoc.id }}] = ->(records : Array({{ @type.id }})) { __load_{{ assoc.id }}(records) }
+        @@preloaders[:{{ assoc.id }}] = ->(records : Array(Altair::Record::Model)) do
+          __load_{{ assoc.id }}(records.map(&.as({{ @type.id }}))).map(&.as(Altair::Record::Model))
+        end
       end
 
       # Declares a one-to-many association. The foreign key column lives
@@ -164,10 +167,10 @@ module Altair
         end
 
         # Loads every associated record in one batched query, grouped by
-        # foreign key.
-        private def self.__load_{{ assoc.id }}(records : Array({{ @type.id }})) : Nil
+        # foreign key, and returns the rows it read.
+        private def self.__load_{{ assoc.id }}(records : Array({{ @type.id }})) : Array({{ model.id }})
           ids = records.compact_map(&.id)
-          return if ids.empty?
+          return [] of {{ model.id }} if ids.empty?
           placeholders = ids.each_index.map { |index| connection.adapter.placeholder(index) }
           rows = [] of {{ model.id }}
           connection.query(
@@ -181,9 +184,12 @@ module Altair
           records.each do |record|
             record.__set_preloaded_{{ assoc.id }}(grouped[record.id]? || [] of {{ model.id }})
           end
+          rows
         end
 
-        @@preloaders[:{{ assoc.id }}] = ->(records : Array({{ @type.id }})) { __load_{{ assoc.id }}(records) }
+        @@preloaders[:{{ assoc.id }}] = ->(records : Array(Altair::Record::Model)) do
+          __load_{{ assoc.id }}(records.map(&.as({{ @type.id }}))).map(&.as(Altair::Record::Model))
+        end
 
         {% if dependent && dependent.id.stringify == "destroy" %}
           @@callbacks[:before_destroy] ||= [] of Proc({{ @type.id }}, Nil)
@@ -249,9 +255,11 @@ module Altair
 
         # Loads every associated record in one batched query, grouped by
         # foreign key.
-        private def self.__load_{{ assoc.id }}(records : Array({{ @type.id }})) : Nil
+        # Loads every related record in one batched query and returns the
+        # rows it read (empty when there was nothing to look up).
+        private def self.__load_{{ assoc.id }}(records : Array({{ @type.id }})) : Array({{ model.id }})
           ids = records.compact_map(&.id)
-          return if ids.empty?
+          return [] of {{ model.id }} if ids.empty?
           placeholders = ids.each_index.map { |index| connection.adapter.placeholder(index) }
           rows = [] of {{ model.id }}
           connection.query(
@@ -263,9 +271,12 @@ module Altair
           end
           grouped = rows.group_by(&.{{ fk.id }})
           records.each { |record| record.__set_preloaded_{{ assoc.id }}(grouped[record.id]?.try(&.first)) }
+          rows
         end
 
-        @@preloaders[:{{ assoc.id }}] = ->(records : Array({{ @type.id }})) { __load_{{ assoc.id }}(records) }
+        @@preloaders[:{{ assoc.id }}] = ->(records : Array(Altair::Record::Model)) do
+          __load_{{ assoc.id }}(records.map(&.as({{ @type.id }}))).map(&.as(Altair::Record::Model))
+        end
 
         {% if dependent && dependent.id.stringify == "destroy" %}
           @@callbacks[:before_destroy] ||= [] of Proc({{ @type.id }}, Nil)

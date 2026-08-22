@@ -209,6 +209,13 @@ module Altair
         raise Altair::Error.new("#{self} has no table — declare one with `table :name`")
       end
 
+      # The eager loader for an association, or a clear error. The
+      # signature is uniform across every model so nested include specs
+      # can dispatch through a record's metaclass at runtime.
+      def self.__preloader_for(name : Symbol) : Proc(Array(Altair::Record::Model), Array(Altair::Record::Model))
+        raise ArgumentError.new("Unknown association :#{name} for #{self}")
+      end
+
       # The model's columns in schema order. Overridden by the `table` macro.
       def self.column_names : Array(String)
         raise Altair::Error.new("#{self} has no columns — declare a table with `table :name`")
@@ -721,6 +728,43 @@ module Altair
         end
       end
 
+      # Declares a reusable named query fragment, callable as a class
+      # method and chainable with other scopes and Relation methods:
+      #
+      # ```
+      # class Post < Altair::Record::Model
+      #   table :posts
+      #   scope :published, published: true
+      #   scope :recent { |query| query.order(:created_at).limit(10) }
+      # end
+      #
+      # Post.published.recent.to_a
+      # ```
+      #
+      # The static form takes `key: value` pairs passed to `where`; the
+      # block form receives the relation and returns whatever chain it
+      # builds. The block must take exactly one parameter. Two scopes
+      # compose through `Relation#merge`
+      # (`Post.published.merge(Post.recent)`), since Crystal has no
+      # dynamic dispatch to chain them directly.
+      macro scope(name, **conditions, &block)
+        {% if conditions.empty? && !block %}
+          {% raise "scope :#{name.id} needs either key: value conditions or a block" %}
+        {% end %}
+        {% if block && block.args.size != 1 %}
+          {% raise "scope :#{name.id} block must take exactly one parameter, e.g. |r|" %}
+        {% end %}
+        def self.{{ name.id }} : Altair::Record::Relation(self)
+          {% if block %}
+            {% var = block.args[0].id %}
+            {{ var }} = all
+            {{ block.body }}
+          {% else %}
+            all.where(**{{ conditions }})
+          {% end %}
+        end
+      end
+
       # The connection the model queries through.
       def self.connection : Connection
         Altair::Record.connection
@@ -908,7 +952,7 @@ module Altair
         @@validations = [] of Rule
         @@custom_validations = [] of Proc({{@type.id}}, Nil)
         @@confirmations = {} of String => Proc({{@type.id}}, Value?)
-        @@preloaders = {} of Symbol => Proc(Array({{@type.id}}), Nil)
+        @@preloaders = {} of Symbol => Proc(Array(Altair::Record::Model), Array(Altair::Record::Model))
 
         # Whether the model registers any save callbacks; a callback-free
         # model saves without the transaction wrapper.
@@ -916,8 +960,10 @@ module Altair
           @@callbacks.values.any?(&.any?)
         end
 
-        # The eager loader for an association, or a clear error.
-        def self.__preloader_for(name : Symbol) : Proc(Array({{@type.id}}), Nil)
+        # The eager loader for an association, or a clear error. The
+        # signature matches the base class exactly, so runtime metaclass
+        # dispatch reaches the subclass override.
+        def self.__preloader_for(name : Symbol) : Proc(Array(Altair::Record::Model), Array(Altair::Record::Model))
           @@preloaders[name]? || raise ArgumentError.new(
             "Unknown association :#{name} for #{self}"
           )
