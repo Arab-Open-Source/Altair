@@ -59,7 +59,7 @@ module Altair
     end
 
     # Returns up to three close matches for `input` among known commands.
-    private def self.did_you_mean(input : String) : Array(String)
+    def self.did_you_mean(input : String) : Array(String)
       known = %w[new generate g install update version help server routes db:migrate db:rollback db:seed]
       scored = known.map { |command| {command, levenshtein(input, command)} }
         .select { |_, dist| dist <= 3 && dist > 0 }

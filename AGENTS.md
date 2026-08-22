@@ -41,7 +41,7 @@ Nothing ships unless someone can look at it, click it, and see it work.
 - **Phases 0–5 done** (Foundation, Router, Controllers, Views, Record/ORM,
   CLI + Generators). `examples/blog` is the always-running persistence demo
   — its posts and comments survive restarts.
-- 748 specs passing (6 pending: the PostgreSQL concurrency contract
+- 752 specs passing (6 pending: the PostgreSQL concurrency contract
   tests, plus the fuller PostgreSQL contract suite gated on
   `ALTAIR_TEST_PG_URL`), formatter clean, Ameba silent on framework sources.
 - Phase 6 hardening shipped in waves: sessions + flash + CSRF + auth
@@ -266,7 +266,7 @@ crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
 
 ## Testing
 
-The suite is `crystal spec` (currently 748 examples, 6 of them pending: the PostgreSQL concurrency contract tests, with the
+The suite is `crystal spec` (currently 752 examples, 6 of them pending: the PostgreSQL concurrency contract tests, with the
 fuller PostgreSQL contract suite gated on `ALTAIR_TEST_PG_URL`). Run it before and
 after every change:
 

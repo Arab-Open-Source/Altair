@@ -77,4 +77,17 @@ module Altair::CLI
       end
     end
   end
+
+  describe "did-you-mean" do
+    it "suggests close commands" do
+      Altair::CLI.did_you_mean("servre").should contain("server")
+      Altair::CLI.did_you_mean("intall").should contain("install")
+      Altair::CLI.did_you_mean("xyzabc").should be_empty
+    end
+
+    it "suggests close generators" do
+      Altair::CLI::Generators.generator_suggestions("modl").should contain("model")
+      Altair::CLI::Generators.generator_suggestions("scafold").should contain("scaffold")
+    end
+  end
 end

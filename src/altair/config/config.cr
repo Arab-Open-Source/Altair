@@ -56,6 +56,12 @@ module Altair
     # Requests slower than this are highlighted in the log.
     property slow_request_threshold : Time::Span = 20.milliseconds
 
+    # Validates the slow-request threshold is not negative.
+    def slow_request_threshold=(value : Time::Span) : Nil
+      raise ArgumentError.new("slow_request_threshold must not be negative") if value < Time::Span.zero
+      @slow_request_threshold = value
+    end
+
     # The secret used to sign session cookies (and later CSRF tokens and
     # JWT signatures). Reads `SECRET_KEY_BASE` from the environment when
     # not set explicitly. Must be set in production — signing without a

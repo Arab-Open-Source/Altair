@@ -62,7 +62,12 @@ class Altair::Middleware::Logger < Altair::Middleware
       end
 
       method_c = colorize_method(method.ljust(7), colors)
-      path_c = path.ljust(22)
+      display_path = if path.size > 22
+                       "…" + path[(path.size - 21)..]
+                     else
+                       path
+                     end
+      path_c = display_path.ljust(22)
       status_c = colorize_status(status.to_s.rjust(3), colors)
 
       io << method_c << "  " << path_c << "  " << status_c << "  "

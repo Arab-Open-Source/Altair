@@ -55,7 +55,7 @@ module Altair
         end
       end
 
-      private def generator_suggestions(input : String) : Array(String)
+      def self.generator_suggestions(input : String) : Array(String)
         known = TYPES.keys
         known.map { |command| {command, levenshtein(input, command)} }
           .select { |_, dist| dist <= 3 && dist > 0 }
