@@ -463,7 +463,7 @@ module Altair
           case attribute
           {% for col_name, col in columns %}
           when :{{ col_name.id }}
-            {{ col_name.id }}
+            @{{ col_name.id }}
           {% end %}
           else
             raise ArgumentError.new("Unknown attribute :#{attribute}")
@@ -611,7 +611,7 @@ module Altair
           @dirty.clear
           @originals.clear
           {% for col_name, col in columns %}
-            @originals[:{{ col_name.id }}] = {{ col_name.id }}
+            @originals[:{{ col_name.id }}] = @{{ col_name.id }}
           {% end %}
         end
 
@@ -673,6 +673,51 @@ module Altair
               self.updated_at = Time.utc
             {% end %}
           {% end %}
+        end
+      end
+
+      # Declares that a string column holds one of a fixed set of values,
+      # exposed as a nested enum so only declared members type-check:
+      #
+      # ```
+      # class Post < Altair::Record::Model
+      #   table :posts
+      #   enum_attribute :state, [:draft, :published]
+      # end
+      #
+      # post.state = Post::State::Published # compiles
+      # post.state = "published"            # compile error
+      # ```
+      #
+      # The column stores the member name in snake_case ("published",
+      # "in_review"), keeping the raw data readable; a stored value no
+      # member claims reads back as `nil`. Validations, `find_by_*` and
+      # bulk paths keep operating on the underlying string.
+      macro enum_attribute(name, values)
+        {% enum_name = name.id.stringify.camelcase.id %}
+
+        # The fixed set of {{ name.id }} values this column accepts.
+        enum {{ enum_name }}
+          {% for value in values %}
+            {{ value.id.stringify.camelcase.id }}
+          {% end %}
+        end
+
+        def {{ name.id }} : {{ enum_name }}?
+          raw = @{{ name.id }}
+          return nil if raw.nil?
+          {{ enum_name }}.values.find do |member|
+            member.to_s.underscore == raw || member.to_s == raw
+          end
+        end
+
+        def {{ name.id }}=(value : {{ enum_name }}?) : Nil
+          @dirty << :{{ name.id }}
+          @{{ name.id }} = value.nil? ? nil : value.to_s.underscore
+        end
+
+        def self.find_by_{{ name.id }}(value : {{ enum_name }}) : self?
+          find_by_{{ name.id }}(value.to_s.underscore)
         end
       end
 

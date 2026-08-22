@@ -66,6 +66,10 @@ class Altair::Record::Schema
       name: {type: :string, null: true, primary: false},
       data: {type: :json, null: true, primary: false},
     },
+    workflows: {
+      id:    {type: :integer, null: false, primary: true},
+      state: {type: :string, null: true, primary: false},
+    },
     events: {
       id:   {type: :bigint, null: false, primary: true},
       name: {type: :string, null: true, primary: false},
@@ -164,6 +168,14 @@ end
 # A model with a JSON column, exercising the adapter's coercion layer.
 class Payload < Altair::Record::Model
   table :payloads
+end
+
+# A model with an enum attribute over a string column, exercising the
+# compile-time-checked value set end to end.
+class Workflow < Altair::Record::Model
+  table :workflows
+
+  enum_attribute :state, [:pending, :in_review]
 end
 
 # A model with a `:bigint` primary key, exercising wide-id typing end to end.
@@ -269,6 +281,7 @@ module RecordSpec
     connection = Altair::Record.connection
     connection.exec("DROP TABLE IF EXISTS labels")
     connection.exec("DROP TABLE IF EXISTS payloads")
+    connection.exec("DROP TABLE IF EXISTS workflows")
     connection.exec("DROP TABLE IF EXISTS events")
     connection.exec("DROP TABLE IF EXISTS accounts")
     connection.exec("DROP TABLE IF EXISTS members")
@@ -328,6 +341,10 @@ module RecordSpec
     connection.exec(
       "CREATE TABLE payloads (" \
       "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, data JSON)"
+    )
+    connection.exec(
+      "CREATE TABLE workflows (" \
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, state TEXT)"
     )
     connection.exec(
       "CREATE TABLE events (" \
