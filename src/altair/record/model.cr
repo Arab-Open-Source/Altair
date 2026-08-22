@@ -158,6 +158,49 @@ module Altair
       # changed.
       @dirty : Set(Symbol) = Set(Symbol).new
 
+      # The attribute values as of the last load or save — the baseline
+      # `restore_attributes` reverts to.
+      @originals : Hash(Symbol, Value) = {} of Symbol => Value
+
+      # Whether any attribute changed since the last load or save.
+      def changed? : Bool
+        !@dirty.empty?
+      end
+
+      # The changed attributes, sorted by name.
+      def changed_attributes : Array(Symbol)
+        @dirty.to_a.sort
+      end
+
+      # Whether the given attribute changed since the last load or save.
+      def attribute_changed?(name : Symbol) : Bool
+        @dirty.includes?(name)
+      end
+
+      # Reverts attributes to their values at the last load or save. With
+      # no names, every changed attribute is restored. A record that has
+      # never been persisted has no baseline, so restoring an attribute it
+      # only ever held in memory leaves that value untouched.
+      def restore_attributes(*names : Symbol) : Nil
+        restore_columns(names.to_a.sort)
+      end
+
+      # Reverts every changed attribute to its last loaded or saved value.
+      def restore_attributes : Nil
+        restore_columns(changed_attributes)
+      end
+
+      private def restore_columns(targets : Array(Symbol)) : Nil
+        targets.each do |name|
+          unless self.class.column_names.includes?(name.to_s)
+            raise ArgumentError.new("Unknown column :#{name} for #{self.class.table_name}")
+          end
+          next unless @originals.has_key?(name)
+          restore_column_value(name, @originals[name])
+          @dirty.delete(name)
+        end
+      end
+
       # The errors of this record, populated by `valid?`.
       getter errors : Errors = Errors.new
 
@@ -566,6 +609,22 @@ module Altair
 
         protected def clear_dirty : Nil
           @dirty.clear
+          @originals.clear
+          {% for col_name, col in columns %}
+            @originals[:{{ col_name.id }}] = {{ col_name.id }}
+          {% end %}
+        end
+
+        # Writes a restored baseline value back into its typed attribute.
+        private def restore_column_value(name : Symbol, value : Value) : Nil
+          case name
+            {% for col_name, col in columns %}
+            when :{{ col_name.id }}
+              @{{ col_name.id }} = value.as({{ CRYSTAL_TYPE[col[:type]].id }}{% if col[:primary] || col[:null] %}?{% end %})
+            {% end %}
+          else
+            raise ArgumentError.new("Unknown column :#{name} for #{self.class.table_name}")
+          end
         end
 
         private def update_row : Nil
