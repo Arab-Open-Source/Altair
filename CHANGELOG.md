@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] — 2026-08-22
+
 ### Added
 
 - **Named scopes**: `scope :published, published: true` — or a block
@@ -61,6 +63,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as `nil` instead of raising on legacy data; and `find_by_<col>` gains a
   member-typed overload while validations keep operating on the string.
 
+- **CLI path-aware `altair new`**: `altair new a/b` and
+  `altair new /tmp/app` now derive the application name from the
+  basename and create the project at the full path; `--framework-path`
+  may appear before or after the name.
+
+- **CLI help and suggestions**: `altair help [command]` shows
+  per-command help, `altair new` documents `[--framework-path DIR]`,
+  and unknown commands/generators suggest up to three close matches.
+
 ### Fixed
 
 - **Deterministic linting**: the `ameba` development dependency now pins an
@@ -68,6 +79,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `shards install` in CI can no longer pull new rules that break the build.
   Two `Naming/BlockParameterName` findings in the showcase example were
   fixed to satisfy current master.
+
+- **`altair g` without arguments no longer crashes**: it now prints
+  the generator help instead of raising `Index out of bounds`.
+
+- **Empty `db/schema.cr` is now typed**: rolling back to zero tables
+  writes `META = {} of Symbol => Hash(Symbol, Hash(Symbol, String))`
+  instead of an untyped `{}`, fixing a compile error on the next run.
+
+- **Hyphenated application names rejected with a suggestion**:
+  `my-app` now aborts with `use ... (e.g. my_app)` instead of a stack
+  trace.
+
+- **Project commands outside a project explain how to find it**:
+  `server`/`routes`/`db:*` outside a project now report
+  `must be run inside an Altair project` instead of `Unknown command`.
 
 ### Changed
 
