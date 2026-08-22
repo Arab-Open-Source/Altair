@@ -25,6 +25,26 @@ module Altair
         # `/tmp/my_app`; only its basename becomes the application name.
         # Returns the process exit code.
         def self.run(args : Array(String)) : Int32
+          framework_path, remaining = parse_args(args)
+          framework_path = resolve_framework_path(framework_path)
+
+          name = remaining.first?
+          if name.nil? || name.empty?
+            abort "Missing application name for `new` — e.g. `altair new blog`"
+          end
+          if remaining.size > 1
+            abort "Too many arguments for `new` — expected one name, got: #{remaining.join(" ")}"
+          end
+
+          begin
+            New.new(name, framework_path).generate
+          rescue ex : Altair::Error
+            abort ex.message || ex.to_s
+          end
+          0
+        end
+
+        private def self.parse_args(args : Array(String)) : {String?, Array(String)}
           framework_path = nil
           remaining = [] of String
           index = 0
@@ -41,27 +61,20 @@ module Altair
               index += 1
             end
           end
-          if framework_path.nil? || framework_path.empty?
+          {framework_path, remaining}
+        end
+
+        private def self.resolve_framework_path(path : String?) : String?
+          if path.nil? || path.empty?
             if env = ENV["ALTAIR_PATH"]?
-              framework_path = env
+              path = env
             end
           end
-          framework_path = File.expand_path(framework_path.not_nil!) if framework_path && !framework_path.empty? && Dir.exists?(framework_path)
-
-          name = remaining.first?
-          if name.nil? || name.empty?
-            abort "Missing application name for `new` — e.g. `altair new blog`"
+          if path && !path.empty? && Dir.exists?(path)
+            File.expand_path(path)
+          else
+            path
           end
-          if remaining.size > 1
-            abort "Too many arguments for `new` — expected one name, got: #{remaining.join(" ")}"
-          end
-
-          begin
-            New.new(name, framework_path).generate
-          rescue ex : Altair::Error
-            abort ex.message || ex.to_s
-          end
-          0
         end
 
         # The raw argument as passed to `new`, e.g. `a/b` or `/tmp/my_app`.

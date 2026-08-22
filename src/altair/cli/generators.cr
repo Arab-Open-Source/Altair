@@ -46,7 +46,7 @@ module Altair
               suggestions = generator_suggestions(t)
               unless suggestions.empty?
                 io << "\n\nDid you mean one of these?\n"
-                suggestions.each { |s| io << "  #{s}\n" }
+                suggestions.each { |suggestion| io << "  #{suggestion}\n" }
               end
             end
             io << "\n\n#{generator_help}"
@@ -57,9 +57,9 @@ module Altair
 
       private def generator_suggestions(input : String) : Array(String)
         known = TYPES.keys
-        known.map { |cmd| {cmd, levenshtein(input, cmd)} }
+        known.map { |command| {command, levenshtein(input, command)} }
           .select { |_, dist| dist <= 3 && dist > 0 }
-          .sort_by { |_, dist| dist }
+          .sort_by! { |_, dist| dist }
           .first(3)
           .map(&.[0])
       end
@@ -69,11 +69,11 @@ module Altair
         return a.size if b.empty?
         prev = (0..b.size).to_a
         curr = Array(Int32).new(b.size + 1, 0)
-        a.each_char.with_index(1) do |ca, i|
-          curr[0] = i
-          b.each_char.with_index(1) do |cb, j|
-            cost = ca == cb ? 0 : 1
-            curr[j] = {prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost}.min
+        a.each_char.with_index(1) do |char_a, outer_index|
+          curr[0] = outer_index
+          b.each_char.with_index(1) do |char_b, inner_index|
+            cost = char_a == char_b ? 0 : 1
+            curr[inner_index] = {prev[inner_index] + 1, curr[inner_index - 1] + 1, prev[inner_index - 1] + cost}.min
           end
           prev, curr = curr, prev
         end
