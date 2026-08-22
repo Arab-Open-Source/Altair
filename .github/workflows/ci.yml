@@ -26,7 +26,7 @@ jobs:
         run: shards build altair
       - name: Example builds
         run: |
-          for entry in hello_world:src/hello_world.cr htmx:src/htmx.cr sqlite_crud:src/app.cr postgresql_crud:src/app.cr; do
+          for entry in hello_world:src/hello_world.cr htmx:src/htmx.cr sqlite_crud:src/app.cr postgresql_crud:src/app.cr showcase:src/showcase.cr; do
             dir=${entry%%:*}
             file=${entry##*:}
             (cd examples/$dir && shards install && crystal build $file --no-codegen)

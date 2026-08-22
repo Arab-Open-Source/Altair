@@ -96,7 +96,7 @@ Nothing ships unless someone can look at it, click it, and see it work.
 | 3 | Views | Completed |
 | 4 | Record (ORM) | Completed |
 | 5 | CLI + Generators | Completed |
-| 6 | Hardening | Planned |
+| 6 | Hardening | Completed |
 | 7 | Post-release | Planned |
 
 ## The phases

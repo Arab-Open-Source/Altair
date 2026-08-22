@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Deterministic linting**: the `ameba` development dependency now pins an
+  exact master commit instead of floating `branch: master`, so a fresh
+  `shards install` in CI can no longer pull new rules that break the build.
+  Two `Naming/BlockParameterName` findings in the showcase example were
+  fixed to satisfy current master.
+
+### Changed
+
+- **CI guards the showcase**: `examples/showcase` joined the Example builds
+  step, and GitHub Releases are now published with auto-generated release
+  notes.
+
 ## [0.2.1] — 2026-08-07
 
 ### Added

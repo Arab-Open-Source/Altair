@@ -22,7 +22,7 @@ class PostsController < ApplicationController
     posts = Post.all.includes(:user).where(published: true).order(:id, :desc).to_a
     respond_to do |format|
       format.html { render :index, locals: {posts: posts} }
-      format.json { render json: posts.map { |p| {id: p.id, title: p.title, body: p.body} } }
+      format.json { render json: posts.map { |post| {id: post.id, title: post.title, body: post.body} } }
     end
   end
 
@@ -126,7 +126,7 @@ class PostsController < ApplicationController
   def by_year : Nil
     year = params["year"]
     posts = Post.all.includes(:user).where(published: true).order(:id, :desc).to_a
-      .select { |p| p.created_at.try(&.year) == year.to_i }
+      .select { |post| post.created_at.try(&.year) == year.to_i }
     render :index, locals: {posts: posts}
   end
 
