@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-08-22
+
 ### Added
 
 - **Development console redesign**: the boot banner now shows a rich boxed
@@ -20,12 +22,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   auto-detect `NO_COLOR`/`TERM` and `STDOUT.tty?`, or are forced via
   `config.logger_colors`.
 
+- **Website console and testing guides**: dedicated `docs/console` and
+  `docs/testing` pages, plus professional SVG icons for every guide and a
+  redesigned docs layout with breadcrumbs, a sticky reading-progress bar
+  and card-style `Previous`/`Next` pager (`Page X of Y`).
+
+- **Windows installers hardened for real-world Windows**: `install.ps1`
+  now forces TLS 1.2 and silences the progress bar that hung `irm`,
+  `install.cmd` preserves quotes for `--dir` paths with spaces, and both
+  forward `NO_COLOR`/`TERM` correctly. `windows-arm64` is now a supported
+  release target.
+
 ### Changed
 
 - **Logger configuration**: `config.logger_timestamps`,
   `config.logger_request_counter`, `config.logger_show_client_ip` and
   `config.slow_request_threshold` join `config.logger` and
   `config.logger_colors` for console tuning.
+
+- **CLI polish from the console wave**: long request paths truncate with a
+  leading ellipsis to keep columns aligned, `slow_request_threshold` now
+  validates as not-negative, and spec counts are synced to 752 across
+  `AGENTS.md`, `CLAUDE.md` and the website.
 
 ## [0.2.2] — 2026-08-22
 
