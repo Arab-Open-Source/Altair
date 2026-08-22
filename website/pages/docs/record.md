@@ -64,6 +64,39 @@ Post.all.where(published: true)
 Post.all.where(:views, :>=, 15).order(:created_at).to_a
 ```
 
+### Bulk inserts, dirty tracking and enum columns
+
+```crystal
+# One multi-row INSERT; timestamps auto-fill like create. Bypasses
+# validations and callbacks — this is the bulk load path. Large sets
+# chunk inside one transaction, so the call stays all-or-nothing.
+Post.insert_all([
+  {title: "a", views: 1, published: true},
+  {title: "b", views: 2, published: false},
+])
+
+post = Post.find!(1)
+post.changed?                    # any attribute changed since load?
+post.changed_attributes          # [:title]
+post.attribute_changed?(:views)  # false
+post.restore_attributes(:title)  # revert to the loaded value
+post.restore_attributes          # or every changed attribute
+
+# A string column with a compile-time checked value set:
+class Task < Altair::Record::Model
+  table :tasks
+
+  enum_attribute :state, [:pending, :in_review, :done]
+end
+
+task.state = Task::State::Done   # compiles
+task.state = "done"              # compile error
+```
+
+`enum_attribute` stores the member name in snake_case (`"in_review"`),
+so raw rows stay readable; a stored value no member claims reads back as
+`nil`, keeping legacy data safe.
+
 ## Migrations
 
 Migrations live in `db/migrations/` as timestamped files; `altair

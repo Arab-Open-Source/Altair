@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`Model.insert_all` bulk inserts**: inserts many rows in as few
+  multi-row statements as possible. Values bind as parameters through the
+  adapter's coercion layer (JSON and decimal included), timestamp columns
+  auto-fill once per call like `create`, sets past a per-statement bind
+  ceiling chunk inside one transaction so the call stays all-or-nothing,
+  and unknown columns or primary-key keys raise before anything is
+  written. Validations and callbacks are deliberately bypassed — this is
+  the bulk load path.
+
+- **Public dirty tracking**: `changed?`, `changed_attributes` and
+  `attribute_changed?` report state since the last load or save;
+  `restore_attributes(*names)` — or with no arguments, every changed
+  attribute — reverts to that baseline. Originals snapshot wherever dirty
+  state cleared before (`from_row`, successful saves), so a restored
+  record stays saveable with only its surviving changes.
+
+- **`enum_attribute` for fixed-value columns**:
+  `enum_attribute :state, [:pending, :in_review]` declares a nested enum
+  whose members are the only values the typed accessor accepts — anything
+  else is a compile error. The column stores the member name in
+  snake_case so raw rows stay readable; unknown stored values read back
+  as `nil` instead of raising on legacy data; and `find_by_<col>` gains a
+  member-typed overload while validations keep operating on the string.
+
 ### Fixed
 
 - **Deterministic linting**: the `ameba` development dependency now pins an

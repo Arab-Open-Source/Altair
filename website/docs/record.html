@@ -77,6 +77,35 @@ Post.pluck(:title)                         # Array(Value)
 <pre><code class="language-crystal">Post.all.where(published: true)
 Post.all.where(:views, :&gt;=, 15).order(:created_at).to_a
 </code></pre>
+<h3>Bulk inserts, dirty tracking and enum columns</h3>
+<pre><code class="language-crystal"># One multi-row INSERT; timestamps auto-fill like create. Bypasses
+# validations and callbacks — this is the bulk load path. Large sets
+# chunk inside one transaction, so the call stays all-or-nothing.
+Post.insert_all([
+  {title: &quot;a&quot;, views: 1, published: true},
+  {title: &quot;b&quot;, views: 2, published: false},
+])
+
+post = Post.find!(1)
+post.changed?                    # any attribute changed since load?
+post.changed_attributes          # [:title]
+post.attribute_changed?(:views)  # false
+post.restore_attributes(:title)  # revert to the loaded value
+post.restore_attributes          # or every changed attribute
+
+# A string column with a compile-time checked value set:
+class Task &lt; Altair::Record::Model
+  table :tasks
+
+  enum_attribute :state, [:pending, :in_review, :done]
+end
+
+task.state = Task::State::Done   # compiles
+task.state = &quot;done&quot;              # compile error
+</code></pre>
+<p><code>enum_attribute</code> stores the member name in snake_case (<code>&quot;in_review&quot;</code>),
+so raw rows stay readable; a stored value no member claims reads back as
+<code>nil</code>, keeping legacy data safe.</p>
 <h2>Migrations</h2>
 <p>Migrations live in <code>db/migrations/</code> as timestamped files; <code>altair db:migrate</code> runs pending ones and <code>altair db:rollback</code> undoes the last.</p>
 <pre><code class="language-crystal">class CreatePosts &lt; Altair::Record::Migration
