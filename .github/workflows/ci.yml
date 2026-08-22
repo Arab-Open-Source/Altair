@@ -31,3 +31,28 @@ jobs:
             file=${entry##*:}
             (cd examples/$dir && shards install && crystal build $file --no-codegen)
           done
+
+  test-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Crystal
+        uses: crystal-lang/install-crystal@v1
+      - name: Install shards
+        run: shards install
+      - name: Build
+        run: shards build altair --release
+      - name: Test CLI with spaces in path
+        shell: pwsh
+        run: |
+          # Hyphenated names should be rejected with a suggestion
+          $out = ./bin/altair new my-app 2>&1 | Out-String
+          if ($out -notmatch "my_app") { throw "Expected suggestion for my-app" }
+          # Path with spaces should work when quoted
+          $tmp = Join-Path $env:TEMP "Test Space"
+          New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+          ./bin/altair new "$tmp/my_app" --framework-path . 2>&1 | Out-Null
+          if (-not (Test-Path "$tmp/my_app/shard.yml")) { throw "Failed to create project in path with spaces" }
+          if (-not (Test-Path "$tmp/my_app/src/my_app.cr")) { throw "Missing src file" }
+          Remove-Item -Recurse -Force "$tmp/my_app" -ErrorAction SilentlyContinue
+          Write-Host "Windows path handling OK"

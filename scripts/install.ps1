@@ -25,6 +25,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $Repo = "Arab-Open-Source/Altair"
 $BinName = "altair"
@@ -54,13 +56,21 @@ New-Item -ItemType Directory -Force -Path $tmpdir | Out-Null
 try {
     $assetPath = Join-Path $tmpdir $Asset
     $sumsPath = Join-Path $tmpdir "SHA256SUMS"
-    Invoke-WebRequest -Uri "$RelUrl/$Asset" -OutFile $assetPath -UseBasicParsing
-    Invoke-WebRequest -Uri "$RelUrl/SHA256SUMS" -OutFile $sumsPath -UseBasicParsing
+    try {
+        Invoke-WebRequest -Uri "$RelUrl/$Asset" -OutFile $assetPath -UseBasicParsing -MaximumRedirection 5 -TimeoutSec 30
+    } catch {
+        throw "Failed to download $Asset from $RelUrl : $_"
+    }
+    try {
+        Invoke-WebRequest -Uri "$RelUrl/SHA256SUMS" -OutFile $sumsPath -UseBasicParsing -MaximumRedirection 5 -TimeoutSec 30
+    } catch {
+        throw "Failed to download SHA256SUMS from $RelUrl : $_"
+    }
 
     Write-Host "Verifying SHA-256 checksum ..."
     $computed = (Get-FileHash -Algorithm SHA256 -Path $assetPath).Hash.ToLowerInvariant()
     $expected = (Get-Content $sumsPath | ForEach-Object {
-        if ($_ -match "^\s*([0-9a-f]{64})\s+\*?\S*$Asset\s*$") { $matches[1] }
+        if ($_ -match "^\s*([0-9a-fA-F]{64})\s+\*?\S*$Asset\s*$") { $matches[1] }
     } | Select-Object -First 1)
     if ([string]::IsNullOrWhiteSpace($expected)) {
         throw "Checksum for $Asset not found in SHA256SUMS"
