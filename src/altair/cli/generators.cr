@@ -21,24 +21,63 @@ module Altair
       # Returns the process exit code.
       def run(args : Array(String)) : Int32
         type = args[0]?
-        rest = args[1..]
+        rest = args.size > 1 ? args[1..] : [] of String
         case type
         when "model"
           Generators::Model.new(required_name(rest, type)).generate
           0
         when "migration"
           name = required_name(rest, type)
-          Generators::Migration.new(name, Base.parse_columns(rest[1..])).generate
+          cols = rest.size > 1 ? rest[1..] : [] of String
+          Generators::Migration.new(name, Base.parse_columns(cols)).generate
           0
         when "controller"
           Generators::Controller.new(required_name(rest, type)).generate
           0
         when "scaffold"
-          Generators::Scaffold.new(required_name(rest, type), Base.parse_columns(rest[1..])).generate
+          name = required_name(rest, type)
+          cols = rest.size > 1 ? rest[1..] : [] of String
+          Generators::Scaffold.new(name, Base.parse_columns(cols)).generate
           0
         else
-          abort "Unknown generator: #{type || "(none)"}\n\n#{generator_help}"
+          message = String.build do |io|
+            io << "Unknown generator: #{type || "(none)"}"
+            if t = type
+              suggestions = generator_suggestions(t)
+              unless suggestions.empty?
+                io << "\n\nDid you mean one of these?\n"
+                suggestions.each { |s| io << "  #{s}\n" }
+              end
+            end
+            io << "\n\n#{generator_help}"
+          end
+          abort message
         end
+      end
+
+      private def generator_suggestions(input : String) : Array(String)
+        known = TYPES.keys
+        known.map { |cmd| {cmd, levenshtein(input, cmd)} }
+          .select { |_, dist| dist <= 3 && dist > 0 }
+          .sort_by { |_, dist| dist }
+          .first(3)
+          .map(&.[0])
+      end
+
+      private def levenshtein(a : String, b : String) : Int32
+        return b.size if a.empty?
+        return a.size if b.empty?
+        prev = (0..b.size).to_a
+        curr = Array(Int32).new(b.size + 1, 0)
+        a.each_char.with_index(1) do |ca, i|
+          curr[0] = i
+          b.each_char.with_index(1) do |cb, j|
+            cost = ca == cb ? 0 : 1
+            curr[j] = {prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost}.min
+          end
+          prev, curr = curr, prev
+        end
+        prev[b.size]
       end
 
       # The generator help text.

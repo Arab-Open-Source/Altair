@@ -19,7 +19,7 @@ end
 module Altair::CLI
   describe ".project_command?" do
     it "recognizes app-context commands" do
-      %w[server routes db:migrate db:rollback].each do |command|
+      %w[server routes db:migrate db:rollback db:seed].each do |command|
         Altair::CLI.project_command?(command).should be_true
       end
     end

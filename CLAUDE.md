@@ -7,7 +7,7 @@ before touching the codebase.
 ## The short version
 
 - **Status:** Phases 0–6 done (Foundation, Router, Controllers, Views, ORM,
-  CLI, Hardening). **Phase 7 (post-release)** is next. 706 specs passing.
+  CLI, Hardening). **Phase 7 (post-release)** is next. 748 specs passing.
 - **Contract:** specs from day one, never skip a phase's exit criterion,
   never mention "Rails" in the repo, no emojis, no obvious comments.
 - **Plan:** `ROADMAP.md` holds the phase table + exit criteria; detailed

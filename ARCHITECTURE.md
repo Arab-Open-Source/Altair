@@ -383,12 +383,15 @@ for the framework:
 ## 11. Status and open areas
 
 Implemented: application core, HTTP layer, routing, controllers, views,
-middleware, smart errors, request hardening, and the `Altair::Record` ORM
+middleware, smart errors, request hardening, the `Altair::Record` ORM
 (SQLite + PostgreSQL, migrations, schema generation, CRUD/finders,
-validations, callbacks, associations with batched eager loading, multi-db).
+validations, callbacks, associations with batched eager loading, scopes,
+nested includes, insert_all, dirty tracking, enum attributes, multi-db),
+the CLI (`altair new` / `server` / `routes` / `db:*`), generators and
+scaffolding, sessions/flash/CSRF/auth helpers, multipart parsing,
+`.env`/`database.yml` config, security middleware, and testing utilities.
 
-Not yet built (see `ROADMAP.md`): the CLI (`altair new` / `server` / `routes`),
-generators/scaffolding, sessions/flash/CSRF, multipart parsing,
-`.env`/`database.yml` config, background jobs, authentication, asset pipeline,
-a richer query DSL (joins, scopes, `has_many :through`, polymorphic), and
-first-class testing utilities.
+Not yet built (see `ROADMAP.md`): background jobs, authentication
+(`altair g auth`), asset pipeline, a richer query DSL (joins,
+`has_many :through`, polymorphic), prepared-statement caching, and
+migration linting.

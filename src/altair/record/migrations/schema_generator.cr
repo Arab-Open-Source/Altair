@@ -47,16 +47,20 @@ module Altair
         private def render_meta(io : IO, schema : Schema) : Nil
           io << "class Altair::Record::Schema\n"
           io << "  # Compile-time column metadata consumed by Altair::Record::Model macros.\n"
-          io << "  META = {\n"
-          schema.tables.each do |table|
-            io << "    #{table.name}: {\n"
-            max = table.columns.max_of(&.name.to_s.size)
-            table.columns.each do |column|
-              io << "      #{(column.name.to_s + ":").ljust(max + 1)} {type: :#{column.type}, null: #{column.null?}, primary: #{column.primary?}},\n"
+          if schema.tables.empty?
+            io << "  META = {} of Symbol => Hash(Symbol, Hash(Symbol, String))\n"
+          else
+            io << "  META = {\n"
+            schema.tables.each do |table|
+              io << "    #{table.name}: {\n"
+              max = table.columns.max_of(&.name.to_s.size)
+              table.columns.each do |column|
+                io << "      #{(column.name.to_s + ":").ljust(max + 1)} {type: :#{column.type}, null: #{column.null?}, primary: #{column.primary?}},\n"
+              end
+              io << "    },\n"
             end
-            io << "    },\n"
+            io << "  }\n"
           end
-          io << "  }\n"
           io << "end\n"
         end
       end

@@ -45,7 +45,7 @@ Three vertical waves:
 
 - `altair new` generates a standard project layout
 - `altair g model|migration|controller|scaffold` generates ready-to-edit files
-- App commands (`server`, `routes`, `db:migrate` / `db:rollback`) run from anywhere inside a project — no `bin/` prefix needed
+- App commands (`server`, `routes`, `db:migrate` / `db:rollback` / `db:seed`) run from anywhere inside a project — no `bin/` prefix needed
 - `altair install` copies a built binary onto your `PATH`, prints its SHA-256 digest, and refuses to clobber unrelated files without `--force`
 - `altair update` checks GitHub for a newer release, verifies the checksum and swaps the binary atomically
 - Prebuilt binaries for Linux, macOS and Windows (amd64 + arm64) published with checksums; verified one-command installers
@@ -92,7 +92,7 @@ security middleware set, shipped in waves:
 
 ## Testing and quality
 
-- 746 specs passing (6 pending: the PostgreSQL concurrency contract tests; the full PostgreSQL contract suite runs when `ALTAIR_TEST_PG_URL` is set)
+- 748 specs passing (6 pending: the PostgreSQL concurrency contract tests; the full PostgreSQL contract suite runs when `ALTAIR_TEST_PG_URL` is set)
 - Formatter clean, linter silent on framework sources
 - Smart error pages: 404 with route suggestions, 405 with `_method` explanation, detailed 500 diagnostics in debug mode only
 

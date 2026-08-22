@@ -92,6 +92,7 @@ to type `bin/`:
 | `altair routes` | Print the compiled route table. |
 | `altair db:migrate` | Run pending migrations. |
 | `altair db:rollback` | Undo the latest migration. |
+| `altair db:seed` | Run the blocks registered in `db/seeds.cr`. |
 
 `altair g scaffold ...` and the other generators write into the current
 project the same way. The project launcher itself (`bin/altair`, or

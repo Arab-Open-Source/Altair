@@ -41,7 +41,7 @@ Nothing ships unless someone can look at it, click it, and see it work.
 - **Phases 0–5 done** (Foundation, Router, Controllers, Views, Record/ORM,
   CLI + Generators). `examples/blog` is the always-running persistence demo
   — its posts and comments survive restarts.
-- 706 specs passing (6 pending: the PostgreSQL concurrency contract
+- 748 specs passing (6 pending: the PostgreSQL concurrency contract
   tests, plus the fuller PostgreSQL contract suite gated on
   `ALTAIR_TEST_PG_URL`), formatter clean, Ameba silent on framework sources.
 - Phase 6 hardening shipped in waves: sessions + flash + CSRF + auth
@@ -140,7 +140,7 @@ Three vertical waves, each ending green with something visible:
   migration + controller + views + `resources` route + seeded
   `db/schema.cr`.
 - Inside a project, `bin/altair` runs `server`, `routes`, `db:migrate` /
-  `db:rollback`; the framework builds a standalone `altair` binary via
+  `db:rollback` / `db:seed`; the framework builds a standalone `altair` binary via
   `shards build altair`. The standalone `altair` auto-forwards those
   app-context commands to the nearest project from any directory (walking
   up to the project root, preferring an executable `bin/altair`, falling
@@ -266,7 +266,7 @@ crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
 
 ## Testing
 
-The suite is `crystal spec` (currently 706 examples, 6 of them pending: the PostgreSQL concurrency contract tests, with the
+The suite is `crystal spec` (currently 748 examples, 6 of them pending: the PostgreSQL concurrency contract tests, with the
 fuller PostgreSQL contract suite gated on `ALTAIR_TEST_PG_URL`). Run it before and
 after every change:
 

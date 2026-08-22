@@ -32,10 +32,10 @@ view stack, the ORM (`Altair::Record`) and the CLI with generators all ship
 with passing specs. The ORM supports SQLite3 and PostgreSQL, with migration
 runner, schema generation, CRUD, validations, associations, callbacks, and
 a contract test suite that runs against both backends. The CLI can scaffold
-a fresh project (`altair new`), generate model/migration/controller/scaffold
-files (`altair g ...`), and — inside a generated project — boot the server
-(`bin/altair server`), print the route table (`bin/altair routes`) and run migrations
-(`bin/altair db:migrate` / `bin/altair db:rollback`). Next up: sessions/flash/CSRF,
+ a fresh project (`altair new`), generate model/migration/controller/scaffold
+ files (`altair g ...`), and — inside a generated project — boot the server
+ (`bin/altair server`), print the route table (`bin/altair routes`) and run migrations
+ (`bin/altair db:migrate` / `bin/altair db:rollback` / `bin/altair db:seed`). Next up: sessions/flash/CSRF,
 `.env` / `database.yml` configuration, and the remaining hardening work.
 
 What is already in place:
@@ -52,7 +52,7 @@ What is already in place:
 | Errors | `rescue_from`, smart debug pages (404 suggestions, 405 methods, 500 diagnostics), plain in production |
 | Hardening | 2 MB request-body limit, `413` before the body is read |
 | ORM (`Altair::Record`) | adapter interface + SQLite3 and PostgreSQL adapters, connection pooling (warm defaults 2/2/10), migrations DSL + runner, `db/schema.cr` generation, CRUD + finders, validations (`valid?` + errors), timestamps + callbacks, associations (`belongs_to` / `has_many` / `has_one`) with batched eager loading, `dependent:` handling, `validates_uniqueness_of` and the list/range/format/confirmation rules, multi-database support via `ALTAIR_DB_URL`, `find_each` batching that keeps filters and preloaders, `COUNT(*)` relation counting, parallel execution on boot, and a development N+1 detector |
-| CLI | builds a standalone `altair` binary; inside a project `bin/altair server`, `bin/altair routes`, `bin/altair db:migrate` / `bin/altair db:rollback` |
+| CLI | builds a standalone `altair` binary; inside a project `bin/altair server`, `bin/altair routes`, `bin/altair db:migrate` / `bin/altair db:rollback` / `bin/altair db:seed` |
 | Generators | `altair new <name>` scaffolds the standard layout; `altair g model` / `g migration` / `g controller` / `g scaffold Post title:string body:text` write ready-to-edit files (model, migration, controller, views, routes, schema) |
 
 What is still missing (in rough order): sessions/flash/CSRF, multipart
@@ -115,7 +115,7 @@ authentication, asset pipeline, rich query DSL, testing utilities.
   get a `413 Payload Too Large` before they are ever read, and the
   response never echoes the rejected body.
 - **Example applications** — `examples/hello_world`, a working demo with a RESTful resource, static assets and verified behavior over real HTTP; `examples/htmx`, showing the view stack and the htmx layer in the browser; `examples/blog`, the persistence demo with posts and comments surviving restarts (SQLite3 by default, PostgreSQL via `ALTAIR_DB_URL`); `examples/sqlite_crud` and `examples/postgresql_crud`, full MVC CRUD examples for the ORM on each backend.
-- **CLI** — a standalone `altair` binary (`shards build altair`): `altair new <name>` scaffolds a runnable project (Windows and Linux aware, with `bin/altair`, `bin/altair.cr` and `bin/altair.cmd` launchers), `altair g` generates model/migration/controller/scaffold files with a typed column DSL (`Post title:string body:text`), and inside a generated project `bin/altair server`, `bin/altair routes`, `bin/altair db:migrate` and `bin/altair db:rollback` drive the app. Generated scaffold files ship with RESTful CRUD, views, a migration, and a seeded `db/schema.cr` so the model compiles before the first migration runs.
+ - **CLI** — a standalone `altair` binary (`shards build altair`): `altair new <name>` scaffolds a runnable project (Windows and Linux aware, with `bin/altair`, `bin/altair.cr` and `bin/altair.cmd` launchers), `altair g` generates model/migration/controller/scaffold files with a typed column DSL (`Post title:string body:text`), and inside a generated project `bin/altair server`, `bin/altair routes`, `bin/altair db:migrate`, `bin/altair db:rollback` and `bin/altair db:seed` drive the app. Generated scaffold files ship with RESTful CRUD, views, a migration, and a seeded `db/schema.cr` so the model compiles before the first migration runs.
 
 ### Planned
 
@@ -294,7 +294,7 @@ cd blog && shards install && altair server
 
 Once installed, `altair` is available directly from any directory — and
 inside a project the app-context commands (`server`, `routes`, `db:migrate`,
-`db:rollback`) find the project automatically, so you never need to type
+`db:rollback`, `db:seed`) find the project automatically, so you never need to type
 `bin/`.
 
 **From a source checkout** — build the standalone binary and install it:
@@ -313,7 +313,7 @@ existing, different file (pass `--force` to replace it), and supports
 
 Once installed, `altair` is available directly from any directory — and
 inside a project the app-context commands (`server`, `routes`, `db:migrate`,
-`db:rollback`) find the project automatically, so you never need to type
+`db:rollback`, `db:seed`) find the project automatically, so you never need to type
 `bin/`. The `bin/altair` launcher is still there and accepts the same
 commands:
 

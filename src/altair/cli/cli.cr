@@ -31,14 +31,59 @@ module Altair
         puts "Altair #{Altair::VERSION}"
         0
       when "help", "--help", "-h", nil
-        puts help
+        if args[1]?
+          puts help_for(args[1])
+        else
+          puts help
+        end
         0
       else
-        if project_command?(args[0]?) && (dir = find_project_dir)
-          return run_project(args, dir)
+        if project_command?(args[0]?)
+          if dir = find_project_dir
+            return run_project(args, dir)
+          else
+            abort "#{args[0]?} must be run inside an Altair project (no bin/altair.cr found walking up from #{Dir.current}) — did you run `altair new`?"
+          end
         end
-        abort "Unknown command: #{args[0]? || "(none)"}\n\n#{help}"
+        message = String.build do |io|
+          io << "Unknown command: #{args[0]? || "(none)"}"
+          suggestions = did_you_mean(args[0]? || "")
+          unless suggestions.empty?
+            io << "\n\nDid you mean one of these?\n"
+            suggestions.each { |s| io << "  #{s}\n" }
+          end
+          io << "\n#{help}"
+        end
+        abort message
       end
+    end
+
+    # Returns up to three close matches for `input` among known commands.
+    private def self.did_you_mean(input : String) : Array(String)
+      known = %w[new generate g install update version help server routes db:migrate db:rollback db:seed]
+      scored = known.map { |cmd| {cmd, levenshtein(input, cmd)} }
+        .select { |_, dist| dist <= 3 && dist > 0 }
+        .sort_by { |_, dist| dist }
+        .first(3)
+        .map(&.[0])
+      scored
+    end
+
+    # Levenshtein distance between two strings.
+    private def self.levenshtein(a : String, b : String) : Int32
+      return b.size if a.empty?
+      return a.size if b.empty?
+      prev = (0..b.size).to_a
+      curr = Array(Int32).new(b.size + 1, 0)
+      a.each_char.with_index(1) do |ca, i|
+        curr[0] = i
+        b.each_char.with_index(1) do |cb, j|
+          cost = ca == cb ? 0 : 1
+          curr[j] = {prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost}.min
+        end
+        prev, curr = curr, prev
+      end
+      prev[b.size]
     end
 
     # True when `command` is an app-context command that must run against a
@@ -90,20 +135,48 @@ module Altair
         Altair #{Altair::VERSION} — the batteries-included web framework for Crystal.
 
         Usage:
-          altair new <name>                     create a new application
-          altair generate <type> <args> ...     scaffold files (alias: g)
-          altair g scaffold Post title:string   model, migration, controller and views
-          altair g model Post title:string      a model + table
-          altair g migration CreatePosts ...    a timestamped migration
-          altair g controller Posts             a controller + views
-          altair install [--dir DIR] [--force]  copy the binary onto your PATH
-          altair update [--check] [--force]     update to the latest release
-          altair version                        print the framework version
-          altair help                           print this help
+          altair new <name> [--framework-path DIR]  create a new application
+          altair generate <type> <args> ...         scaffold files (alias: g)
+          altair g scaffold Post title:string       model, migration, controller and views
+          altair g model Post title:string          a model + table
+          altair g migration CreatePosts ...        a timestamped migration
+          altair g controller Posts                 a controller + views
+          altair install [--dir DIR] [--force]      copy the binary onto your PATH
+          altair update [--check] [--force]         update to the latest release
+          altair version                            print the framework version
+          altair help [command]                     print this help or help for a command
+          altair db:seed                            run db/seeds.cr (inside a project)
 
         Inside a generated project, `server`, `routes`, `db:migrate`,
         `db:rollback` and `db:seed` run against that project's application.
         TXT
+    end
+
+    # Per-command help. Falls back to the general help when unknown.
+    def self.help_for(command : String) : String
+      case command
+      when "new"
+        <<-TXT
+          Usage: altair new <name> [--framework-path DIR]
+
+            Creates a new Altair application in <name>. <name> may include a
+            path (e.g. a/b or /tmp/my_app); only its basename becomes the
+            application name, which must be lowercase letters, digits and
+            underscores starting with a letter.
+
+            Options:
+              --framework-path DIR   use a local framework checkout instead of GitHub
+              (also: --framework-path=DIR or ALTAIR_PATH env var)
+          TXT
+      when "generate", "g"
+        Generators.generator_help
+      when "install"
+        "Usage: altair install [--dir DIR] [--force]\n  Copies the built binary onto your PATH.\n"
+      when "update"
+        "Usage: altair update [--check] [--force]\n  Checks GitHub for the latest release and verifies the download.\n"
+      else
+        help
+      end
     end
   end
 end

@@ -204,7 +204,28 @@ module Altair::CLI
         File.exists?("blog/src/app/models/.gitkeep").should be_true
         File.exists?("blog/db/migrations/.gitkeep").should be_true
         File.read("blog/db/schema.cr").should contain "META = {} of Symbol => Hash(Symbol, Hash(Symbol, String))"
+        File.exists?("blog/db/seeds.cr").should be_true
+        File.read("blog/db/seeds.cr").should contain "Altair::CLI::Project.seeds"
+        File.read("blog/bin/altair.cr").should contain "require \"../db/seeds\""
+        File.read("blog/bin/altair.cr").should contain "when \"db:seed\""
         File.exists?("blog/public/css/app.css").should be_true
+      end
+    end
+
+    it "supports a path like a/b and uses its basename for the app" do
+      in_tempdir do
+        generator = Generators::New.new("a/b", "/tmp/fake-framework")
+        generator.generate.should eq(Path.new("a/b"))
+        File.read("a/b/shard.yml").should contain "name: b"
+        File.exists?("a/b/src/b.cr").should be_true
+        File.read("a/b/src/b.cr").should contain "B.run!"
+        File.read("a/b/config/database.yml").should contain "sqlite3://./db/b.db"
+      end
+    end
+
+    it "rejects hyphenated names with a suggestion" do
+      expect_raises(Altair::Error, "my_app") do
+        Generators::New.new("my-app").generate
       end
     end
 

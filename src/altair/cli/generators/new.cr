@@ -21,28 +21,53 @@ module Altair
         # Runs `altair new <name> [--framework-path <path>]`. Reads the
         # framework path from a `--framework-path` flag or the
         # `ALTAIR_PATH` environment variable, defaulting to `nil` (GitHub).
+        # The name may include a path, e.g. `altair new a/b` or
+        # `/tmp/my_app`; only its basename becomes the application name.
         # Returns the process exit code.
         def self.run(args : Array(String)) : Int32
-          name = args.first?
+          framework_path = nil
+          remaining = [] of String
+          index = 0
+          while index < args.size
+            arg = args[index]
+            if arg == "--framework-path"
+              framework_path = args[index + 1]?
+              index += 2
+            elsif arg.starts_with?("--framework-path=")
+              framework_path = arg.split("=", 2)[1]? || ""
+              index += 1
+            else
+              remaining << arg
+              index += 1
+            end
+          end
+          if framework_path.nil? || framework_path.empty?
+            if env = ENV["ALTAIR_PATH"]?
+              framework_path = env
+            end
+          end
+          framework_path = File.expand_path(framework_path.not_nil!) if framework_path && !framework_path.empty? && Dir.exists?(framework_path)
+
+          name = remaining.first?
           if name.nil? || name.empty?
             abort "Missing application name for `new` — e.g. `altair new blog`"
           end
-
-          framework_path = nil
-          if index = args.index("--framework-path")
-            framework_path = args[index + 1]?
-          elsif flag = args.find(&.starts_with?("--framework-path="))
-            framework_path = flag.split("=", 2)[1]?
-          elsif env = ENV["ALTAIR_PATH"]?
-            framework_path = env
+          if remaining.size > 1
+            abort "Too many arguments for `new` — expected one name, got: #{remaining.join(" ")}"
           end
-          framework_path = File.expand_path(framework_path.not_nil!) if framework_path && Dir.exists?(framework_path)
 
-          New.new(name, framework_path).generate
+          begin
+            New.new(name, framework_path).generate
+          rescue ex : Altair::Error
+            abort ex.message || ex.to_s
+          end
           0
         end
 
-        # The application name argument, e.g. `blog`.
+        # The raw argument as passed to `new`, e.g. `a/b` or `/tmp/my_app`.
+        getter raw_name : String
+
+        # The application name derived from the basename, e.g. `my_app`.
         getter name : String
 
         # The path the framework shard resolves to. When creating a
@@ -50,7 +75,19 @@ module Altair
         # directory, otherwise the shard is fetched from GitHub.
         getter framework_path : String?
 
-        def initialize(@name : String, @framework_path : String? = nil)
+        def initialize(raw_name : String, @framework_path : String? = nil)
+          @raw_name = raw_name
+          @name = Path.new(raw_name).basename.to_s
+          if @name.empty? || @name == "." || @name == ".."
+            raise Altair::Error.new("Invalid application name `#{raw_name}` — provide a name like `blog`")
+          end
+          if @name.includes?("-")
+            suggested = @name.gsub("-", "_")
+            raise Altair::Error.new("Invalid application name `#{@name}` — use only lowercase letters, digits and underscores, starting with a letter (e.g. `#{suggested}`)")
+          end
+          unless @name =~ /\A[a-z][a-z0-9_]*\z/
+            raise Altair::Error.new("Invalid application name `#{@name}` — use only lowercase letters, digits and underscores, starting with a letter (e.g. `my_app`)")
+          end
         end
 
         # The application's module / class name, e.g. `Blog`.
@@ -58,9 +95,15 @@ module Altair
           classify(@name)
         end
 
-        # The root directory of the new project, e.g. `blog/`.
+        # The root directory of the new project, e.g. `blog/` or `a/b`.
         def project_dir : Path
-          Path.new(@name)
+          raw_path = Path.new(@raw_name)
+          parent = raw_path.parent
+          if parent == Path.new(".") || parent.to_s.empty?
+            Path.new(@name)
+          else
+            parent / @name
+          end
         end
 
         # Whether `project_dir` already exists. Refuses to overwrite it.

@@ -70,7 +70,7 @@
 <ul>
 <li><code>altair new</code> generates a standard project layout</li>
 <li><code>altair g model|migration|controller|scaffold</code> generates ready-to-edit files</li>
-<li>App commands (<code>server</code>, <code>routes</code>, <code>db:migrate</code> / <code>db:rollback</code>) run from anywhere inside a project — no <code>bin/</code> prefix needed</li>
+<li>App commands (<code>server</code>, <code>routes</code>, <code>db:migrate</code> / <code>db:rollback</code> / <code>db:seed</code>) run from anywhere inside a project — no <code>bin/</code> prefix needed</li>
 <li><code>altair install</code> copies a built binary onto your <code>PATH</code>, prints its SHA-256 digest, and refuses to clobber unrelated files without <code>--force</code></li>
 <li><code>altair update</code> checks GitHub for a newer release, verifies the checksum and swaps the binary atomically</li>
 <li>Prebuilt binaries for Linux, macOS and Windows (amd64 + arm64) published with checksums; verified one-command installers</li>
@@ -116,7 +116,7 @@ quoted statements, halving the write-path allocations (PostgreSQL:
 </ul>
 <h2>Testing and quality</h2>
 <ul>
-<li>746 specs passing (6 pending: the PostgreSQL concurrency contract tests; the full PostgreSQL contract suite runs when <code>ALTAIR_TEST_PG_URL</code> is set)</li>
+<li>748 specs passing (6 pending: the PostgreSQL concurrency contract tests; the full PostgreSQL contract suite runs when <code>ALTAIR_TEST_PG_URL</code> is set)</li>
 <li>Formatter clean, linter silent on framework sources</li>
 <li>Smart error pages: 404 with route suggestions, 405 with <code>_method</code> explanation, detailed 500 diagnostics in debug mode only</li>
 </ul>
