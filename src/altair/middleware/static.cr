@@ -19,7 +19,7 @@ require "mime"
 class Altair::Middleware::Static < Altair::Middleware
   def call(request : Altair::HTTP::Request, response : Altair::HTTP::Response, chain : Proc(Nil)) : Nil
     if (request.method == "GET" || request.method == "HEAD") && (file = resolve(request.path)) && File.file?(file)
-      serve(file, response)
+      serve(request.path, file, response)
     else
       chain.call
     end
@@ -35,10 +35,21 @@ class Altair::Middleware::Static < Altair::Middleware
     Path.new((@app.root / "public").to_s + path)
   end
 
-  private def serve(file : Path, response : Altair::HTTP::Response) : Nil
+  private def serve(path : String, file : Path, response : Altair::HTTP::Response) : Nil
     content_type = MIME.from_extension?(file.extension) || "application/octet-stream"
     response.headers["Content-Type"] = content_type
+    response.headers["Cache-Control"] = "public, max-age=31536000, immutable" if fingerprinted?(path)
     response.status = ::HTTP::Status::OK
     response.print(File.read(file))
+  end
+
+  # Fingerprinted pipeline outputs are safe to cache forever: their URL
+  # embeds the content digest. Plain copies under `/assets/` get no
+  # long-lived caching so development edits show up immediately.
+  private def fingerprinted?(path : String) : Bool
+    return false unless path.starts_with?("/assets/")
+    name = path.rpartition('/')[2]
+    match = name.match(/-[0-9a-f]{12}\./)
+    !match.nil?
   end
 end

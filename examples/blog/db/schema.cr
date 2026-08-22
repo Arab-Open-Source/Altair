@@ -15,6 +15,11 @@ class Altair::Record::Schema
       body:    {type: :string, null: true, primary: false},
       post_id: {type: :integer, null: true, primary: false},
     },
+    users: {
+      id:              {type: :integer, null: false, primary: true},
+      email:           {type: :string, null: true, primary: false},
+      password_digest: {type: :string, null: true, primary: false},
+    },
   }
 end
 
@@ -31,5 +36,11 @@ Altair::Record::Schema.define do |schema|
     t.column :body, :string, null: true, primary: false
     t.column :post_id, :integer, null: true, primary: false
     t.index [:post_id], unique: false, name: "index_comments_on_post_id"
+  end
+  schema.table(:users) do |t|
+    t.column :id, :integer, null: false, primary: true
+    t.column :email, :string, null: true, primary: false
+    t.column :password_digest, :string, null: true, primary: false
+    t.index [:email], unique: true, name: "index_users_on_email"
   end
 end

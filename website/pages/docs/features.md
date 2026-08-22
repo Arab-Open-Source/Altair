@@ -76,6 +76,43 @@ security middleware set, shipped in waves:
   opt-in `Cors` (`config.cors.origins` enables it; preflight answered
   directly)
 
+## Phase 7 — Post-release
+
+Four features shipped, demonstrated end to end in `examples/blog`:
+
+- **Testing utilities** — `Altair::Test.boot(App)` binds an ephemeral port
+  (with a `configure:` hook for per-spec settings such as
+  `secret_key_base`), plain `get`/`post`/`post_json`/`put`/`patch`/
+  `delete` helpers for one-off requests, and the cookie-jar
+  `Altair::Test::Client` whose session survives between requests with
+  browser-like redirect following. Database helpers: `migrate!` applies
+  pending migrations through the same engine the CLI drives, and
+  `transactional { }` wraps an example in an always-rolled-back
+  transaction (nested calls join through savepoints)
+- **Full authentication** — `altair g auth [User]` writes a complete
+  registration/login stack: User model with unique email, a migration
+  carrying the unique index, sessions and registrations controllers,
+  login/register views and the `/login`, `/register`, `/logout` routes.
+  The `password_auth` model macro stages plain passwords, hashes them
+  into a digest column through PBKDF2-HMAC-SHA256
+  (`Altair::Auth::PasswordHasher` — OpenSSL stdlib, no new dependencies),
+  validates length and confirmation as ordinary record errors, and gates
+  logins behind `authenticate_password`
+- **Asset pipeline** — `assets/` sources compile into fingerprinted files
+  under `public/assets/<name>-<sha256>.<ext>` plus a `manifest.json` via
+  `altair assets:precompile`; `stylesheet_link_tag`,
+  `javascript_asset_tag` and `asset_url` resolve through the manifest
+  when compiled and fall back to plain copies in development;
+  fingerprinted responses carry `Cache-Control: immutable`
+- **Background jobs** — job classes declare typed parameters once
+  (`params user_id : Int64`) and get compile-checked `enqueue`,
+  `enqueue_in` and `enqueue_at`. Jobs persist in a lazily-created
+  `altair_jobs` table (no migration needed), claiming is atomic so
+  concurrent workers never double-run a row, failures retry with
+  exponential backoff inside a per-job budget, `altair jobs:work` runs
+  the worker with graceful shutdown, `altair jobs:stats` prints status
+  counts, and test mode collects enqueues for synchronous draining
+
 ## Performance hardening
 
 - `find_each` streams bounded batches that keep the scoped `where` filters and `includes` preloaders
@@ -92,10 +129,12 @@ security middleware set, shipped in waves:
 
 ## Testing and quality
 
-- 752 specs passing (6 pending: the PostgreSQL concurrency contract tests; the full PostgreSQL contract suite runs when `ALTAIR_TEST_PG_URL` is set)
+- 817 specs passing (6 pending: the PostgreSQL concurrency contract tests; the full PostgreSQL contract suite runs when `ALTAIR_TEST_PG_URL` is set)
 - Formatter clean, linter silent on framework sources
 - Smart error pages: 404 with route suggestions, 405 with `_method` explanation, detailed 500 diagnostics in debug mode only
 
 ## What is planned next
 
-- **Phase 7 (Post-release):** background jobs, full authentication, asset pipeline, rich query DSL, testing utilities
+- **Phase 7 remainder:** `joins` in the rich query DSL;
+  `has_many :through` and polymorphic associations
+- **Phase 8 candidate:** multi-tenancy

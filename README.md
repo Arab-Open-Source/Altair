@@ -19,7 +19,7 @@ Its goal is to provide an exceptional developer experience while taking
 advantage of Crystal's native performance, low memory usage and single-binary
 deployment.
 
-> **Status:** early development (pre-alpha) — Phases 0–5 complete
+> **Status:** early development — Phases 0–6 complete, Phase 7 mostly complete
 
 > **Website:** <https://arab-open-source.github.io/Altair/> — install, usage and
 > what is implemented, generated from markdown in [`website/`](website/).
@@ -35,8 +35,11 @@ a contract test suite that runs against both backends. The CLI can scaffold
  a fresh project (`altair new`), generate model/migration/controller/scaffold
  files (`altair g ...`), and — inside a generated project — boot the server
  (`bin/altair server`), print the route table (`bin/altair routes`) and run migrations
- (`bin/altair db:migrate` / `bin/altair db:rollback` / `bin/altair db:seed`). Next up: sessions/flash/CSRF,
-`.env` / `database.yml` configuration, and the remaining hardening work.
+ (`bin/altair db:migrate` / `bin/altair db:rollback` / `bin/altair db:seed`). Phase 6 hardening
+shipped sessions, flash, CSRF, auth helpers, JWT, `.env` / `database.yml`,
+multipart uploads and a security middleware set. Phase 7 adds background
+jobs, full authentication (`altair g auth`), the asset pipeline and
+first-class testing utilities.
 
 What is already in place:
 
@@ -51,13 +54,21 @@ What is already in place:
 | Middleware | `use`-based pipeline, request logging, static files with traversal protection |
 | Errors | `rescue_from`, smart debug pages (404 suggestions, 405 methods, 500 diagnostics), plain in production |
 | Hardening | 2 MB request-body limit, `413` before the body is read |
+| Config & security | `.env` + `config/database.yml`, multipart uploads (`params.upload`), `SecurityHeaders` / `RequestId` / opt-in `Cors` middleware |
+| Sessions & auth | signed-cookie sessions, flash, CSRF tokens on protected forms, `require_login`/`authenticate!`, `Altair::Auth::JWT` |
+| Testing utilities | `Altair::Test.boot` with a `configure:` hook, stateless HTTP helpers plus a cookie-jar `Test::Client` with redirect following, `migrate!` and transactional wrappers |
+| Full authentication | `altair g auth` writes model + migration + controllers + views + routes; `password_auth` macro hashes through PBKDF2-SHA256 (`Altair::Auth::PasswordHasher`) |
+| Asset pipeline | `altair assets:precompile` fingerprints `assets/` into `public/assets/` with a manifest; `stylesheet_link_tag` / `javascript_asset_tag` / `asset_url`; immutable caching |
+| Background jobs | typed `params` jobs, compile-checked `enqueue`/`enqueue_in`/`enqueue_at`, lazy `altair_jobs` table, atomic claiming, backoff retries, `altair jobs:work` / `jobs:stats`, in-memory test mode |
 | ORM (`Altair::Record`) | adapter interface + SQLite3 and PostgreSQL adapters, connection pooling (warm defaults 2/2/10), migrations DSL + runner, `db/schema.cr` generation, CRUD + finders, validations (`valid?` + errors), timestamps + callbacks, associations (`belongs_to` / `has_many` / `has_one`) with batched eager loading, `dependent:` handling, `validates_uniqueness_of` and the list/range/format/confirmation rules, multi-database support via `ALTAIR_DB_URL`, `find_each` batching that keeps filters and preloaders, `COUNT(*)` relation counting, parallel execution on boot, and a development N+1 detector |
 | CLI | builds a standalone `altair` binary; inside a project `bin/altair server`, `bin/altair routes`, `bin/altair db:migrate` / `bin/altair db:rollback` / `bin/altair db:seed` |
 | Generators | `altair new <name>` scaffolds the standard layout; `altair g model` / `g migration` / `g controller` / `g scaffold Post title:string body:text` write ready-to-edit files (model, migration, controller, views, routes, schema) |
 
-What is still missing (in rough order): sessions/flash/CSRF, multipart
-parsing, `.env` / `database.yml` configuration, background jobs,
-authentication, asset pipeline, rich query DSL, testing utilities.
+What is still missing (in rough order): the remaining rich-query DSL
+(`joins`, `group`/`having`, richer operators), `has_many :through` and
+polymorphic associations, a development console, and multi-tenancy
+(candidate for the next phase — see
+`docs/architecture/orm-audit-and-tenancy-plan.md`).
 
 ---
 
@@ -115,15 +126,40 @@ authentication, asset pipeline, rich query DSL, testing utilities.
   get a `413 Payload Too Large` before they are ever read, and the
   response never echoes the rejected body.
 - **Example applications** — `examples/hello_world`, a working demo with a RESTful resource, static assets and verified behavior over real HTTP; `examples/htmx`, showing the view stack and the htmx layer in the browser; `examples/blog`, the persistence demo with posts and comments surviving restarts (SQLite3 by default, PostgreSQL via `ALTAIR_DB_URL`); `examples/sqlite_crud` and `examples/postgresql_crud`, full MVC CRUD examples for the ORM on each backend.
- - **CLI** — a standalone `altair` binary (`shards build altair`): `altair new <name>` scaffolds a runnable project (Windows and Linux aware, with `bin/altair`, `bin/altair.cr` and `bin/altair.cmd` launchers), `altair g` generates model/migration/controller/scaffold files with a typed column DSL (`Post title:string body:text`), and inside a generated project `bin/altair server`, `bin/altair routes`, `bin/altair db:migrate`, `bin/altair db:rollback` and `bin/altair db:seed` drive the app. Generated scaffold files ship with RESTful CRUD, views, a migration, and a seeded `db/schema.cr` so the model compiles before the first migration runs.
+- **Sessions & authentication** — HMAC-signed cookie sessions with flash
+  and CSRF protection on state-changing forms, `require_login` /
+  `authenticate!` filters, `Altair::Auth::JWT` for API tokens, multipart
+  uploads (`params.upload`), `.env` + `config/database.yml`, and a security
+  middleware set (`SecurityHeaders`, `RequestId`, opt-in `Cors`). Full
+  registration/login/logout ships through **`altair g auth`**: a User model,
+  migration with unique email, sessions and registrations controllers with
+  views and routes — passwords hashed via the `password_auth` macro and
+  PBKDF2-SHA256 (`Altair::Auth::PasswordHasher`), no extra dependencies.
+- **Background jobs** — declare typed parameters once (`params user_id :
+  Int64`) and get compile-checked `enqueue` / `enqueue_in` / `enqueue_at`,
+  JSON payload persistence in a lazily-created table, atomic claiming so
+  concurrent workers never double-run a job, exponential-backoff retries
+  inside a per-job attempt budget, `altair jobs:work` / `jobs:stats`
+  commands with graceful shutdown, and an in-memory test mode that drains
+  synchronously in specs.
+- **Asset pipeline** — `assets/` compiles into fingerprinted files under
+  `public/assets/` plus a manifest (`altair assets:precompile`);
+  `stylesheet_link_tag`, `javascript_asset_tag` and `asset_url` prefer the
+  manifest while falling back to plain copies in development; fingerprinted
+  responses carry immutable caching.
+- **Testing utilities** — `Altair::Test.boot(App)` binds an ephemeral port
+  (with a `configure:` hook for per-spec settings), plain HTTP helpers for
+  one-off requests, `Altair::Test::Client` keeping cookies across requests
+  with browser-like redirects, `Altair::Test.migrate!` to prepare the test
+  database, and `Altair::Test.transactional` for rolled-back examples.
+ - **CLI** — a standalone `altair` binary (`shards build altair`): `altair new <name>` scaffolds a runnable project (Windows and Linux aware, with `bin/altair`, `bin/altair.cr` and `bin/altair.cmd` launchers), `altair g` generates model/migration/controller/scaffold/auth files with a typed column DSL (`Post title:string body:text`), and inside a generated project `bin/altair server`, `bin/altair routes`, `bin/altair db:migrate`, `bin/altair db:rollback`, `bin/altair db:seed`, `bin/altair assets:precompile`, `bin/altair jobs:work` and `bin/altair jobs:stats` drive the app. Generated scaffold files ship with RESTful CRUD, views, a migration, and a seeded `db/schema.cr` so the model compiles before the first migration runs.
 
 ### Planned
 
-- Sessions, flash and CSRF protection
-- Multipart form parsing
-- `.env` / `database.yml` configuration
-- Background jobs, authentication, asset pipeline, rich query DSL,
-  testing utilities
+- Rich query DSL completion: `joins`, `group` / `having`, richer operators
+- `has_many :through` and polymorphic associations
+- Development console
+- Multi-tenancy (candidate)
 
 ---
 

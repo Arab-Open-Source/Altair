@@ -74,6 +74,20 @@ module Altair
         0
       end
 
+      # Builds fingerprinted assets from `assets/` into
+      # `public/assets/` and writes the manifest. Returns a process exit
+      # code; prints the count of compiled files.
+      def precompile_assets(app : A.class) : Int32 forall A
+        entries = Altair::Assets::Pipeline.new(app.instance.root).precompile
+        if entries.empty?
+          puts "No assets found in assets/ — nothing to compile."
+        else
+          puts "Compiled #{entries.size} asset(s):"
+          entries.each { |entry| puts "  #{entry.logical} -> #{entry.url}" }
+        end
+        0
+      end
+
       # Applies pending migrations and regenerates `db/schema.cr`. Returns
       # a process exit code; prints the count of applied migrations.
       def migrate(app : A.class) : Int32 forall A
@@ -98,6 +112,30 @@ module Altair
           puts "Nothing to roll back."
         end
         conn.close
+        0
+      end
+
+      # Runs the background-jobs worker until interrupted. Blocks the
+      # process; returns a process exit code once stopped.
+      def jobs_work(app : A.class) : Int32 forall A
+        instance = app.instance
+        config = instance.config
+        worker = Altair::Jobs::Worker.new(config.jobs_poll_interval, config.jobs_queues)
+        puts "Starting background worker on queues #{config.jobs_queues.join(", ")} — Ctrl-C to stop."
+        worker.run
+        0
+      end
+
+      # Prints the status counts of the background-jobs table.
+      def jobs_stats(app : A.class) : Int32 forall A
+        app.instance
+        counts = Altair::Jobs::Queue.stats
+        if counts.empty?
+          puts "No background jobs recorded."
+        else
+          width = counts.keys.map(&.size).max
+          counts.each { |status, count| puts "#{status.ljust(width)}  #{count}" }
+        end
         0
       end
 

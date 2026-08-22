@@ -1,0 +1,36 @@
+/* Blog styles — the pipeline source. Compiled with:
+ *   crystal run scripts/assets.cr
+ */
+:root { color-scheme: light dark; }
+* { box-sizing: border-box; }
+body {
+  font-family: system-ui, sans-serif;
+  max-width: 42rem;
+  margin: 2rem auto;
+  padding: 0 1rem;
+  line-height: 1.6;
+}
+h1, h2 { line-height: 1.2; }
+nav { margin-bottom: 1rem; color: #57606a; }
+nav form.inline, nav button.link { display: inline; }
+button.link {
+  background: none;
+  border: none;
+  color: #0969da;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+label { display: block; margin-bottom: .75rem; }
+input:not([type="hidden"]) {
+  display: block;
+  width: 100%;
+  padding: .4rem .5rem;
+  margin-top: .2rem;
+}
+button { margin-top: .25rem; }
+ul { padding-left: 1.25rem; }
+li { margin-bottom: .35rem; }
+li form.inline, li form { display: inline; }
+p.error { color: #cf222e; }

@@ -197,9 +197,30 @@ module Altair
         end
       end
 
+      # Runs a query expecting at most one row, yielding it to the block.
+      # Returns the block's result for the first row, or `nil` when there
+      # are none. Accepts scalar `*args` plus an optional `values:` list for
+      # IN (...) clauses.
+      def query_one?(sql : String, *args, values : Enumerable? = nil, &block : DB::ResultSet -> U) : U? forall U
+        found = nil
+        query(sql, *args, values: values) do |rs|
+          if rs.move_next
+            found = block.call(rs)
+          end
+        end
+        found
+      end
+
       # Returns the last auto-generated id of an insert result.
       def last_insert_id(result : DB::ExecResult) : Int64
         @adapter.last_insert_id(result)
+      end
+
+      # Whether the calling fiber currently owns a transaction connection.
+      # Test helpers use this to detect nesting before forcing a rollback.
+      def in_transaction? : Bool
+        return false if @active_transactions.get == 0
+        @lock.synchronize { @active_connections.has_key?(Fiber.current) }
       end
 
       # Runs the block inside a transaction; the transaction rolls back

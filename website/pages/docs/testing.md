@@ -49,6 +49,51 @@ Altair::Test.delete(port, "/posts/1")
 
 All helpers accept an optional `headers` argument (`HTTP::Headers`) and return `HTTP::Client::Response`.
 
+## The cookie-jar client
+
+`Altair::Test::Client` keeps the server's cookies between requests, so a sign-in carries into every later request without manual header plumbing, and follows redirects the way a browser does when asked:
+
+```crystal
+client = Altair::Test::Client.new(port)                     # or: follow_redirects: true
+client.post("/login", form: "email=a@b.com&password=secret")
+client.get("/me").body.should contain("a@b.com")            # session carried
+
+destroyed = client.get("/logout")                           # expired cookies leave the jar
+client.get("/me").status_code.should eq(302)
+```
+
+Redirects follow only when `follow_redirects: true`; 301/302/303 downgrade to GET (so POST-then-redirect lands on the page), 307/308 keep the method, and the jar rides along every hop.
+
+## Configuring the booted app
+
+The `configure:` proc runs on the fresh instance before the server is built — where per-spec settings belong:
+
+```crystal
+Altair::Test.boot(SessionApp, configure: ->(app : SessionApp) {
+  app.config.secret_key_base = "test-secret"
+}) do |port|
+  # sessions work here
+end
+```
+
+## Database helpers
+
+`Altair::Test.migrate!` applies pending migrations against the application's configured database — the same engine `db:migrate` runs:
+
+```crystal
+Altair::Test.migrate!(MyApp)
+```
+
+`Altair::Test.transactional { }` wraps a block in a transaction that is always rolled back, so every example starts from the same data; nested calls join the outer transaction through savepoints:
+
+```crystal
+Altair::Test.transactional do
+  Post.create(title: "only this example sees me")
+end
+```
+
+Background jobs have their own test seam: set `Altair::Jobs::Queue.test_mode = true` and enqueues collect in memory (`Queue.enqueued`, `Queue.clear_enqueued!`) instead of hitting the table; drain them synchronously with a `Worker#execute` loop over sorted calls.
+
 ## Isolation
 
 Each `boot` saves the current `Altair.application_instance`, sets it to `nil` so the application builds a fresh instance, and restores the original in an `ensure` block. Nested boots are not supported — finish one before starting the next.

@@ -17,16 +17,35 @@
 # comments in a single query instead of one per post. Deleting a post
 # destroys its comments.
 #
+# Phase 7 adds authentication, the asset pipeline and background jobs:
+#
+# - **Authentication** — register at `/register`, sign in at `/login`,
+#   sign out from any page. Passwords hash through PBKDF2-SHA256 via the
+#   model's `password_auth` declaration, emails are unique, and creating,
+#   editing or deleting a post requires a signed-in session (`require_login`
+#   answers guests with a redirect to `/login`).
+# - **Asset pipeline** — `assets/css/app.css` compiles into a fingerprinted
+#   file under `public/assets/` plus a manifest; the layout links it through
+#   `asset_url`, so browsers cache it forever and a content change rotates
+#   the URL.
+# - **Background jobs** — every new post enqueues a `PostPublishedJob`. Run
+#   the worker in another terminal and watch it announce each post:
+#
+#   ```
+#   crystal run scripts/jobs.cr
+#   ```
+#
 # ## Run it
 #
 # From this directory:
 #
 # ```
-# crystal run scripts/db.cr -- migrate
-# crystal run src/blog.cr
+# crystal run scripts/assets.cr           # compile assets/ -> public/assets/
+# crystal run scripts/db.cr -- migrate    # create/update the schema
+# crystal run src/blog.cr                 # serve on http://localhost:4000
 # ```
 #
-# then open http://localhost:4000, add a post, and restart the server —
+# then open http://localhost:4000, register an account, add a post, and restart the server —
 # the post is still there, because it lives in `db/blog.db`.
 #
 # PostgreSQL uses the same application, models, controllers and migrations.
@@ -76,7 +95,12 @@
 # db/schema.cr             generated schema + compile-time META (written by the runner)
 # db/blog.db               the SQLite database (created on first run)
 # src/config/application.cr  the application + routes + db_url
-# src/app/models/          the Post and Comment models (associations, validations)
-# src/app/controllers/     the posts and comments controllers (CRUD + comments)
-# scripts/db.cr            the migrate/rollback runner
+# assets/css/app.css        asset-pipeline source styles
+# public/assets/            compiled fingerprints + manifest.json (generated)
+# src/app/models/           Post, Comment and User models (associations, validations, password_auth)
+# src/app/controllers/      posts, comments, sessions and registrations controllers
+# src/app/jobs/             PostPublishedJob — enqueued when a post is created
+# scripts/db.cr             the migrate/rollback runner
+# scripts/assets.cr         the asset precompiler
+# scripts/jobs.cr           the background-jobs worker
 # ```

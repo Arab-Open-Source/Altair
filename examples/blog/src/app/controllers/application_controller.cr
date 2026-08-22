@@ -4,17 +4,31 @@
 # call `posts_path`, `new_post_path`, `post_path(5)` and friends as plain
 # methods, and the shared page chrome both controllers render into.
 abstract class ApplicationController < Altair::Controller
-  # The shared page chrome every page renders into.
+  include Altair::View::Helpers
+
+  # The shared page chrome every page renders into. Styles come from the
+  # asset pipeline (`assets/css/app.css` compiled by
+  # `crystal run scripts/assets.cr`), and the header reflects the session.
   private def page_html(body : String) : String
+    auth_nav = if logged_in?
+                 %(<a href="/posts">posts</a> ·
+                    <form class="inline" action="/logout" method="post">
+                      <input type="hidden" name="_method" value="DELETE">
+                      <button class="link">sign out</button>
+                    </form>)
+               else
+                 %(<a href="/login">sign in</a> · <a href="/register">register</a>)
+               end
     <<-HTML
       <!DOCTYPE html>
       <html>
         <head>
           <meta charset="utf-8">
-          <link rel="stylesheet" href="/css/app.css">
+          <link rel="stylesheet" href="#{asset_url("css/app.css")}">
           <title>Blog</title>
         </head>
         <body>
+          <nav>#{auth_nav}</nav>
           #{body}
           <p><a href="#{posts_path}">Back to posts</a></p>
         </body>

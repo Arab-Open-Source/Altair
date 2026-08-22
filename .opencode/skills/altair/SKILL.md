@@ -43,7 +43,14 @@ configuration (`.env` / `database.yml`), multipart uploads
 middleware set (`SecurityHeaders`, `RequestId`, opt-in `Cors`) in the
 default stack. The development console was redesigned with an enriched
 boot banner and aligned, colored request logs (method/status colors,
-request counter, slow-request highlighting). 752 specs passing
+request counter, slow-request highlighting). Phase 7 shipped its first
+four features: testing utilities (`Altair::Test.boot` with a `configure:`
+hook, the cookie-jar `Altair::Test::Client`, `migrate!`/`transactional`),
+full authentication (`altair g auth` + `password_auth` + PBKDF2 hashing),
+the asset pipeline (`assets:precompile`, manifest-backed helpers, immutable
+caching) and background jobs (typed `params` jobs, lazy `altair_jobs`
+table, atomic claiming, backoff retries, `jobs:work` / `jobs:stats`).
+817 specs passing
 (6 pending: the PostgreSQL contract suite on `ALTAIR_TEST_PG_URL`).
 The record layer shipped a post-Phase-4 performance wave: `find_each`
 keeps scoped `where` filters + `includes` preloaders across batches,
@@ -58,9 +65,36 @@ N+1 detector warns on identical SQL past `config.n_plus_one_threshold`
 |---|---|---|
 | 0–5 | Foundation / Router / Controllers / Views / ORM / CLI + Generators | Completed |
 | 6 | Hardening (sessions, CSRF, config, security) | Completed |
-| 7 | Post-release (jobs, auth, assets, rich queries) | Planned |
+| 7 | Post-release (jobs, auth, assets, rich queries) | Mostly completed — testing utilities, full authentication, asset pipeline and background jobs shipped; `joins` and `has_many :through`/polymorphic remain |
 
 Exit criteria per phase and golden rules are in `ROADMAP.md`.
+
+## Phase 7 additions (where things live)
+
+```
+auth/         password_hasher.cr (PBKDF2-SHA256 digests), model_auth.cr
+              (`password_auth` macro on Record::Model), jwt.cr
+assets/       pipeline.cr — fingerprints assets/ into public/assets/ +
+              manifest.json; helpers resolve through it (stylesheet_link_tag,
+              javascript_asset_tag, asset_url); Static adds immutable caching
+              to fingerprinted URLs only
+jobs/         job.cr (`params` macro -> typed enqueue/enqueue_in/enqueue_at),
+              queue.cr (lazy altair_jobs table, atomic claim, backoff retries,
+              test mode), worker.cr (poll loop, graceful signals)
+testing/      test.cr (boot with configure: hook, migrate!, transactional),
+              client.cr (cookie-jar HTTP client with redirects)
+cli/          `altair g auth`, project commands assets:precompile,
+              jobs:work, jobs:stats
+```
+
+- Jobs persist without a migration: the queue creates `altair_jobs`
+  lazily. Specs set `Altair::Jobs::Queue.test_mode = true`, enqueue, then
+  drain synchronously via `Worker#execute`.
+- Auth flows in specs use `Altair::Test::Client` so the session cookie
+  carries between requests; register -> protected page -> logout reads as
+  plain requests.
+- Asset specs build a temp project root, run `Pipeline#precompile`, then
+  boot an app with `app.root = tmp` and assert manifest resolution.
 
 ## Code layout
 

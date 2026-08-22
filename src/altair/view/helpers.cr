@@ -113,6 +113,37 @@ module Altair
         %(<script src="#{src}" defer></script>)
       end
 
+      # Includes a project stylesheet through the asset pipeline:
+      # `<link rel="stylesheet" href="...">` pointing at the fingerprinted
+      # URL from the compiled manifest when one exists, else the plain copy.
+      #
+      # ```
+      # stylesheet_link_tag "app"
+      # stylesheet_link_tag "admin/dashboard"
+      # ```
+      def stylesheet_link_tag(logical : String) : String
+        href = asset_url(logical)
+        %(<link rel="stylesheet" href="#{Altair::View.escape(href)}">)
+      end
+
+      # Includes a project script through the asset pipeline, like
+      # `stylesheet_link_tag` but as a deferred `<script>` tag:
+      #
+      # ```
+      # javascript_asset_tag "app"
+      # ```
+      def javascript_asset_tag(logical : String) : String
+        src = asset_url(logical)
+        %(<script src="#{Altair::View.escape(src)}" defer></script>)
+      end
+
+      # The public URL of a pipeline asset — fingerprinted when the project
+      # has been precompiled, otherwise the plain `/public/assets` copy.
+      def asset_url(logical : String) : String
+        root = Altair.application_instance.try(&.root) || Path.new(Dir.current)
+        Altair::Assets.url(root, logical)
+      end
+
       # Translates an attribute name: `hx_post` becomes `hx-post`,
       # `data_id` becomes `data-id`, and plain names are untouched.
       def attribute_name(key : Symbol) : String

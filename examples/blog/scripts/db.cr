@@ -11,13 +11,18 @@ require "altair"
 require "../db/schema"
 require "../src/app/models/comment"
 require "../src/app/models/post"
+require "../src/app/models/user"
 require "../src/app/controllers/application_controller"
 require "../src/app/controllers/comments_controller"
 require "../src/app/controllers/posts_controller"
+require "../src/app/controllers/sessions_controller"
+require "../src/app/controllers/registrations_controller"
+require "../src/app/jobs/post_published_job"
 require "../src/config/application"
 require "../db/migrations/20260802000001_create_posts"
 require "../db/migrations/20260802000002_add_comments"
 require "../db/migrations/20260802000003_add_timestamps_to_posts"
+require "../db/migrations/20260802230000_create_users"
 
 conn = Altair::Record::Connection.for(Blog.instance)
 runner = Altair::Record::Migrations::Runner.new(

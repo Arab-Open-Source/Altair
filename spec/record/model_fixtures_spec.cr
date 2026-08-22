@@ -88,6 +88,11 @@ class Altair::Record::Schema
       password: {type: :string, null: true, primary: false},
       age:      {type: :integer, null: true, primary: false},
     },
+    auth_users: {
+      id:              {type: :integer, null: false, primary: true},
+      email:           {type: :string, null: true, primary: false},
+      password_digest: {type: :string, null: true, primary: false},
+    },
   }
 end
 
@@ -288,6 +293,7 @@ module RecordSpec
     connection.exec("DROP TABLE IF EXISTS events")
     connection.exec("DROP TABLE IF EXISTS accounts")
     connection.exec("DROP TABLE IF EXISTS members")
+    connection.exec("DROP TABLE IF EXISTS auth_users")
     connection.exec("DROP TABLE IF EXISTS tags")
     connection.exec("DROP TABLE IF EXISTS children")
     connection.exec("DROP TABLE IF EXISTS humans")
@@ -360,6 +366,10 @@ module RecordSpec
     connection.exec(
       "CREATE TABLE members (" \
       "id INTEGER PRIMARY KEY AUTOINCREMENT, role TEXT, name TEXT, email TEXT, password TEXT, age INTEGER)"
+    )
+    connection.exec(
+      "CREATE TABLE auth_users (" \
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT, password_digest TEXT)"
     )
   end
 end

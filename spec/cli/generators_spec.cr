@@ -176,6 +176,62 @@ module Altair::CLI
         end
       end
     end
+
+    describe "auth" do
+      it "writes the full registration/login stack" do
+        in_tempdir do
+          Dir.mkdir_p("src/config")
+          File.write("src/config/routes.cr", <<-CR)
+            class Blog
+              routes do
+              end
+            end
+            CR
+          Dir.mkdir_p("db")
+          File.write("db/schema.cr", "class Altair::Record::Schema\n  META = {} of Symbol => Hash(Symbol, Hash(Symbol, String))\nend\nAltair::Record::Schema.define do |schema|\nend\n")
+
+          paths = Generators::Auth.new("User").generate
+
+          paths.each { |path| File.exists?(path).should be_true }
+
+          model = File.read("src/app/models/user.cr")
+          model.should contain("table :users")
+          model.should contain("password_auth min_length: 8")
+          model.should contain("validates_uniqueness_of :email")
+
+          migration = Dir.children("db/migrations").first
+          migration.should contain("_create_users")
+
+          File.read("src/app/controllers/sessions_controller.cr").should contain("authenticate_password")
+          File.read("src/app/controllers/registrations_controller.cr").should contain("password_confirmation")
+          ["sessions/new.ecr", "registrations/new.ecr"].each do |view|
+            File.exists?(Path.new("src/app/views/#{view}")).should be_true
+          end
+
+          routes = File.read("src/config/routes.cr")
+          ["/login", "/register", "/logout"].each { |path| routes.should contain(path) }
+
+          schema = File.read("db/schema.cr")
+          schema.should contain("users: {")
+          schema.should contain("password_digest")
+        end
+      end
+
+      it "defaults to a User model and is idempotent on rerun" do
+        in_tempdir do
+          Dir.mkdir_p("src/config")
+          File.write("src/config/routes.cr", "class Blog\n  routes do\n  end\nend\n")
+          Dir.mkdir_p("db")
+          File.write("db/schema.cr", "class Altair::Record::Schema\n  META = {} of Symbol => Hash(Symbol, Hash(Symbol, String))\nend\nAltair::Record::Schema.define do |schema|\nend\n")
+
+          Generators::Auth.new.generate
+          before = File.read("db/schema.cr")
+          Generators::Auth.new.generate
+          File.read("db/schema.cr").should eq(before)
+          File.read("src/config/routes.cr").scan(%(get "/login")).size.should eq(1)
+        end
+      end
+    end
   end
 
   describe Generators::New do

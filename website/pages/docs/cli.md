@@ -58,6 +58,8 @@ It prints the installed binary's SHA-256 digest so you can verify the copy match
 | `altair new <name> [--framework-path DIR]` | Scaffold a runnable project. `<name>` may include a path (`a/b`, `/tmp/my_app`); only its basename becomes the application name. Names must be lowercase letters, digits and underscores starting with a letter — `my-app` is rejected with a suggestion `my_app`. By default it depends on the published shard; pass `--framework-path` (or set `ALTAIR_PATH`) to use a local checkout. |
 | `altair g scaffold <Name> [column:type ...]` | Model + migration + RESTful controller + ECR views + `resources` route + seeded `db/schema.cr`. |
 | `altair g model <Name> [column:type ...]` | A model file and its table. |
+| `altair g auth [User]` | Full registration/login stack: User model (`password_auth`, unique email), migration with the unique index, sessions + registrations controllers, login/register views, and the `/login`, `/register`, `/logout` routes. |
+
 | `altair g migration Create<Table> [column:type ...]` | A timestamped migration. |
 | `altair g controller <Name>` | A controller and its views. |
 | `altair install [--dir DIR] [--force]` | Install the binary onto `PATH`. |
@@ -81,11 +83,18 @@ need to type `bin/`:
 | `altair db:migrate` | Run pending migrations. |
 | `altair db:rollback` | Undo the latest migration. |
 | `altair db:seed` | Run the blocks registered in `db/seeds.cr`. |
+| `altair assets:precompile` | Fingerprint `assets/` into `public/assets/` and write the manifest the view helpers resolve through. |
+| `altair jobs:work` | Run the background-jobs worker until interrupted (graceful SIGINT/SIGTERM shutdown). |
+| `altair jobs:stats` | Print background-job status counts (`pending`/`running`/`done`/`failed`). |
 
 `db/seeds.cr` registers its blocks when the file is required and runs
 them only through `db:seed` — booting a server never plants data. Blocks
 re-run on every invocation, so guard with `unless Model.exists?` to stay
 idempotent.
+
+The jobs table (`altair_jobs`) creates itself lazily on first enqueue —
+no migration is needed; point `jobs:work` at the same database as the
+server and enqueued work drains in order with retries on failure.
 
 `altair g scaffold ...` and the other generators write into the current
 project the same way. The project launcher itself (`bin/altair`, or

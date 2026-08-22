@@ -22,7 +22,7 @@ generators on top of that stack.
 | 4 | ORM (`Altair::Record`, 3 waves) | Completed |
 | 5 | CLI + Generators & scaffolding | Completed |
 | 6 | Hardening (sessions, flash, CSRF, config, security) | Completed |
-| 7 | Post-release features | Planned |
+| 7 | Post-release features | Mostly completed — jobs, auth, assets, testing utilities shipped; `joins` and `has_many :through`/polymorphic remain |
 
 > **Note on the CLI:** the original Phase 4 plan listed `altair new` /
 > `altair server` / `altair routes`. That CLI landed in Phase 5, together
@@ -146,14 +146,18 @@ pushing a `v*` tag, which triggers `release.yml`.
 
 ## Phase 7: Post-release
 
-| Task | Exit criterion |
-|------|----------------|
-| Background jobs | Scheduled work runs |
-| Full authentication | Registration, login, logout |
-| Asset pipeline | CSS/JS bundling and serving |
-| Rich query DSL (joins, preload, scopes, nested `includes`) | Complex data access is natural |
-| Testing utilities | First-class spec helpers |
-| `has_many :through` + polymorphic associations | Advanced model relationships |
+| Task | Exit criterion | Status |
+|------|----------------|--------|
+| Testing utilities | First-class spec helpers | Completed — `Altair::Test.boot` (with `configure:` hook) + stateless HTTP helpers + `Altair::Test::Client` cookie-jar client with redirect following, `Altair::Test.migrate!` and `Altair::Test.transactional` |
+| Full authentication | Registration, login, logout | Completed — `altair g auth` writes model + migration (unique email), sessions/registrations controllers and views; `password_auth` hashes through PBKDF2-SHA256 (`Altair::Auth::PasswordHasher`); built on sessions/CSRF/JWT from Phase 6 |
+| Asset pipeline | CSS/JS bundling and serving | Completed — `assets/` fingerprinted into `public/assets/` with manifest via `altair assets:precompile`; `stylesheet_link_tag` / `javascript_asset_tag` / `asset_url`; immutable caching on fingerprints |
+| Background jobs | Scheduled work runs | Completed — typed `params` jobs with compile-checked `enqueue`/`enqueue_in`/`enqueue_at`, lazy `altair_jobs` table, atomic claiming, exponential-backoff retries, `altair jobs:work` / `jobs:stats`, in-memory test mode |
+| Rich query DSL (joins, preload, scopes, nested `includes`) | Complex data access is natural | Partially completed — scopes, `merge`, nested `includes` shipped; `joins` deferred to its own wave |
+| `has_many :through` + polymorphic associations | Advanced model relationships | Planned |
+
+> Multi-tenancy is a Phase 8 candidate: see
+> `docs/architecture/orm-audit-and-tenancy-plan.md` for the audited gaps and
+> the wave plan.
 
 ---
 

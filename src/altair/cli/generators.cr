@@ -15,6 +15,7 @@ module Altair
         "migration"  => Generators::Migration,
         "controller" => Generators::Controller,
         "scaffold"   => Generators::Scaffold,
+        "auth"       => Generators::Auth,
       }
 
       # Runs the generator named by `args[0]` with the remaining arguments.
@@ -38,6 +39,14 @@ module Altair
           name = required_name(rest, type)
           cols = rest.size > 1 ? rest[1..] : [] of String
           Generators::Scaffold.new(name, Base.parse_columns(cols)).generate
+          0
+        when "auth"
+          name = rest.first?
+          if name && !name.starts_with?("-")
+            Generators::Auth.new(name).generate
+          else
+            Generators::Auth.new.generate
+          end
           0
         else
           message = String.build do |io|
@@ -88,6 +97,7 @@ module Altair
             altair generate migration Create<Table> [column:type ...]
             altair generate controller <Name>
             altair generate scaffold <Name> [column:type ...]
+            altair generate auth [User]
 
           Columns accept a type after a colon (defaults to string):
           title:string body:text price:float published:boolean

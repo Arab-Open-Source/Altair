@@ -60,7 +60,7 @@ module Altair
 
     # Returns up to three close matches for `input` among known commands.
     def self.did_you_mean(input : String) : Array(String)
-      known = %w[new generate g install update version help server routes db:migrate db:rollback db:seed]
+      known = %w[new generate g install update version help server routes db:migrate db:rollback db:seed assets:precompile jobs:work jobs:stats]
       scored = known.map { |command| {command, levenshtein(input, command)} }
         .select { |_, dist| dist <= 3 && dist > 0 }
         .sort_by! { |_, dist| dist }
@@ -89,7 +89,7 @@ module Altair
     # True when `command` is an app-context command that must run against a
     # project's compiled source rather than the global binary.
     def self.project_command?(command : String?) : Bool
-      %w[server routes db:migrate db:rollback db:seed].includes?(command)
+      %w[server routes db:migrate db:rollback db:seed assets:precompile jobs:work jobs:stats].includes?(command)
     end
 
     # The directory of the Altair project surrounding the current working
@@ -146,9 +146,13 @@ module Altair
           altair version                            print the framework version
           altair help [command]                     print this help or help for a command
           altair db:seed                            run db/seeds.cr (inside a project)
+          altair assets:precompile                  fingerprint assets/ into public/assets
+          altair jobs:work                          run the background-jobs worker
+          altair jobs:stats                         print background-job status counts
 
         Inside a generated project, `server`, `routes`, `db:migrate`,
-        `db:rollback` and `db:seed` run against that project's application.
+        `db:rollback`, `db:seed`, `assets:precompile`, `jobs:work` and
+        `jobs:stats` run against that project's application.
         TXT
     end
 

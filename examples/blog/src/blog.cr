@@ -23,9 +23,13 @@ require "altair"
 require "../db/schema"
 require "./app/models/comment"
 require "./app/models/post"
+require "./app/models/user"
 require "./app/controllers/application_controller"
 require "./app/controllers/comments_controller"
 require "./app/controllers/posts_controller"
+require "./app/controllers/sessions_controller"
+require "./app/controllers/registrations_controller"
+require "./app/jobs/post_published_job"
 require "./config/application"
 
 Blog.run!

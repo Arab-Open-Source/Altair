@@ -7,6 +7,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Background jobs**: `altair g`-style job classes declare their typed
+  parameters once with `params user_id : Int64, ...`; the macro generates a
+  typed constructor, the JSON payload codec, and an `enqueue` / `enqueue_in`
+  / `enqueue_at` trio whose arguments fail to compile when they do not
+  match. Jobs persist in a lazily-created `altair_jobs` table (no migration
+  required — same pattern as `schema_migrations`), claiming is a conditional
+  `UPDATE` so concurrent workers never double-run a row, failures retry
+  with exponential backoff (2s doubling, capped at 5 minutes) inside a
+  per-job attempt budget, and `altair jobs:work` runs the worker with
+  graceful SIGINT/SIGTERM shutdown while `altair jobs:stats` prints status
+  counts. Test mode collects enqueues in memory for synchronous draining.
+- **Asset pipeline**: `assets/` sources compile into
+  `public/assets/<name>-<sha256-digest>.<ext>` via `altair assets:precompile`,
+  with a `manifest.json` mapping logical paths to fingerprinted URLs.
+  `stylesheet_link_tag`, `javascript_asset_tag` and `asset_url` resolve
+  through the manifest when compiled (falling back to plain copies so
+  development never requires a build). Fingerprinted responses carry
+  `Cache-Control: public, max-age=31536000, immutable`; plain copies stay
+  cache-neutral. Recompiles rotate digests and prune stale files of rebuilt
+  paths; reruns without changes are byte-identical.
+- **Full authentication (`altair g auth`)**: the generator writes a complete
+  registration/login stack for a user model — model with
+  `validates_uniqueness_of :email`, a `CreateUsers` migration carrying a
+  unique email index, sessions and registrations controllers, login/register
+  views, and the `/login`, `/register`, `/logout` routes. Passwords hash
+  through PBKDF2-HMAC-SHA256 (OpenSSL stdlib — no new dependencies) behind
+  the new `password_auth` model macro: staged plain passwords never persist,
+  length and confirmation validate as ordinary record errors, and
+  `authenticate_password(candidate)` gates logins. `altair g auth [User]`
+  accepts an optional model name and is idempotent on rerun.
+- **`Altair::Auth::PasswordHasher`**: self-describing digest strings
+  (`pbkdf2-sha256$<iterations>$<salt>$<digest>`) so the iteration count can
+  rise over time; `verify` treats malformed digests like wrong passwords,
+  and `stale?` flags digests to rehash on the next successful login.
+- **Stateful test client (`Altair::Test::Client`)**: an HTTP test client that
+  keeps the server's cookies in a jar between requests — a sign-in carries
+  into every later request without manual header plumbing — with browser-like
+  redirect following (`follow_redirects: true`, 301/302/303 downgrade to GET,
+  cookies collected along the chain, expired cookies dropped from the jar).
+- **Database test helpers**: `Altair::Test.migrate!(App)` applies pending
+  migrations through the same engine `db:migrate` drives, and
+  `Altair::Test.transactional { }` wraps an example in an always-rolled-back
+  transaction (nested calls join the outer transaction through savepoints).
+- **`Altair::Test.boot` configure hook**: an optional `configure:` proc runs on
+  the fresh application instance before the server is built, where per-spec
+  settings such as `secret_key_base` belong.
+- **`Connection#in_transaction?`** reports whether the calling fiber currently
+  owns a transaction connection, and **`Connection#query_one?`** returns nil
+  instead of raising when a query matches no rows.
+
+### Changed
+
+- **`examples/blog` demonstrates the Phase 7 stack end to end**: register and
+  sign in (PBKDF2-hashed passwords), post creation gated behind the session,
+  styles served through the fingerprinted asset pipeline, and each new post
+  enqueueing a `PostPublishedJob` that `scripts/jobs.cr` drains with log
+  announcements.
+
 ## [0.3.0] — 2026-08-22
 
 ### Added

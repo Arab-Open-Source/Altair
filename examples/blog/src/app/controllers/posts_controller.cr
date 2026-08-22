@@ -6,6 +6,8 @@
 # eager-loads each post's comments in one batched query, so the comment
 # counts never trigger a query per post.
 class PostsController < ApplicationController
+  before_action :require_login, only: [:create, :update, :destroy]
+
   def index : Nil
     rows = Post.all.includes(:comments).to_a.sort_by { |post| -post.id.not_nil! }.map do |post|
       count = post.comments.size
@@ -35,6 +37,7 @@ class PostsController < ApplicationController
   def create : Nil
     post = Post.new(title: params["title"]?)
     if post.save
+      PostPublishedJob.enqueue(post_id: post.id.not_nil!.to_i64, title: post.title.to_s)
       redirect_to post_path(post.id.not_nil!)
     else
       render html: page_html("<h1>New post</h1>#{form_html("/posts", post)}"), status: ::HTTP::Status::UNPROCESSABLE_ENTITY

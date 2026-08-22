@@ -151,6 +151,18 @@ module Altair
     # that do not support cancellation may only use it for checkout policy.
     property db_query_timeout : Time::Span = 5.seconds
 
+    # How long the background-jobs worker sleeps after an empty poll of the
+    # `altair_jobs` table. Lower values pick up new work sooner at the cost
+    # of more polling queries.
+    property jobs_poll_interval : Time::Span = 1.second
+
+    # The attempt budget per background job before it is parked as failed.
+    # Individual jobs may override through their own `max_attempts`.
+    property jobs_max_attempts : Int32 = 5
+
+    # The queues a background worker drains, in priority order.
+    property jobs_queues : Array(String) = ["default"]
+
     # Whether the development-mode N+1 detector is active. It counts
     # identical queries within a request and logs a warning above
     # `n_plus_one_threshold`; only armed in the Development environment,

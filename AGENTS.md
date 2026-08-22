@@ -41,9 +41,25 @@ Nothing ships unless someone can look at it, click it, and see it work.
 - **Phases 0–5 done** (Foundation, Router, Controllers, Views, Record/ORM,
   CLI + Generators). `examples/blog` is the always-running persistence demo
   — its posts and comments survive restarts.
-- 752 specs passing (6 pending: the PostgreSQL concurrency contract
+- 817 specs passing (6 pending: the PostgreSQL concurrency contract
   tests, plus the fuller PostgreSQL contract suite gated on
   `ALTAIR_TEST_PG_URL`), formatter clean, Ameba silent on framework sources.
+- Phase 7 shipped four features: **testing utilities** (`Altair::Test.boot`
+  with a `configure:` hook, the cookie-jar `Altair::Test::Client` with
+  browser-like redirects, `migrate!`, `transactional`),
+  **full authentication** (`altair g auth` generating model + migration +
+  sessions/registrations controllers + views + routes; the `password_auth`
+  macro hashing through `Altair::Auth::PasswordHasher` — PBKDF2-SHA256,
+  no new dependencies), the **asset pipeline** (`assets/` fingerprinted
+  into `public/assets/` with a manifest by `altair assets:precompile`;
+  `stylesheet_link_tag` / `javascript_asset_tag` / `asset_url`; immutable
+  caching on fingerprints only), and **background jobs** (typed `params`
+  with compile-checked `enqueue`/`enqueue_in`/`enqueue_at`, a lazily-created
+  `altair_jobs` table, atomic claiming so concurrent workers never
+  double-run, exponential-backoff retries inside a per-job budget,
+  `altair jobs:work` / `jobs:stats` commands, and an in-memory test mode).
+  `examples/blog` demonstrates all of it end to end. Remaining Phase 7:
+  `joins` in the query DSL and `has_many :through` / polymorphic.
 - Phase 6 hardening shipped in waves: sessions + flash + CSRF + auth
   (`require_login` / `authenticate!` + `Altair::Auth::JWT`), then a
   configuration wave — `.env` (real env vars win; `.env.<environment>`
@@ -167,9 +183,11 @@ Three vertical waves, each ending green with something visible:
 - Maintenance: Ameba + specs everywhere — real project quality.
 
 ### Phase 7: Post-release
-- Background jobs, full authentication, asset pipeline, rich query DSL
-  (joins/preload/scopes), testing utilities, `has_many :through` +
-  polymorphic associations.
+- Shipped: background jobs, full authentication, asset pipeline, testing
+  utilities (scopes + nested `includes` landed earlier in the query DSL).
+- Remaining: `joins` in the rich query DSL; `has_many :through` +
+  polymorphic associations. Multi-tenancy is a Phase 8 candidate
+  (`docs/architecture/orm-audit-and-tenancy-plan.md`).
 
 Golden rules from the roadmap: specs from day one, never skip an exit
 criterion, every week something visible, and hold off the complex 20%
@@ -195,6 +213,9 @@ src/altair/
   exceptions/    The exception hierarchy
   server/        HTTP server wiring
   record/        Adapter, SQLite3, Connection, Schema, migrations, N+1 detector
+  auth/          PasswordHasher (PBKDF2), password_auth model macro, JWT
+  assets/        Pipeline: fingerprint assets/ -> public/assets/ + manifest
+  jobs/          Job (params macro), Queue (lazy table, claim), Worker
   concurrency/   Semaphore (FIFO permit gate primitive)
   view/          ECR templates, layouts, partials, helpers, htmx layer
   rendering/     Renderers (html, json, text, fragment)
@@ -266,7 +287,7 @@ crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
 
 ## Testing
 
-The suite is `crystal spec` (currently 752 examples, 6 of them pending: the PostgreSQL concurrency contract tests, with the
+The suite is `crystal spec` (currently 817 examples, 6 of them pending: the PostgreSQL concurrency contract tests, with the
 fuller PostgreSQL contract suite gated on `ALTAIR_TEST_PG_URL`). Run it before and
 after every change:
 
