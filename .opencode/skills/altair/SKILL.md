@@ -41,7 +41,10 @@ Phase 6 hardening shipped in waves: sessions + flash + CSRF + auth
 configuration (`.env` / `database.yml`), multipart uploads
 (`params.upload`, `Altair::HTTP::UploadedFile`), and a security
 middleware set (`SecurityHeaders`, `RequestId`, opt-in `Cors`) in the
-default stack. 705 specs passing (6 pending: the PostgreSQL contract suite on `ALTAIR_TEST_PG_URL`).
+default stack. The development console was redesigned with an enriched
+boot banner and aligned, colored request logs (method/status colors,
+request counter, slow-request highlighting). 752 specs passing
+(6 pending: the PostgreSQL contract suite on `ALTAIR_TEST_PG_URL`).
 The record layer shipped a post-Phase-4 performance wave: `find_each`
 keeps scoped `where` filters + `includes` preloaders across batches,
 `Relation#count`/`size` run `COUNT(*)` without materializing rows, the
@@ -71,13 +74,14 @@ routing/     Router, DSL, Route, RouteSet, Segment (segment-based, no regex)
 controller/  Controller base
 middleware/  Base, Logger, Static, SecurityHeaders, RequestId, Cors
 config/      Config, Env, environments/
-support/     Inflector, utilities
+support/     ANSI (console colors), Inflector, utilities
 exceptions/  Exception hierarchy
 server/      HTTP server wiring
 record/      Adapter, SQLite3, Connection, Schema, migrations, N+1 detector
 view/        ECR templates, layouts, partials, helpers, htmx layer
 rendering/   Renderers (html, json, text, fragment)
 cli/         CLI dispatcher, per-project commands, generators (incl. install)
+testing/    Test helpers (Altair::Test.boot)
 ```
 
 `spec/` mirrors `src/altair/`; `examples/hello_world/` is the runnable demo,
@@ -97,7 +101,7 @@ cli/         CLI dispatcher, per-project commands, generators (incl. install)
 ## Testing
 
 ```bash
-crystal spec                              # full suite (currently 561)
+crystal spec                              # full suite (currently 752)
 crystal tool format --check src spec examples
 crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
 ```
