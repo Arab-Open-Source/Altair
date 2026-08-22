@@ -80,6 +80,12 @@ need to type `bin/`:
 | `altair routes` | Print the compiled route table. |
 | `altair db:migrate` | Run pending migrations. |
 | `altair db:rollback` | Undo the latest migration. |
+| `altair db:seed` | Run the blocks registered in `db/seeds.cr`. |
+
+`db/seeds.cr` registers its blocks when the file is required and runs
+them only through `db:seed` — booting a server never plants data. Blocks
+re-run on every invocation, so guard with `unless Model.exists?` to stay
+idempotent.
 
 `altair g scaffold ...` and the other generators write into the current
 project the same way. The project launcher itself (`bin/altair`, or

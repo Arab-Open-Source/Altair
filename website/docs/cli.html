@@ -147,7 +147,15 @@ need to type <code>bin/</code>:</p>
 <td><code>altair db:rollback</code></td>
 <td>Undo the latest migration.</td>
 </tr>
+<tr>
+<td><code>altair db:seed</code></td>
+<td>Run the blocks registered in <code>db/seeds.cr</code>.</td>
+</tr>
 </tbody></table>
+<p><code>db/seeds.cr</code> registers its blocks when the file is required and runs
+them only through <code>db:seed</code> — booting a server never plants data. Blocks
+re-run on every invocation, so guard with <code>unless Model.exists?</code> to stay
+idempotent.</p>
 <p><code>altair g scaffold ...</code> and the other generators write into the current
 project the same way. The project launcher itself (<code>bin/altair</code>, or
 <code>bin/altair.cr</code> in projects created before the executable wrapper) is

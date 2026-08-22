@@ -92,7 +92,7 @@ security middleware set, shipped in waves:
 
 ## Testing and quality
 
-- 731 specs passing (6 pending: the PostgreSQL concurrency contract tests; the full PostgreSQL contract suite runs when `ALTAIR_TEST_PG_URL` is set)
+- 746 specs passing (6 pending: the PostgreSQL concurrency contract tests; the full PostgreSQL contract suite runs when `ALTAIR_TEST_PG_URL` is set)
 - Formatter clean, linter silent on framework sources
 - Smart error pages: 404 with route suggestions, 405 with `_method` explanation, detailed 500 diagnostics in debug mode only
 

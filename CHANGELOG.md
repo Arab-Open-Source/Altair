@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Named scopes**: `scope :published, published: true` — or a block
+  receiving the relation (`scope :recent { |query|
+  query.order(:created_at).limit(10) }`) — declares a reusable,
+  chainable query fragment as a class method. Two scopes compose through
+  the new `Relation#merge` (where clauses AND together; a later order,
+  limit or offset wins), since Crystal has no dynamic dispatch to chain
+  them directly.
+
+- **Nested includes**: `includes(posts: :comments)` applies each further
+  level to the rows the previous level loaded, recursing through
+  NamedTuple values to any depth (`includes(posts: {comments: :post})`).
+  Every level stays one batched query — never one per record. The
+  association loaders now return the rows they read and every
+  `__preloader_for` signature is uniform, so dispatch goes through a
+  record's metaclass.
+
+- **`Altair::Test` helpers for application specs**: `Altair::Test.boot(App)`
+  binds on an ephemeral port, waits until it accepts, yields the port and
+  restores the shared application instance afterwards, with small
+  `get` / `post` / `post_json` / `put` / `patch` / `delete` request
+  helpers — the integration-suite boilerplate as public API.
+
+- **`db:seed`**: `altair new` generates `db/seeds.cr`, whose
+  `Altair::CLI::Project.seeds { ... }` blocks register at require time
+  and run only through the new `bin/altair db:seed` — booting a server
+  never plants data. Blocks re-run on every invocation; guarding with
+  `unless Model.exists?` keeps repeats idempotent.
+
 - **`Model.insert_all` bulk inserts**: inserts many rows in as few
   multi-row statements as possible. Values bind as parameters through the
   adapter's coercion layer (JSON and decimal included), timestamp columns

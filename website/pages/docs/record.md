@@ -206,6 +206,14 @@ posts = Post.all.includes(:comments).to_a   # one batched query per association
 posts.each { |p| p.comments.size }          # no extra queries
 ```
 
+`includes` nests through named pairs — every further level applies to the
+rows the previous level loaded, still one batched query per level:
+
+```crystal
+User.all.includes(posts: :comments).to_a
+User.all.includes(posts: {comments: :post}).to_a   # any depth
+```
+
 `Relation#count` and `size` never materialize the rows — they run
 `COUNT(*)` with the scoped `where` clauses (and reuse the cached rows once
 loaded):
@@ -213,6 +221,32 @@ loaded):
 ```crystal
 Post.all.where(published: true).count       # SELECT COUNT(*), no row loading
 Post.all.includes(:comments).size           # 2 queries, rows not materialized
+```
+
+### Scopes
+
+A `scope` declares a reusable, chainable query fragment as a class
+method. The static form passes `key: value` pairs to `where`; the block
+form receives the relation and returns whatever chain it builds:
+
+```crystal
+class Post < Altair::Record::Model
+  table :posts
+
+  scope :published, published: true
+  scope :recent { |query| query.order(:created_at).limit(10) }
+end
+
+Post.published.to_a
+Post.recent.where(:views, :>=, 5).to_a
+```
+
+Crystal has no dynamic dispatch, so two scopes compose through
+`merge` — where clauses AND together and a later `order`, `limit` or
+`offset` wins:
+
+```crystal
+Post.published.merge(Post.recent).to_a
 ```
 
 `find_each` streams in bounded batches ordered by primary key and keeps
