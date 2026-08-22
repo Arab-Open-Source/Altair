@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Testing Altair applications with Altair::Test helpers.">
+  <title>Testing guide — Altair</title>
+  <link rel="icon" href="../favicon.png" type="image/png">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/docs.css">
+</head>
+<body>
+  <header class="site-header">
+    <nav class="site-nav" aria-label="Main">
+      <a class="brand" href="../">
+        <img class="brand-logo" src="../assets/img/logo.png" alt="" width="30" height="30">
+        Altair
+      </a>
+      <div class="nav-links">
+        <a href="../">Home</a>
+        <a href="../docs/">Docs</a>
+        <a href="../docs/routing.html">Guides</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/usage.html">Usage</a>
+        <a href="../docs/benchmarks.html">Benchmarks</a>
+        <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="site-main">
+    <div class="docs-layout"><nav class="docs-sidebar" aria-label="Docs"><h4>Getting started</h4><ul><li><a href="install.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>Install</a></li><li><a href="usage.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>Usage</a></li><li><a href="update.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg></span>Updating</a></li></ul><h4>Guides</h4><ul><li><a href="routing.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="12" r="3"/><path d="M8.5 8.5L13.5 9.5"/><path d="M8.5 15.5L13.5 14.5"/></svg></span>Routing</a></li><li><a href="controllers.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></span>Controllers</a></li><li><a href="views.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>Views</a></li><li><a href="record.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>Record (ORM)</a></li><li><a href="sessions.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg></span>Sessions and auth</a></li><li><a href="configuration.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4"/><path d="M12 19v4"/><path d="M4.22 4.22l2.83 2.83"/><path d="M16.97 16.97l2.83 2.83"/><path d="M1 12h4"/><path d="M19 12h4"/><path d="M4.22 19.78l2.83-2.83"/><path d="M16.97 7.03l2.83-2.83"/></svg></span>Configuration</a></li><li><a href="security.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>Security</a></li><li><a href="uploads.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>Uploads</a></li><li><a href="console.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>Console</a></li><li><a href="testing.html" class="is-active" aria-current="page"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>Testing</a></li></ul><h4>Reference</h4><ul><li><a href="features.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>What is implemented</a></li><li><a href="cli.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>CLI reference</a></li><li><a href="benchmarks.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>Benchmarks</a></li></ul></nav><article class="docs-content"><div class="reading-progress" aria-hidden="true"><div class="reading-progress-bar"></div></div><nav class="breadcrumbs" aria-label="Breadcrumb"><a href="index.html">Docs</a><span class="sep">/</span><span>Guides</span><span class="sep">/</span><span aria-current="page">Testing</span></nav><div class="docs-page-header"><span class="docs-page-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span><h1>Testing</h1></div>
+<p>Altair ships testing helpers so application specs read as intent instead of socket plumbing. The helpers live in <code>Altair::Test</code> and mirror the patterns the framework&#39;s own suite uses.</p>
+<h2>Booting an application</h2>
+<p><code>Altair::Test.boot</code> binds the application on an ephemeral port, waits until it accepts, yields the port, and restores the shared application instance afterwards:</p>
+<pre><code class="language-crystal">require &quot;spec_helper&quot;
+
+class MyApp &lt; Altair::Application
+  routes do
+    get &quot;/ping&quot;, to: PingController.ping
+  end
+end
+
+class PingController &lt; Altair::Controller
+  def ping : Nil
+    render text: &quot;pong&quot;
+  end
+end
+
+describe &quot;ping&quot; do
+  it &quot;answers pong&quot; do
+    Altair::Test.boot(MyApp) do |port|
+      response = Altair::Test.get(port, &quot;/ping&quot;)
+      response.status_code.should eq(200)
+      response.body.should eq(&quot;pong&quot;)
+    end
+  end
+end
+</code></pre>
+<p>The block form guarantees cleanup — the server closes and <code>Altair.application_instance</code> is restored even when the example raises.</p>
+<h2>Request helpers</h2>
+<p>Small wrappers over <code>HTTP::Client</code> with the base URL already filled in:</p>
+<pre><code class="language-crystal">Altair::Test.get(port, &quot;/posts&quot;)
+Altair::Test.post(port, &quot;/posts&quot;, form: &quot;title=Hello&quot;)
+Altair::Test.post_json(port, &quot;/api/token&quot;, body: %({&quot;email&quot;:&quot;a@b.com&quot;}))
+Altair::Test.put(port, &quot;/posts/1&quot;, form: &quot;title=Edited&quot;)
+Altair::Test.patch(port, &quot;/posts/1&quot;, form: &quot;title=Patched&quot;)
+Altair::Test.delete(port, &quot;/posts/1&quot;)
+</code></pre>
+<p>All helpers accept an optional <code>headers</code> argument (<code>HTTP::Headers</code>) and return <code>HTTP::Client::Response</code>.</p>
+<h2>Isolation</h2>
+<p>Each <code>boot</code> saves the current <code>Altair.application_instance</code>, sets it to <code>nil</code> so the application builds a fresh instance, and restores the original in an <code>ensure</code> block. Nested boots are not supported — finish one before starting the next.</p>
+<p>For specs that need to reset state between examples without a server, use the same pattern the framework uses internally:</p>
+<pre><code class="language-crystal">before_each do
+  # clear database, reset singletons, etc.
+end
+</code></pre>
+<h2>Tips</h2>
+<ul>
+<li>Prefer <code>Altair::Test.boot</code> over hand-rolled <code>HTTP::Server.new</code> + <code>spawn</code> + polling — it handles the readiness probe and the <code>ensure</code> cleanup.</li>
+<li>Keep specs fast by booting once per <code>describe</code> when the application does not mutate global state; otherwise boot per <code>it</code>.</li>
+<li>Pair with <code>Altair::Record</code> fixtures: create rows via <code>Model.create</code> inside the <code>boot</code> block, then exercise the controller over real HTTP.</li>
+</ul>
+<div class="docs-pager"><div class="pager-progress">Page 13 of 16</div><div class="pager-links"><a class="pager-card" href="console.html"><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span><span><span class="label">Previous</span><span class="pager-title">Console</span></span></a><a class="pager-card right" href="features.html"><span><span class="label">Next</span><span class="pager-title">What is implemented</span></span><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></a></div></div></article></div>
+  </main>
+
+  <footer class="site-footer">
+    <p><span class="footer-brand">Altair</span> — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a> &middot; <a href="../docs/features.html">What is implemented</a></p>
+  </footer>
+
+  <script src="../assets/js/docs.js" defer></script>
+</body>
+</html>

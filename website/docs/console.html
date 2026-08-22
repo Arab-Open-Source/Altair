@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Development console: boot banner, request log, colors and slow-request highlighting.">
+  <title>Console guide — Altair</title>
+  <link rel="icon" href="../favicon.png" type="image/png">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/docs.css">
+</head>
+<body>
+  <header class="site-header">
+    <nav class="site-nav" aria-label="Main">
+      <a class="brand" href="../">
+        <img class="brand-logo" src="../assets/img/logo.png" alt="" width="30" height="30">
+        Altair
+      </a>
+      <div class="nav-links">
+        <a href="../">Home</a>
+        <a href="../docs/">Docs</a>
+        <a href="../docs/routing.html">Guides</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/usage.html">Usage</a>
+        <a href="../docs/benchmarks.html">Benchmarks</a>
+        <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main class="site-main">
+    <div class="docs-layout"><nav class="docs-sidebar" aria-label="Docs"><h4>Getting started</h4><ul><li><a href="install.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>Install</a></li><li><a href="usage.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>Usage</a></li><li><a href="update.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg></span>Updating</a></li></ul><h4>Guides</h4><ul><li><a href="routing.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="12" r="3"/><path d="M8.5 8.5L13.5 9.5"/><path d="M8.5 15.5L13.5 14.5"/></svg></span>Routing</a></li><li><a href="controllers.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></span>Controllers</a></li><li><a href="views.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>Views</a></li><li><a href="record.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>Record (ORM)</a></li><li><a href="sessions.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg></span>Sessions and auth</a></li><li><a href="configuration.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4"/><path d="M12 19v4"/><path d="M4.22 4.22l2.83 2.83"/><path d="M16.97 16.97l2.83 2.83"/><path d="M1 12h4"/><path d="M19 12h4"/><path d="M4.22 19.78l2.83-2.83"/><path d="M16.97 7.03l2.83-2.83"/></svg></span>Configuration</a></li><li><a href="security.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>Security</a></li><li><a href="uploads.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>Uploads</a></li><li><a href="console.html" class="is-active" aria-current="page"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>Console</a></li><li><a href="testing.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>Testing</a></li></ul><h4>Reference</h4><ul><li><a href="features.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>What is implemented</a></li><li><a href="cli.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>CLI reference</a></li><li><a href="benchmarks.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>Benchmarks</a></li></ul></nav><article class="docs-content"><div class="reading-progress" aria-hidden="true"><div class="reading-progress-bar"></div></div><nav class="breadcrumbs" aria-label="Breadcrumb"><a href="index.html">Docs</a><span class="sep">/</span><span>Guides</span><span class="sep">/</span><span aria-current="page">Console</span></nav><div class="docs-page-header"><span class="docs-page-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span><h1>Development console</h1></div>
+<p>The development server prints a boxed banner once at boot and one aligned line per request. The banner and the log are designed to be scanned — methods and status codes are colored, slow requests are highlighted, and everything adapts to the terminal.</p>
+<h2>Boot banner</h2>
+<p>On <code>altair server</code> the console shows:</p>
+<pre><code>╭──────────────────────────────────────────────╮
+│                Altair v0.2.2                 │
+├──────────────────────────────────────────────┤
+│ Environment   Development                    │
+│ Address       http://localhost:3000          │
+│ PID           15244                          │
+│ Routes        5                              │
+│ Middleware    5                              │
+│ Crystal       1.21.0                         │
+│ Started in    12.3ms                         │
+╰──────────────────────────────────────────────╯
+</code></pre>
+<p>The banner is printed to <code>STDOUT</code> outside the log stream. <code>Address</code> shows <code>localhost</code> when the server binds to <code>0.0.0.0</code>. <code>Started in</code> measures the time from <code>Application#start</code> to the banner.</p>
+<h2>Request log</h2>
+<p>Each request logs one line through <code>config.logger</code> (<code>Log.for(&quot;altair&quot;)</code>):</p>
+<pre><code>17:33:04  GET      /                     200    0.1ms
+17:33:05  POST     /posts                201    1.2ms
+17:33:06  DELETE   /posts/4              204    0.2ms
+</code></pre>
+<p>Columns are aligned (<code>method.ljust(7)</code>, <code>path.ljust(22)</code>, <code>status.rjust(3)</code>), so the output scans as a table. Long paths are truncated with a leading ellipsis (<code>…/very/long/path</code>).</p>
+<h3>Colors</h3>
+<p>Methods and status codes are colored by family when the terminal supports it:</p>
+<ul>
+<li><strong>Methods:</strong> GET green, POST blue, PUT yellow, PATCH magenta, DELETE red, OPTIONS cyan</li>
+<li><strong>Status:</strong> 2xx green, 3xx blue, 4xx yellow, 5xx red</li>
+</ul>
+<p>Colors auto-detect <code>STDOUT.tty?</code> and respect <code>NO_COLOR=1</code> and <code>TERM=dumb</code>. Force them on or off:</p>
+<pre><code class="language-crystal">class Blog &lt; Altair::Application
+  config.logger_colors = true  # nil = auto, true/false = forced
+end
+</code></pre>
+<h3>Slow requests</h3>
+<p>Requests slower than <code>config.slow_request_threshold</code> (default <code>20.milliseconds</code>) are highlighted in yellow and suffixed with <code>[SLOW]</code>:</p>
+<pre><code>17:33:04  GET      /dashboard            200  124.3ms [SLOW]
+</code></pre>
+<p>Tune or disable the threshold:</p>
+<pre><code class="language-crystal">config.slow_request_threshold = 50.milliseconds
+</code></pre>
+<p>Set it to <code>0.milliseconds</code> to highlight every request, or to a large value to never highlight.</p>
+<h3>Timestamps and counter</h3>
+<pre><code class="language-crystal">config.logger_timestamps = true       # HH:MM:SS prefix (default true)
+config.logger_request_counter = true  # #0001 prefix (default false)
+config.logger_compact = true          # compact single-line without alignment
+</code></pre>
+<p>Compact mode logs <code>GET / 200 0.1ms</code> without timestamps or padding — useful when piping to a file.</p>
+<h3>Request ID</h3>
+<p>When the <code>RequestId</code> middleware assigns an identifier, it is appended:</p>
+<pre><code>17:33:04  GET      /posts                200    0.8ms (abc-123)
+</code></pre>
+<p>The same identifier is echoed back in the <code>X-Request-Id</code> response header.</p>
+<h2>Error output</h2>
+<p>On unhandled exceptions (500) the console logs a highlighted block to <code>STDERR</code> via <code>config.logger.error</code>:</p>
+<pre><code>──────────────────────────────────────────────────
+
+500 Internal Server Error
+
+Route
+GET /users/42
+
+Controller
+UsersController#show
+
+Exception
+NilAssertionError
+
+Message
+User not found
+
+Location
+src/controllers/users.cr:42
+
+──────────────────────────────────────────────────
+</code></pre>
+<p>The HTML error page is still rendered in the browser when <code>config.debug</code> is true; the console block makes the same information visible without switching context.</p>
+<h2>Configuration reference</h2>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>logger</code></td>
+<td><code>Log.for(&quot;altair&quot;)</code></td>
+<td>Where request lines are written</td>
+</tr>
+<tr>
+<td><code>logger_colors</code></td>
+<td><code>nil</code> (auto)</td>
+<td>Console colors (<code>nil</code> = auto, <code>true</code>/<code>false</code> = forced)</td>
+</tr>
+<tr>
+<td><code>logger_compact</code></td>
+<td><code>false</code></td>
+<td>Compact lines without alignment</td>
+</tr>
+<tr>
+<td><code>logger_timestamps</code></td>
+<td><code>true</code></td>
+<td><code>HH:MM:SS</code> prefix</td>
+</tr>
+<tr>
+<td><code>logger_request_counter</code></td>
+<td><code>false</code></td>
+<td>Sequential <code>#0001</code> prefix</td>
+</tr>
+<tr>
+<td><code>logger_show_client_ip</code></td>
+<td><code>false</code></td>
+<td>Client IP prefix (hook for future wiring)</td>
+</tr>
+<tr>
+<td><code>slow_request_threshold</code></td>
+<td><code>20ms</code></td>
+<td>Highlight threshold</td>
+</tr>
+</tbody></table>
+<p>Swap <code>config.logger</code> for a <code>Log</code> with an <code>IO::Memory</code> backend in specs to capture and assert on the output.</p>
+<div class="docs-pager"><div class="pager-progress">Page 12 of 16</div><div class="pager-links"><a class="pager-card" href="uploads.html"><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span><span><span class="label">Previous</span><span class="pager-title">Uploads</span></span></a><a class="pager-card right" href="testing.html"><span><span class="label">Next</span><span class="pager-title">Testing</span></span><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></a></div></div></article></div>
+  </main>
+
+  <footer class="site-footer">
+    <p><span class="footer-brand">Altair</span> — batteries-included web framework for Crystal.</p>
+    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a> &middot; <a href="../docs/features.html">What is implemented</a></p>
+  </footer>
+
+  <script src="../assets/js/docs.js" defer></script>
+</body>
+</html>

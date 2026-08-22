@@ -140,4 +140,23 @@
       code.replaceChild(fragment, node);
     });
   });
+
+  // Reading progress bar for docs pages.
+  var progressBar = document.querySelector(".reading-progress-bar");
+  if (progressBar) {
+    var ticking = false;
+    function updateProgress() {
+      var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      var scrolled = docHeight > 0 ? (window.scrollY / docHeight) * 100 : 0;
+      progressBar.style.width = scrolled + "%";
+      ticking = false;
+    }
+    window.addEventListener("scroll", function () {
+      if (!ticking) {
+        window.requestAnimationFrame(updateProgress);
+        ticking = true;
+      }
+    }, { passive: true });
+    updateProgress();
+  }
 })();
