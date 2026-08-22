@@ -147,10 +147,11 @@ abstract class Altair::Application
   # the server is closed. Prints the boot banner once, on its own line,
   # before the server starts listening.
   def start : Nil
+    started = Time.instant
     handler = Altair::Core::RequestHandler.new(self)
     server = Altair::Server.new(self, handler)
     server.bind
-    puts server.banner
+    puts server.banner(started)
     server.start
   end
 

@@ -37,6 +37,25 @@ module Altair
     # errors. Applications may swap it for their own `Log` instance.
     property logger : Log = Log.for("altair")
 
+    # Whether console colors are enabled. `nil` (the default) auto-detects
+    # from `STDOUT.tty?` and `NO_COLOR`/`TERM`; `true`/`false` forces it.
+    property logger_colors : Bool? = nil
+
+    # Compact request logging without timestamps or alignment.
+    property? logger_compact : Bool = false
+
+    # Whether request lines include a `HH:MM:SS` timestamp.
+    property? logger_timestamps : Bool = true
+
+    # Whether request lines include a sequential counter (`#0001`).
+    property? logger_request_counter : Bool = false
+
+    # Whether request lines include the client IP address.
+    property? logger_show_client_ip : Bool = false
+
+    # Requests slower than this are highlighted in the log.
+    property slow_request_threshold : Time::Span = 20.milliseconds
+
     # The secret used to sign session cookies (and later CSRF tokens and
     # JWT signatures). Reads `SECRET_KEY_BASE` from the environment when
     # not set explicitly. Must be set in production — signing without a

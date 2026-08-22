@@ -131,13 +131,59 @@ class Altair::Core::RequestHandler
       context.response.print(exception.message || "Error")
     else
       return if handle_rescued(exception, request, context)
-      @app.config.logger.error { "Unhandled #{exception.class}: #{exception.message}" }
+      log_error(request, exception)
       context.response.status = ::HTTP::Status::INTERNAL_SERVER_ERROR
       if @app.config.debug? && request
         render_debug_error(context, Altair::Core::ErrorPages.new(@router, @app).internal_server_error(request, exception))
       else
         context.response.print("500 Internal Server Error")
       end
+    end
+  end
+
+  private def log_error(request : Altair::HTTP::Request?, exception : Exception) : Nil
+    colors = Altair::Support::ANSI.enabled?(@app.config.logger_colors)
+    @app.config.logger.error do
+      String.build do |io|
+        io << "\n" << Altair::Support::ANSI.colorize("─" * 50, :dim, colors) << "\n\n"
+        io << Altair::Support::ANSI.colorize("500 Internal Server Error", :red, colors) << "\n\n"
+        if req = request
+          io << Altair::Support::ANSI.colorize("Route", :bold, colors) << "\n"
+          io << "#{req.method} #{req.path}\n\n"
+          if route = req.route
+            if action = route.action
+              io << Altair::Support::ANSI.colorize("Controller", :bold, colors) << "\n"
+              io << "#{action}\n\n"
+            end
+          end
+        end
+        io << Altair::Support::ANSI.colorize("Exception", :bold, colors) << "\n"
+        io << "#{exception.class}\n\n"
+        if message = exception.message
+          io << Altair::Support::ANSI.colorize("Message", :bold, colors) << "\n"
+          io << "#{message}\n\n"
+        end
+        if loc = exception_location(exception)
+          io << Altair::Support::ANSI.colorize("Location", :bold, colors) << "\n"
+          io << "#{loc}\n\n"
+        end
+        io << Altair::Support::ANSI.colorize("─" * 50, :dim, colors)
+      end
+    end
+  end
+
+  private def exception_location(exception : Exception) : String?
+    if trace = exception.backtrace?
+      trace.each do |frame|
+        if match = frame.match(/^(?:from )?(.+?\.cr):(\d+):\d+/)
+          path = match[1]
+          line = match[2]
+          next if path.includes?("/lib/")
+          next if path.includes?("src/crystal/")
+          return "#{path}:#{line}"
+        end
+      end
+      trace.first?
     end
   end
 

@@ -111,6 +111,26 @@ Assign an empty array to disable them all, or build your own stack. CORS is
 a pass-through until `config.cors.origins` is filled (see
 [Security](/docs/security.html)).
 
+### Development console
+
+The development server prints a boxed banner once at boot and one
+aligned line per request. Colors are auto-detected from `STDOUT.tty?`
+and `NO_COLOR`/`TERM`, or forced via `config.logger_colors`.
+
+```crystal
+class Blog < Altair::Application
+  config.logger_colors = true              # nil = auto, true/false = forced
+  config.logger_timestamps = true          # HH:MM:SS prefix
+  config.logger_request_counter = true     # #0001 prefix
+  config.logger_compact = false            # compact single-line without alignment
+  config.slow_request_threshold = 20.milliseconds # highlight slower requests
+end
+```
+
+Slow requests are highlighted and suffixed with `[SLOW]`; status codes
+and HTTP methods are colored by family (2xx green, 3xx blue, 4xx yellow,
+5xx red; GET green, POST blue, etc.).
+
 ## Reference
 
 A selection of the settings available:
@@ -131,3 +151,8 @@ A selection of the settings available:
 | `security_headers` | `nosniff` / `SAMEORIGIN` / referrer policy | Headers stamped by `SecurityHeaders` |
 | `request_id_header` | `X-Request-Id` | Header carrying the request id |
 | `cors` | origin pass-through | Cross-origin settings (see Security) |
+| `logger_colors` | `nil` (auto) | Console colors (`nil` = auto, `true`/`false` = forced) |
+| `logger_compact` | `false` | Compact request lines without alignment |
+| `logger_timestamps` | `true` | `HH:MM:SS` prefix on request lines |
+| `logger_request_counter` | `false` | Sequential `#0001` prefix |
+| `slow_request_threshold` | `20ms` | Highlight requests slower than this |

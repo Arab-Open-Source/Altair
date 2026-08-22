@@ -114,6 +114,21 @@ assignment, the default security headers, CORS and static files:</p>
 <p>Assign an empty array to disable them all, or build your own stack. CORS is
 a pass-through until <code>config.cors.origins</code> is filled (see
 <a href="../docs/security.html">Security</a>).</p>
+<h3>Development console</h3>
+<p>The development server prints a boxed banner once at boot and one
+aligned line per request. Colors are auto-detected from <code>STDOUT.tty?</code>
+and <code>NO_COLOR</code>/<code>TERM</code>, or forced via <code>config.logger_colors</code>.</p>
+<pre><code class="language-crystal">class Blog &lt; Altair::Application
+  config.logger_colors = true              # nil = auto, true/false = forced
+  config.logger_timestamps = true          # HH:MM:SS prefix
+  config.logger_request_counter = true     # #0001 prefix
+  config.logger_compact = false            # compact single-line without alignment
+  config.slow_request_threshold = 20.milliseconds # highlight slower requests
+end
+</code></pre>
+<p>Slow requests are highlighted and suffixed with <code>[SLOW]</code>; status codes
+and HTTP methods are colored by family (2xx green, 3xx blue, 4xx yellow,
+5xx red; GET green, POST blue, etc.).</p>
 <h2>Reference</h2>
 <p>A selection of the settings available:</p>
 <table>
@@ -193,6 +208,31 @@ a pass-through until <code>config.cors.origins</code> is filled (see
 <td><code>cors</code></td>
 <td>origin pass-through</td>
 <td>Cross-origin settings (see Security)</td>
+</tr>
+<tr>
+<td><code>logger_colors</code></td>
+<td><code>nil</code> (auto)</td>
+<td>Console colors (<code>nil</code> = auto, <code>true</code>/<code>false</code> = forced)</td>
+</tr>
+<tr>
+<td><code>logger_compact</code></td>
+<td><code>false</code></td>
+<td>Compact request lines without alignment</td>
+</tr>
+<tr>
+<td><code>logger_timestamps</code></td>
+<td><code>true</code></td>
+<td><code>HH:MM:SS</code> prefix on request lines</td>
+</tr>
+<tr>
+<td><code>logger_request_counter</code></td>
+<td><code>false</code></td>
+<td>Sequential <code>#0001</code> prefix</td>
+</tr>
+<tr>
+<td><code>slow_request_threshold</code></td>
+<td><code>20ms</code></td>
+<td>Highlight requests slower than this</td>
 </tr>
 </tbody></table>
 <div class="docs-pager"><a href="sessions.html"><span class="label">Previous</span>Sessions and auth</a><a class="right" href="security.html"><span class="label">Next</span>Security</a></div></article></div>

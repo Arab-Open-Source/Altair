@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Development console redesign**: the boot banner now shows a rich boxed
+  summary (environment, address, PID, routes, middleware, Crystal version
+  and startup time) and the request log is aligned for scanning (`HH:MM:SS
+  METHOD   PATH                  STATUS  TIME`), with colors by method and
+  status family, an optional request counter (`#0001`), slow-request
+  highlighting past `config.slow_request_threshold` (default 20ms) and
+  compact mode (`config.logger_compact`). Errors log a highlighted block
+  with route, controller, exception, message and source location. Colors
+  auto-detect `NO_COLOR`/`TERM` and `STDOUT.tty?`, or are forced via
+  `config.logger_colors`.
+
+### Changed
+
+- **Logger configuration**: `config.logger_timestamps`,
+  `config.logger_request_counter`, `config.logger_show_client_ip` and
+  `config.slow_request_threshold` join `config.logger` and
+  `config.logger_colors` for console tuning.
+
 ## [0.2.2] — 2026-08-22
 
 ### Added

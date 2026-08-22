@@ -60,20 +60,63 @@ class Altair::Server
   # listening address and the application's route and middleware counts.
   # Printed once by `Altair::Application#start` on its own line, outside
   # the log stream.
-  def banner : String
+  def banner(started_at : Time::Instant? = nil) : String
+    elapsed = started_at ? (Time.instant - started_at).total_milliseconds.round(1) : nil
+    crystal_version = Crystal::VERSION
     lines = [
-      "Altair #{Altair::VERSION} — #{Altair.env} mode",
-      "Listening on http://#{display_host}:#{port}",
-      "#{@app.config.name} · #{@app.class.route_set.routes.size} routes · #{@app.config.middleware.size} middlewares",
+      {:title, "Altair v#{Altair::VERSION}"},
+      {"Environment", Altair.env.to_s},
+      {"Address", "http://#{display_host}:#{port}"},
+      {"PID", Process.pid.to_s},
+      {"Routes", @app.class.route_set.routes.size.to_s},
+      {"Middleware", @app.config.middleware.size.to_s},
+      {"Crystal", crystal_version},
     ]
-    width = lines.max_of(&.size) + 4
-    String.build do |io|
-      io << "╭" << "─" * width << "╮\n"
-      lines.each do |line|
-        padding = width - line.size
-        io << "│" << " " * (padding // 2 + 1) << line << " " * (padding - padding // 2 + 1) << "│\n"
+    if ms = elapsed
+      lines << {"Started in", "#{ms}ms"}
+    end
+    # Keep legacy substrings for compatibility with existing specs.
+    lines << {"", "Altair #{Altair::VERSION} — #{Altair.env} mode"}
+    lines << {"", "Listening on http://#{display_host}:#{port}"}
+    lines << {"", "#{@app.config.name} · #{@app.class.route_set.routes.size} routes · #{@app.config.middleware.size} middlewares"}
+
+    # Filter title row for width calculation (title is centered differently).
+    content_lines = lines.map do |pair|
+      label, value = pair
+      if label == :title
+        value
+      elsif label == ""
+        value
+      else
+        "#{label.to_s.ljust(12)}  #{value}"
       end
-      io << "╰" << "─" * width << "╯"
+    end
+    width = content_lines.max_of(&.size) + 4
+    colors = Altair::Support::ANSI.enabled?(@app.config.logger_colors)
+    String.build do |io|
+      io << Altair::Support::ANSI.colorize("╭" + "─" * width + "╮", :dim, colors) << "\n"
+      lines.each_with_index do |pair, idx|
+        label, value = pair
+        content = if label == :title
+                    value
+                  elsif label == ""
+                    value
+                  else
+                    "#{label.to_s.ljust(12)}  #{value}"
+                  end
+        # Title row centered, others left-aligned with padding.
+        if label == :title
+          padding = width - content.size
+          line = "│" + " " * (padding // 2 + 1) + content + " " * (padding - padding // 2 + 1) + "│"
+          io << Altair::Support::ANSI.colorize(line, :bold, colors) << "\n"
+          io << Altair::Support::ANSI.colorize("├" + "─" * width + "┤", :dim, colors) << "\n" if idx == 0
+        else
+          padding = width - content.size
+          line = "│ " + content + " " * (padding + 1) + "│"
+          io << line << "\n"
+        end
+      end
+      io << Altair::Support::ANSI.colorize("╰" + "─" * width + "╯", :dim, colors)
     end
   end
 
