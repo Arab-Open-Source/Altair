@@ -44,7 +44,7 @@ module Altair
     # True when `command` is an app-context command that must run against a
     # project's compiled source rather than the global binary.
     def self.project_command?(command : String?) : Bool
-      %w[server routes db:migrate db:rollback].includes?(command)
+      %w[server routes db:migrate db:rollback db:seed].includes?(command)
     end
 
     # The directory of the Altair project surrounding the current working
@@ -101,8 +101,8 @@ module Altair
           altair version                        print the framework version
           altair help                           print this help
 
-        Inside a generated project, `server`, `routes`, `db:migrate` and
-        `db:rollback` run against that project's application.
+        Inside a generated project, `server`, `routes`, `db:migrate`,
+        `db:rollback` and `db:seed` run against that project's application.
         TXT
     end
   end

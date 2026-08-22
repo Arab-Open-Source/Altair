@@ -11,6 +11,45 @@ module Altair
     module Project
       extend self
 
+      # The registered seed blocks, filled when a project's `db/seeds.cr`
+      # is required and executed only by `seed`.
+      SEED_BLOCKS = [] of Proc(Nil)
+
+      # Registers a seed block. Called at require time from a project's
+      # `db/seeds.cr`; nothing runs until `bin/altair db:seed` executes
+      # the blocks in registration order:
+      #
+      # ```
+      # Altair::CLI::Project.seeds do
+      #   Post.create(title: "Hello") unless Post.exists?
+      # end
+      # ```
+      #
+      # Requiring the file is safe from every entry point — booting a
+      # server never plants data.
+      def seeds(&block : Proc(Nil)) : Nil
+        SEED_BLOCKS << block
+      end
+
+      # Runs every registered seed block and returns the process exit
+      # code. Blocks re-run on every invocation; guarding with
+      # `unless Model.exists?` keeps repeated seeds idempotent.
+      def seed : Int32
+        if SEED_BLOCKS.empty?
+          puts "No seeds registered — add them to db/seeds.cr with Altair::CLI::Project.seeds { ... }."
+          return 0
+        end
+        SEED_BLOCKS.each &.call
+        puts "Seeded #{SEED_BLOCKS.size} block(s)."
+        0
+      end
+
+      # Clears the registry. Suites use it so seed registrations from one
+      # example never leak into another.
+      def reset_seeds! : Nil
+        SEED_BLOCKS.clear
+      end
+
       # Boots the HTTP server for the given application class.
       def run!(app : A.class) : Int32 forall A
         app.run!

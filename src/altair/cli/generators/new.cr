@@ -109,6 +109,7 @@ module Altair
             {"src/app/models/.gitkeep", ""},
             {"db/schema.cr", schema},
             {"db/migrations/.gitkeep", ""},
+            {"db/seeds.cr", seeds},
             {"public/css/app.css", app_css},
             {".gitignore", regex_gitignore},
             {"README.md", readme},
@@ -158,6 +159,7 @@ module Altair
             io << "require \"altair\"\n"
             io << "require \"../db/schema\"\n"
             io << "require \"../db/migrations/**\"\n"
+            io << "require \"../db/seeds\"\n"
             io << "require \"../src/app/models/**\"\n"
             io << "require \"../src/app/controllers/**\"\n"
             io << "require \"../src/config/application\"\n"
@@ -172,6 +174,8 @@ module Altair
             io << "  exit Altair::CLI::Project.migrate(#{app_class})\n"
             io << "when \"db:rollback\"\n"
             io << "  exit Altair::CLI::Project.rollback(#{app_class})\n"
+            io << "when \"db:seed\"\n"
+            io << "  exit Altair::CLI::Project.seed\n"
             io << "else\n"
             io << "  exit Altair::CLI.run(ARGV)\n"
             io << "end\n"
@@ -182,6 +186,21 @@ module Altair
         # `crystal run` from treating the sub-command as a source file.
         private def bin_altair_cmd : String
           "@crystal run bin\\altair.cr -- %*"
+        end
+
+        # The seed registry file. Blocks register at require time and run
+        # only through `bin/altair db:seed`.
+        private def seeds : String
+          String.build do |io|
+            io << "# #{@name} — seed data. Run it with `bin/altair db:seed`.\n"
+            io << "# Blocks registered here stay dormant until that command runs,\n"
+            io << "# so booting the server never plants data. Re-runs execute every\n"
+            io << "# block again; guard with `unless Model.exists?` to stay idempotent.\n"
+            io << "\n"
+            io << "Altair::CLI::Project.seeds do\n"
+            io << "  # Post.create(title: \"Hello\") unless Post.exists?\n"
+            io << "end\n"
+          end
         end
 
         # The application entry point — the file Crystal runs.
@@ -354,6 +373,7 @@ module Altair
             io << "```\n"
             io << "bin/altair routes        # print the route table\n"
             io << "bin/altair db:migrate   # run migrations\n"
+            io << "bin/altair db:seed      # run db/seeds.cr\n"
             io << "bin/altair g scaffold Post title:string\n"
             io << "```\n"
           end
