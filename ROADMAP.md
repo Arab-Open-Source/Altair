@@ -200,7 +200,21 @@ Imaginary shape for apps like `twitter` — the 80% that already works plus the 
 
 Deferred by request — no code changes in this commit. Current router (`src/altair/routing/dsl.cr:1507`) only accepts a static `to:` string.
 
-> Multi-tenancy is a later Phase 11 candidate: see
+## Phase 11: Future ideas pool (planned — deferred)
+
+Collected from review — not scheduled, no code in this commit. Promote
+any row to its own phase when prioritized.
+
+| Idea | Why it matters for Altair | Effort |
+|------|---------------------------|--------|
+| Real-time / WebSocket (`Altair::Cable`) | Twitter without live updates is not Twitter — Crystal fibers are ideal | Medium |
+| Cache layer (fragment + `Altair.cache` memory/Redis) | `Post.all.includes` solves N+1 but no caching | Small |
+| Storage abstraction (`has_one_attached :avatar` → S3/local) | Today only `UploadedFile#save`; no S3/local abstract | Medium |
+| API mode + OpenAPI (`altair new --api` → `openapi.json`) | Mobile API needed — today `render json:` is manual | Small |
+| Admin dashboard generator (`altair g admin Post`) | Natural step after `g auth` — ready CRUD panel | Medium |
+| Observability (`/health`, metrics, structured logs) | `RequestId` exists but no health/metrics endpoint | Small |
+
+> Multi-tenancy is a later Phase 12 candidate: see
 > `docs/architecture/orm-audit-and-tenancy-plan.md` for the audited gaps and
 > the wave plan.
 
