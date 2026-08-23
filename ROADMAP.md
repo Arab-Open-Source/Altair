@@ -23,6 +23,7 @@ generators on top of that stack.
 | 5 | CLI + Generators & scaffolding | Completed |
 | 6 | Hardening (sessions, flash, CSRF, config, security) | Completed |
 | 7 | Post-release features | Mostly completed — jobs, auth, assets, testing utilities shipped; `joins` and `has_many :through`/polymorphic remain |
+| 8 | Database ergonomics | Planned — `altair new -d postgresql` and `bin/altair db:create` |
 
 > **Note on the CLI:** the original Phase 4 plan listed `altair new` /
 > `altair server` / `altair routes`. That CLI landed in Phase 5, together
@@ -155,7 +156,21 @@ pushing a `v*` tag, which triggers `release.yml`.
 | Rich query DSL (joins, preload, scopes, nested `includes`) | Complex data access is natural | Partially completed — scopes, `merge`, nested `includes` shipped; `joins` deferred to its own wave |
 | `has_many :through` + polymorphic associations | Advanced model relationships | Planned |
 
-> Multi-tenancy is a Phase 8 candidate: see
+## Phase 8: Database ergonomics (planned — deferred)
+
+Mirrors the `new -d` / `db:create` ergonomics of the reference framework,
+without mentioning it in code — flag is `-d` / `--database`.
+
+| Task | Exit criterion | Notes |
+|------|---------------|-------|
+| `altair new <name> -d postgresql` | Project generated with `pg` in `shard.yml`, `database.yml` on `postgres://`, and `require "altair/record/adapters/postgresql"` wired — `shards install && bin/altair db:migrate` works with no hand-edit | Defaults to `sqlite`; `-d sqlite` explicit is allowed; `ALTAIR_DATABASE` env fallback as with `--framework-path` |
+| `bin/altair db:create` | Reads `config/database.yml` and creates the `development`/`test`/`production` databases (idempotent `CREATE DATABASE IF NOT EXISTS` semantics) | Complements `db:migrate`/`db:rollback`; uses `Connection.for` per env with `CREATE DATABASE` outside a transaction |
+| `bin/altair db:drop` (optional) | Drops the same databases | Guarded by confirmation in `production` |
+
+Deferred by request — no code changes in this commit. Implementation will
+follow `docs/architecture/phase-7-status.md` → Phase 8 plan when scheduled.
+
+> Multi-tenancy is a later Phase 9 candidate: see
 > `docs/architecture/orm-audit-and-tenancy-plan.md` for the audited gaps and
 > the wave plan.
 
