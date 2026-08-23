@@ -133,7 +133,7 @@ module Altair
         if counts.empty?
           puts "No background jobs recorded."
         else
-          width = counts.keys.map(&.size).max
+          width = counts.keys.max_of(&.size)
           counts.each { |status, count| puts "#{status.ljust(width)}  #{count}" }
         end
         0

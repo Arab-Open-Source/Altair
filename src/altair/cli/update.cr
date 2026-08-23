@@ -155,10 +155,36 @@ module Altair
 
       # Fetches `url`, following redirects up to a bounded chain, and
       # raising on any failure. `HTTP::Client` does not follow redirects
-      # itself, and GitHub serves release assets behind one.
-      MAX_REDIRECTS = 5
+      # itself, and GitHub serves release assets behind one. Connection-
+      # level failures and truncated bodies are retried a bounded number
+      # of times — the classic "download never completes" failure mode on
+      # flaky links — while deterministic responses (a 404, too many
+      # redirects) fail immediately.
+      MAX_REDIRECTS     = 5
+      DOWNLOAD_ATTEMPTS = 3
 
-      def self.download(url : String, timeout : Time::Span = 30.seconds) : String
+      # The default per-connection timeout. Release binaries are several
+      # megabytes served behind a redirect chain; a short ceiling kills
+      # slow-but-healthy links mid-transfer.
+      DEFAULT_TIMEOUT = 120.seconds
+
+      # A connection-level download failure worth retrying: the socket
+      # dropped, DNS failed, or the body ended before its declared length.
+      class TransientDownloadError < Altair::Error
+      end
+
+      def self.download(url : String, timeout : Time::Span = DEFAULT_TIMEOUT) : String
+        last_error = nil
+        DOWNLOAD_ATTEMPTS.times do |attempt|
+          return fetch_following_redirects(url, timeout)
+        rescue e : TransientDownloadError
+          last_error = e
+          sleep((0.25 * (attempt + 1)).seconds)
+        end
+        raise last_error.not_nil!
+      end
+
+      private def self.fetch_following_redirects(url : String, timeout : Time::Span) : String
         current = URI.parse(url)
         MAX_REDIRECTS.times do
           client = ::HTTP::Client.new(current)
@@ -166,6 +192,8 @@ module Altair
           client.read_timeout = timeout
           begin
             response = client.get(current.request_target)
+          rescue e : IO::Error | Socket::Addrinfo::Error
+            raise TransientDownloadError.new("connection failed for #{current} (#{e.class}): #{e.message}")
           ensure
             client.close
           end
@@ -175,10 +203,25 @@ module Altair
             current = current.resolve(location)
             next
           end
-          raise Altair::Error.new("Failed to download #{current} (#{response.status}).") unless response.success?
-          return response.body
+          unless response.success?
+            raise Altair::Error.new("Failed to download #{current} (#{response.status}).")
+          end
+          body = response.body
+          verify_complete(current, response.headers, body.bytesize)
+          return body
         end
         raise Altair::Error.new("Too many redirects downloading #{url}.")
+      end
+
+      # Rejects silently-truncated bodies: when the server declared a
+      # Content-Length, the received byte count must match it exactly.
+      private def self.verify_complete(url : URI, headers : ::HTTP::Headers, received : Int) : Nil
+        declared = headers["Content-Length"]?.try(&.to_i64?)
+        return unless declared
+        return if declared == received
+        raise TransientDownloadError.new(
+          "truncated download from #{url}: received #{received} of #{declared} bytes"
+        )
       end
 
       # Writes `content` to `path` replacing the running binary. On Unix the

@@ -134,9 +134,20 @@ module Altair
           end
           make_executable(project_dir.join("bin/altair"))
 
-          puts "\nCreated #{@name} — navigate in and run:"
-          puts "  bin/altair server"
+          puts post_create_message
           project_dir
+        end
+
+        # The next-steps message printed after a successful scaffold.
+        # Resolving the framework dependency is an explicit first step —
+        # installed users without network pass `--framework-path`.
+        def post_create_message : String
+          <<-TXT
+
+            Created #{project_dir} — navigate in and run:
+              shards install      # fetch the Altair framework (or re-run altair new with --framework-path for an offline copy)
+              bin/altair server
+            TXT
         end
 
         # Marks `path` executable on Unix; a no-op on Windows (the

@@ -71,8 +71,7 @@ module Altair
       end
 
       private def install_signal_handlers : Nil
-        Signal::INT.trap { stop }
-        Signal::TERM.trap { stop }
+        Process.on_terminate { stop }
       end
     end
   end

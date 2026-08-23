@@ -7,8 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-08-23
+
 ### Added
 
+- **Offline framework installs**: every release now ships the framework
+  source as `altair-src-v<version>.tar.gz` / `.zip` assets (shard.yml +
+  src/, checksummed alongside the binaries). The installers gain a
+  framework switch (`--framework` on sh/cmd, `-Framework` on PowerShell)
+  that downloads and unpacks it into `~/.altair/framework/<version>/`,
+  giving air-gapped machines a real dependency path via
+  `altair new app --framework-path <that directory>`.
+- `altair new` now tells the truth about dependencies: its next-steps
+  message includes `shards install` and points offline users at
+  `--framework-path`, instead of implying the scaffold runs standalone.
 - **Background jobs**: `altair g`-style job classes declare their typed
   parameters once with `params user_id : Int64, ...`; the macro generates a
   typed constructor, the JSON payload codec, and an `enqueue` / `enqueue_in`
@@ -92,6 +104,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `install.cmd` preserves quotes for `--dir` paths with spaces, and both
   forward `NO_COLOR`/`TERM` correctly. `windows-arm64` is now a supported
   release target.
+
+### Fixed
+
+- **Windows downloads no longer die mid-transfer**: `install.ps1` /
+  `install.sh` ride curl's own retries (`--retry 3`, 10-minute ceiling),
+  fall back to resumable BITS on Windows, and size-check every download —
+  a truncated transfer is reported with the exact byte counts instead of
+  surfacing later as a checksum mismatch. `altair update` gets the same
+  treatment: a 120-second per-connection timeout (was 30), three attempts
+  on connection-level failures and silently-truncated bodies
+  (`Content-Length` verified before acceptance), while deterministic
+  failures such as a missing asset still abort after one attempt.
 
 ### Changed
 

@@ -119,11 +119,11 @@ describe "password_auth" do
     row = Altair::Record.connection.query_one(
       "SELECT * FROM auth_users WHERE id = #{Altair::Record.connection.adapter.placeholder(0)}",
       user.id.not_nil!
-    ) { |rs|
+    ) do |rs|
       columns = rs.column_names
       columns.each { rs.read }
       columns.join(",")
-    }
+    end
     row.should_not contain("invisible secret")
   end
 end

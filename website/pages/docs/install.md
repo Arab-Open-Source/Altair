@@ -32,6 +32,8 @@ curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/i
 
 The binary is installed to `%USERPROFILE%\.altair\bin`. You may need to restart your terminal for the `PATH` update to take effect.
 
+Downloads are resilient by design: the installers ride curl's own retries (bundled with Windows 10 1803+), fall back to resumable BITS, then to `Invoke-WebRequest` with a 10-minute ceiling — and every file is size-checked before checksum verification, so a truncated transfer is reported with exact byte counts instead of a mysterious digest failure.
+
 ## Verify the installation
 
 ```sh
@@ -39,6 +41,21 @@ altair version
 ```
 
 You should see something like `Altair 0.2.0`.
+
+## Offline installs (--framework)
+
+Every release ships the framework source itself as checksummed assets (`altair-src-v<version>.tar.gz` / `.zip`). Pass the framework switch and the installer unpacks it next to the binary:
+
+```powershell
+.\install.ps1 -Framework            # Windows: %USERPROFILE%\.altair\framework\<version>\
+curl ... | sh -s -- --framework     # Unix:    ~/.altair/framework/<version>/
+```
+
+A machine without GitHub access can then scaffold projects against that local copy — no network needed at dependency-resolution time:
+
+```sh
+altair new myapp --framework-path "$HOME/.altair/framework/0.3.1"
+```
 
 ## Installing to a custom directory
 

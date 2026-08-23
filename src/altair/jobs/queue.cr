@@ -74,7 +74,7 @@ module Altair
           ) do |rs|
             {id: rs.read(Int64), job_class: rs.read(String), payload: rs.read(String)}
           end
-          return nil unless candidate
+          return unless candidate
 
           claimed = connection.exec(
             "UPDATE altair_jobs SET status = 'running', updated_at = #{adapter.placeholder(0)} " \
@@ -130,7 +130,9 @@ module Altair
         if queues && !queues.empty?
           placeholders = queues.map_with_index { |_q, index| adapter.placeholder(index + 1) }
           sql += " WHERE queue IN (#{placeholders.join(", ")})"
-          queues.each { |q| args << q }
+          queues.each do |queue|
+            args << queue
+          end
         end
         sql += " GROUP BY status"
         connection.query(sql, values: args.empty? ? nil : args) do |rs|

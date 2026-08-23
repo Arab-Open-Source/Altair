@@ -73,8 +73,10 @@ describe Altair::Jobs do
     end
 
     it "decodes small JSON numbers into Int64 parameters" do
-      raw = %({"user_id": 9, "slug": "s", "priority": 1, "ratio": 1.5, "urgent": false,
-               "meta": {"note": "n"}})
+      raw = <<-JSON
+        {"user_id": 9, "slug": "s", "priority": 1, "ratio": 1.5, "urgent": false,
+         "meta": {"note": "n"}}
+        JSON
       decoded = GreetingJob.from_payload(raw)
       decoded.user_id.should eq(9_i64)
       decoded.user_id.should be_a(Int64)

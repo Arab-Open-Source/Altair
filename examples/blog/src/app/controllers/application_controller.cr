@@ -11,11 +11,13 @@ abstract class ApplicationController < Altair::Controller
   # `crystal run scripts/assets.cr`), and the header reflects the session.
   private def page_html(body : String) : String
     auth_nav = if logged_in?
-                 %(<a href="/posts">posts</a> ·
-                    <form class="inline" action="/logout" method="post">
-                      <input type="hidden" name="_method" value="DELETE">
-                      <button class="link">sign out</button>
-                    </form>)
+                 <<-NAV
+                   <a href="/posts">posts</a> ·
+                   <form class="inline" action="/logout" method="post">
+                     <input type="hidden" name="_method" value="DELETE">
+                     <button class="link">sign out</button>
+                   </form>
+                   NAV
                else
                  %(<a href="/login">sign in</a> · <a href="/register">register</a>)
                end

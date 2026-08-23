@@ -95,6 +95,20 @@ jobs:
           # stays complete across partial (per-platform) runs.
           gh release download "${{ github.ref_name }}" --pattern 'altair-*' --dir dist --clobber 2>/dev/null || true
           cp scripts/install.sh scripts/install.ps1 scripts/install.cmd dist/
+
+          # Framework source archives: the offline path for installed users
+          # (issue #4). Installers fetch these with --framework / -Framework
+          # and unpack them into ~/.altair/framework/<version>/. Deliberately
+          # excludes lib/, spec/, docs/, examples/ and CI — only what a
+          # project's `path:` dependency needs to compile.
+          src_dir="altair-src-${{ github.ref_name }}"
+          mkdir -p "$src_dir"
+          cp shard.yml README.md LICENSE CONTRIBUTING.md "$src_dir/"
+          cp -r src "$src_dir/src"
+          tar -czf "dist/${src_dir}.tar.gz" "$src_dir"
+          zip -qr "dist/${src_dir}.zip" "$src_dir"
+          rm -rf "$src_dir"
+
           cd dist
           sha256sum altair-* > SHA256SUMS
           cat SHA256SUMS

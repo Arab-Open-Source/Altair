@@ -21,12 +21,13 @@ if "%~1"=="" goto done
 if /i "%~1"=="--dir" ( set "ARGS=%ARGS% -Dir \"%~2\"" & shift & shift & goto parse )
 if /i "%~1"=="--force" ( set "ARGS=%ARGS% -Force" & shift & goto parse )
 if /i "%~1"=="--version" ( set "ARGS=%ARGS% -Version \"%~2\"" & shift & shift & goto parse )
+if /i "%~1"=="--framework" ( set "ARGS=%ARGS% -Framework" & shift & goto parse )
 echo error: unknown option: %~1
 exit /b 1
 :done
 
 echo Downloading the Altair installer ...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%PS1_URL%' -OutFile '%TMP_PS1%' -UseBasicParsing -MaximumRedirection 5 -TimeoutSec 30"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%PS1_URL%' -OutFile '%TMP_PS1%' -UseBasicParsing -MaximumRedirection 5 -TimeoutSec 120"
 if errorlevel 1 (
   echo error: failed to download the installer
   del /q "%TMP_PS1%" 2>nul

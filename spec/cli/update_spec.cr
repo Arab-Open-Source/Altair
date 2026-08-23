@@ -34,6 +34,55 @@ module Altair::CLI
           end
         end
       end
+
+      it "retries a connection dropped mid-body and succeeds on the next attempt" do
+        attempts = 0
+        body = "complete-body"
+        server = ::HTTP::Server.new do |ctx|
+          attempts += 1
+          if attempts == 1
+            # Declare more than we send, then abort the connection.
+            ctx.response.headers["Connection"] = "close"
+            ctx.response.content_length = 4096
+            ctx.response.print("half")
+            ctx.response.close
+          else
+            ctx.response.print(body)
+          end
+        end
+        with_redirect_server(server) do |port|
+          Update.download("http://127.0.0.1:#{port}/flaky", timeout: 2.seconds).should eq(body)
+        end
+        attempts.should eq(2)
+      end
+
+      it "raises after exhausting retries when the transfer stays truncated" do
+        server = ::HTTP::Server.new do |ctx|
+          ctx.response.headers["Connection"] = "close"
+          ctx.response.content_length = 4096
+          ctx.response.print("stub")
+          ctx.response.close
+        end
+        with_redirect_server(server) do |port|
+          expect_raises(Altair::Error, "truncated download") do
+            Update.download("http://127.0.0.1:#{port}/cut", timeout: 2.seconds)
+          end
+        end
+      end
+
+      it "does not retry deterministic failures like a missing asset" do
+        hits = 0
+        server = ::HTTP::Server.new do |ctx|
+          hits += 1
+          ctx.response.status = ::HTTP::Status::NOT_FOUND
+        end
+        with_redirect_server(server) do |port|
+          expect_raises(Altair::Error, "Failed to download") do
+            Update.download("http://127.0.0.1:#{port}/missing")
+          end
+        end
+        hits.should eq(1)
+      end
     end
 
     describe ".platform_asset_name" do

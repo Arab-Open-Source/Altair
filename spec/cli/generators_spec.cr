@@ -268,6 +268,12 @@ module Altair::CLI
       end
     end
 
+    it "points the user at shards install before the first run" do
+      message = Generators::New.new("blog", "/tmp/fake-framework").post_create_message
+      message.should contain("shards install")
+      message.should contain("--framework-path")
+    end
+
     it "supports a path like a/b and uses its basename for the app" do
       in_tempdir do
         generator = Generators::New.new("a/b", "/tmp/fake-framework")

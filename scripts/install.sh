@@ -16,6 +16,8 @@
 #   --dir DIR        install into DIR instead of the default bin directory
 #   --force          overwrite an existing, different binary
 #   --version VER    install a specific release instead of the latest
+#   --framework      also unpack the framework source into
+#                    ~/.altair/framework/<version>/ for offline projects
 #   --verify         verify the download against SHA256SUMS (default on)
 #
 # Requires: curl and (on Unix) sha256sum. No shell outside this script is
@@ -50,11 +52,13 @@ fi
 # --- argument parsing ------------------------------------------------------
 DIR=""
 FORCE=0
+FRAMEWORK=0
 VERSION="latest"
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --dir) DIR="$2"; shift 2 ;;
     --force) FORCE=1; shift ;;
+    --framework) FRAMEWORK=1; shift ;;
     --version) VERSION="$2"; shift 2 ;;
     *) echo "error: unknown option: $1" >&2; exit 1 ;;
   esac
@@ -101,9 +105,20 @@ fi
 
 # The artifact is named `altair-<target>` in the release. Download it under
 # that exact name so `sha256sum -c` actually matches an entry in SHA256SUMS
-# (a file named just `altair` would silently match nothing).
-curl -fSLo "$dl/$asset" "$REL_URL/$asset"
-curl -fSLo "$dl/SHA256SUMS" "$REL_URL/SHA256SUMS"
+# (a file named just `altair` would silently match nothing). Retries ride on
+# curl's own `--retry`; the size floor catches silently-truncated transfers.
+curl --fail --silent --show-error --location \
+  --retry 3 --retry-all-errors --connect-timeout 15 --max-time 600 \
+  --output "$dl/$asset" "$REL_URL/$asset"
+curl --fail --silent --show-error --location \
+  --output "$dl/SHA256SUMS" "$REL_URL/SHA256SUMS"
+
+min_size=200000
+actual_size="$(wc -c < "$dl/$asset" | tr -d ' ')"
+if [ "$actual_size" -lt "$min_size" ]; then
+  echo "error: download incomplete: received $actual_size bytes, expected at least $min_size" >&2
+  exit 1
+fi
 
 # --- verify checksum -----------------------------------------------------------
 if command -v sha256sum >/dev/null 2>&1; then
@@ -132,6 +147,40 @@ fi
 install -m 0755 "$dl/$asset" "$dest"
 echo "Installed Altair to $dest"
 echo "Digest SHA-256: $(sha256sum "$dest" | awk '{print $1}')"
+
+if [ "$FRAMEWORK" -eq 1 ]; then
+  tag="$VERSION"
+  if [ "$tag" = "latest" ]; then
+    # Resolve the latest tag from the redirect target; drop carriage returns
+    # and lowercase the whole header block so the sed always matches.
+    tag="$(curl -fsSI "https://github.com/$REPO/releases/latest" \
+      | tr -d '\r' | tr '[:upper:]' '[:lower:]' \
+      | sed -n 's#^location: .*/tag/\(v[0-9.]*\)$#\1#p' | head -n 1)"
+    if [ -z "$tag" ]; then
+      echo "error: could not resolve the latest release tag for the framework source" >&2
+      exit 1
+    fi
+  fi
+  src_name="altair-src-$tag.tar.gz"
+  echo "Downloading framework source ($src_name) ..."
+  curl --fail --silent --show-error --location \
+    --retry 3 --retry-all-errors --max-time 600 \
+    --output "$dl/$src_name" "https://github.com/$REPO/releases/download/$tag/$src_name"
+
+  src_tag="${tag#v}"
+  if [ "$OS_TARGET" = "windows" ]; then
+    framework_root="$USERPROFILE/.altair/framework"
+  else
+    framework_root="$HOME/.altair/framework"
+  fi
+  framework_dir="$framework_root/$src_tag"
+  mkdir -p "$framework_dir"
+  tar -xzf "$dl/$src_name" -C "$framework_dir" --strip-components=1
+  echo "Framework source installed at $framework_dir"
+  echo "Offline projects can reference it:"
+  echo "  altair new myapp --framework-path \"$framework_dir\""
+fi
+
 echo "Run 'altair' from any directory."
 if ! command -v altair >/dev/null 2>&1 && [ "$OS_TARGET" != "windows" ]; then
   case ":$PATH:" in
