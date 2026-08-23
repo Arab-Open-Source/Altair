@@ -35,6 +35,19 @@ module Altair
         Altair::Jobs::Job.registry[{{ @type.name.stringify }}] = {{ @type }}
       end
 
+      # Rebuilds a job instance from a stored payload. Every `params`
+      # subclass overrides this; jobs without `params` hit the default
+      # below — a clear runtime message instead of a compile-time
+      # `Job+.class` virtual-dispatch failure when the worker claims a
+      # row while the application defines no jobs (as regression #cm_061
+      # proved with `twitter`).
+      def self.from_payload(raw : String) : self
+        raise Altair::Error.new(
+          "#{self} declares no `params` — add a `params` declaration or " \
+          "override `#{self}.from_payload`"
+        )
+      end
+
       # Declares this job's typed parameters and everything derived from
       # them: accessors, the constructor used by decoding, and the typed
       # `enqueue` family. Supported scalar types are `String`, `Int32`,

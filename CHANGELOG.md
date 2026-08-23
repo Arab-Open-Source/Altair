@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-08-23
+
+### Fixed
+
+- **v0.3.1 regression: jobs worker broke every fresh app**: the
+  polymorph half of the jobs design lived only in the `params` macro —
+  outside the framework's own suite (which always contains example jobs)
+  the base `Altair::Jobs::Job` had no `self.from_payload`, so any project
+  with zero job subclasses (every `altair new` then `scaffold` → `migrate`)
+  failed to compile with `undefined method 'from_payload' for Job+.class`.
+  The base now declares a runtime-guarded default raising a clear
+  `Altair::Error`; subclasses override it via the macro, and a regression
+  spec calls `Altair::Jobs::Job.from_payload` directly to force the
+  `Job.class` dispatch the workers rely on.
+- `shard.yml` `version:` raised from 0.3.0 to 0.3.1 in the previous
+  release was missed — now corrected to 0.3.2 so
+  `Shard "altair" version (...) doesn't match tag version (...)`
+  no longer warns on every `shards install`.
+
 ## [0.3.1] — 2026-08-23
 
 ### Added

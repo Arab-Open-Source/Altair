@@ -242,4 +242,12 @@ describe Altair::Jobs do
       r.backoff(20).should eq(5.minutes)
     end
   end
+
+  describe "regression: applications that define no jobs" do
+    it "fails to compile a no-op: Altair::Jobs::Job.from_payload is dispatchable as Job.class" do
+      expect_raises(Altair::Error, /no.*params/) do
+        Altair::Jobs::Job.from_payload("{}")
+      end
+    end
+  end
 end
