@@ -24,6 +24,7 @@ generators on top of that stack.
 | 6 | Hardening (sessions, flash, CSRF, config, security) | Completed |
 | 7 | Post-release features | Mostly completed — jobs, auth, assets, testing utilities shipped; `joins` and `has_many :through`/polymorphic remain |
 | 8 | Database ergonomics | Planned — `altair new -d postgresql` and `bin/altair db:create` |
+| 9 | CLI ergonomics | Planned — destroy, job generator, db:status, server flags, assets/jobs helpers |
 
 > **Note on the CLI:** the original Phase 4 plan listed `altair new` /
 > `altair server` / `altair routes`. That CLI landed in Phase 5, together
@@ -170,7 +171,25 @@ without mentioning it in code — flag is `-d` / `--database`.
 Deferred by request — no code changes in this commit. Implementation will
 follow `docs/architecture/phase-7-status.md` → Phase 8 plan when scheduled.
 
-> Multi-tenancy is a later Phase 9 candidate: see
+## Phase 9: CLI ergonomics (planned — deferred)
+
+Batteries-included polish for the command line — no new subsystems, just
+less friction for daily use.
+
+| Priority | Task | Exit criterion |
+|----------|------|----------------|
+| High | `altair g job <Name> field:type ...` | Generates a typed `params` job class with `perform` stub; `shards build` passes |
+| High | `altair destroy <type> <Name>` / `g --destroy` | Inverse of every generator — removes model/migration/controller/scaffold/auth files, route line and `db/schema.cr` seed; `did_you_mean` suggests it on unknown type |
+| Medium | `bin/altair db:status` / `db:version` | Lists `applied_versions` vs `migration_files` with pending marker; `version` prints last applied |
+| Medium | `bin/altair server -p PORT -b HOST -e ENV` | Flags override `config.port`/`host`/`env` at launch; ephemeral port still works for `Test.boot` |
+| Medium | `bin/altair assets:clean` / `assets:clobber` | `clean` prunes orphaned fingerprints; `clobber` removes `public/assets` entirely |
+| Medium | `bin/altair jobs:clear` / `jobs:retry` | Admin helpers over `altair_jobs` status (`pending/failed`); `retry` re-queues by id |
+| Medium | `altair help` for project commands | `help_for` covers `server/routes/db:*/assets:*/jobs:*` instead of falling back to generic `help` |
+| Low | `altair about` / `doctor` | Prints Crystal version, adapter, env, root, middleware/route counts without booting the server |
+
+Deferred by request — no code changes in this commit. Waves: A (job + destroy), B (db:status + server flags), C (assets/jobs helpers + help).
+
+> Multi-tenancy is a later Phase 10 candidate: see
 > `docs/architecture/orm-audit-and-tenancy-plan.md` for the audited gaps and
 > the wave plan.
 
