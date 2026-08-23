@@ -190,35 +190,27 @@ less friction for daily use.
 
 Deferred by request — no code changes in this commit. Waves: A (job + destroy), B (db:status + server flags), C (assets/jobs helpers + help).
 
-## Phase 10: Router ergonomics (planned — deferred)
+## Phase 10: Router & future features pool (planned — deferred)
 
-Imaginary shape for apps like `twitter` — the 80% that already works plus the missing 20%.
+Collected from review — each row becomes its own wave when prioritized.
+No implementation until scheduled.
 
-| Priority | Task | Exit criterion |
-|----------|------|----------------|
-| Medium | Dynamic `redirect` interpolation (`redirect "/t/:id", to: "/tweets/:id"`) | `Route` captures `:id` and interpolates it into `Location`; `GET /t/5` → `301 /tweets/5` with format preserved; spec covers single and multiple params |
-
-Deferred by request — no code changes in this commit. Current router (`src/altair/routing/dsl.cr:1507`) only accepts a static `to:` string.
-
-## Phase 11: Future ideas pool (planned — deferred)
-
-Collected from review — not scheduled, no code in this commit. Promote
-any row to its own phase when prioritized.
-
-| Idea | Why it matters for Altair | Effort |
-|------|---------------------------|--------|
-| Real-time / WebSocket (`Altair::Cable`) | Twitter without live updates is not Twitter — Crystal fibers are ideal | Medium |
-| Cache layer (fragment + `Altair.cache` memory/Redis) | `Post.all.includes` solves N+1 but no caching | Small |
-| Storage abstraction (`has_one_attached :avatar` → S3/local) | Today only `UploadedFile#save`; no S3/local abstract | Medium |
-| API mode + OpenAPI (`altair new --api` → `openapi.json`) | Mobile API needed — today `render json:` is manual | Small |
-| Admin dashboard generator (`altair g admin Post`) | Natural step after `g auth` — ready CRUD panel | Medium |
-| Observability (`/health`, metrics, structured logs) | `RequestId` exists but no health/metrics endpoint | Small |
+| Priority | Idea | Exit criterion | Effort |
+|----------|------|-----------------|--------|
+| Medium | Dynamic `redirect` interpolation (`redirect "/t/:id", to: "/tweets/:id"`) | `GET /t/5` → `301 /tweets/5` with format preserved; spec covers single and multiple params | 1-2 days |
+| Medium | Real-time / WebSocket (`Altair::Cable`) | Live feed demo — new tweet appears without refresh; Crystal fibers ideal | 7-10 days |
+| Small | Cache layer (fragment + `Altair.cache` memory/Redis) | Homepage built once and served cached to all visitors | 3 days |
+| Medium | Storage abstraction (`has_one_attached :avatar` → S3/local) | Avatar upload works locally and on S3 with same code | 5-7 days |
+| Small | API mode (`altair new --api` generates JSON-only project) | Backend for mobile app — no views, no assets, CORS enabled | 2-3 days |
+| Medium | Admin dashboard generator (`altair g admin Post`) | Ready CRUD panel at `/admin/posts` in seconds | 5-7 days |
+| Small | Observability (`/health`, metrics, structured logs) | Production monitoring: is server alive? requests/second? | 2-3 days |
 
 > Multi-tenancy is a later Phase 12 candidate: see
 > `docs/architecture/orm-audit-and-tenancy-plan.md` for the audited gaps and
 > the wave plan.
 
 ---
+
 
 ## Realistic estimate
 
