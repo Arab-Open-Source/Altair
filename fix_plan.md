@@ -1,32 +1,25 @@
 # Altair Performance Remediation Plan
 
-هذه الخطة موجهة إلى AI agent سيعمل على إصلاح مشاكل latency والـ tail latency
-في Altair، مع الحفاظ على سلوك framework الحالي وعدم التضحية بالسلامة أو
-الـ durability من أجل أرقام benchmark أفضل.
+This plan is intended for an AI agent tasked with fixing latency and tail-latency issues in Altair while preserving existing framework behavior and without sacrificing safety or durability for better benchmark numbers.
 
-## 0. قواعد العمل الإلزامية
+## 0. Mandatory Working Rules
 
-قبل أي تعديل:
+Before making any changes:
 
-1. اقرأ `AGENTS.md` كاملاً والتزم به.
-2. نفّذ `git status --short` و`git diff --stat` وسجّل التغييرات الموجودة.
-3. توجد تغييرات محلية في `examples/benchmark_k6` ونتائجها. لا تحذفها ولا
-   تعمل عليها إعادة ضبط أو overwrite غير مقصود.
-4. لا تعدّل ملفات benchmark أثناء إصلاح framework إلا إذا كانت الخطوة
-   الحالية تتطلب ذلك بوضوح، وسجّل سبب كل تعديل.
-5. لا تستخدم قياسات README أو نتائج قديمة كـ baseline. أنشئ baseline جديداً
-   من commit واضح، مع حفظ config ونسخة Crystal ونتائج كل run.
-6. لا تستخدم قيم SQL interpolated للبيانات. كل القيم يجب أن تبقى bind
-   parameters، وكل identifiers تمر عبر `quote_identifier`.
-7. لا تغيّر semantics الخاصة بالـ callbacks أو transactions أو durability
-   بصمت. أي تغيير سلوكي يحتاج spec وCHANGELOG وتوثيق.
-8. لا تعتبر benchmark ناجحاً إذا تحسن average بينما ساء p99 أو p99.9.
+1. Read `AGENTS.md` in full and adhere to it.
+2. Run `git status --short` and `git diff --stat` and record any existing changes.
+3. Local changes exist under `examples/benchmark_k6` along with their results. Do not delete them and do not perform an unintended reset or overwrite.
+4. Do not modify benchmark files while fixing the framework unless the current step explicitly requires it, and document the reason for every modification.
+5. Do not use README measurements or historical results as a baseline. Create a new baseline from an explicit commit, preserving the configuration, Crystal version, and results for every run.
+6. Do not interpolate SQL values. All values must remain as bind parameters and all identifiers must go through `quote_identifier`.
+7. Do not silently change the semantics of callbacks, transactions, or durability. Any behavioral change requires a spec, a `CHANGELOG.md` entry, and documentation.
+8. A benchmark is not considered successful if the average improves while p99 or p99.9 regresses.
 
-## 1. الحالة الأساسية والتحقق الأولي
+## 1. Baseline and Initial Verification
 
-### 1.1 حفظ baseline
+### 1.1 Preserve the Baseline
 
-نفّذ واحفظ المخرجات خارج git أو في ملف مؤقت:
+Execute and persist the output outside of git or in a temporary file:
 
 ```bash
 git status --short
@@ -36,378 +29,357 @@ crystal tool format --check src spec examples
 crystal spec
 ```
 
-إذا فشل `crystal spec` بسبب cache أو مشكلة compiler في البيئة:
+If `crystal spec` fails due to cache or a compiler environment issue:
 
-- جرّب cache تحت `/tmp`.
-- سجّل الخطأ الكامل والإصدار.
-- شغّل targeted specs الممكنة.
-- لا تدّعي أن tests فشلت بسبب framework قبل فصل مشكلة البيئة.
+- Try a cache under `/tmp`.
+- Record the full error and the version.
+- Run targeted specs where possible.
+- Do not attribute test failures to the framework before isolating the environmental cause.
 
-### 1.2 baseline وظيفي
+### 1.2 Functional Baseline
 
-شغّل على الأقل:
+Run at minimum:
 
-- كل specs الخاصة بـ `record`.
+- All `record` specs.
 - `spec/record/connection_spec.cr`.
 - `spec/record/permit_gate_spec.cr`.
 - `spec/concurrency/semaphore_spec.cr`.
-- integration specs الخاصة بالـ controller/server.
-- PostgreSQL contract suite إذا كان `ALTAIR_TEST_PG_URL` متاحاً.
+- Controller/server integration specs.
+- The PostgreSQL contract suite if `ALTAIR_TEST_PG_URL` is available.
 
-وثّق عدد examples وpending ووقت التنفيذ.
+Record the number of examples, pending cases, and execution time.
 
-### 1.3 baseline أداء قابل للتفسير
+### 1.3 Explainable Performance Baseline
 
-أضف أداة أو instrumentation مؤقتة، ثم قِس منفصلاً:
+Add temporary tooling or instrumentation, then measure each workload in isolation:
 
-- `/health` بدون DB.
-- `GET` على primary key.
-- `POST` insert بسيط.
-- update بسيط.
-- delete بسيط.
-- write مع validation.
-- write مع callbacks.
-- delete مع `dependent: :destroy` و`:delete_all`.
-- SQLite وPostgreSQL كل منهما بشكل مستقل.
+- `/health` without DB.
+- `GET` by primary key.
+- Simple `POST` insert.
+- Simple update.
+- Simple delete.
+- Write with validation.
+- Write with callbacks.
+- Delete with `dependent: :destroy` and `:delete_all`.
+- SQLite and PostgreSQL independently.
 
-لكل workload احفظ:
+For each workload, record:
 
-- throughput.
-- p50 وp90 وp95 وp99 وp99.9 وmax.
-- failed requests وtimeouts.
-- pool open/idle/in-flight.
-- checkout wait.
-- SQL execution.
-- request parsing وrendering.
-- CPU وRSS وGC إن أمكن.
+- Throughput.
+- p50, p90, p95, p99, p99.9, and max.
+- Failed requests and timeouts.
+- Pool open / idle / in-flight counts.
+- Checkout wait time.
+- SQL execution time.
+- Request parsing and rendering time.
+- CPU, RSS, and GC metrics where available.
 
-## 2. المرحلة الأولى: إصلاح قابلية القياس
+## 2. Phase 1: Make Latency Measurable
 
-لا تبدأ بتحسينات micro-optimization قبل أن تصبح مصادر التأخير قابلة للفصل.
+Do not start micro-optimizations before delay sources are separable.
 
-### 2.1 فصل checkout time عن SQL time
+### 2.1 Separate Checkout Time from SQL Time
 
-طوّر instrumentation في `Altair::Record::Connection` بحيث يقدم على الأقل:
+Enhance instrumentation in `Altair::Record::Connection` to expose at least:
 
-- وقت انتظار checkout.
-- وقت تنفيذ statement داخل connection.
-- وقت decoding/reading للنتائج.
-- وقت transaction begin/commit/rollback.
-- اسم adapter ونوع العملية (`query`, `insert`, `update`, `delete`).
+- Checkout wait time.
+- Statement execution time within the connection.
+- Result decoding / reading time.
+- Transaction begin / commit / rollback time.
+- Adapter name and operation type (`query`, `insert`, `update`, `delete`).
 
-حافظ على توافق `on_query` قدر الإمكان. إذا احتاجت API جديدة، أضف API
-مستقلة مثل `on_query_event` بدلاً من كسر المستخدمين الحاليين.
+Maintain compatibility with `on_query` where possible. If a new API is required, add a separate API such as `on_query_event` instead of breaking existing consumers.
 
-المطلوب ألا يبدأ query timer قبل pool checkout، وألا يسمى زمن pool
-"SQL duration".
+The query timer must not start before pool checkout, and pool wait time must not be reported as "SQL duration".
 
-### 2.2 قياس الفشل والـ timeout
+### 2.2 Measure Failures and Timeouts
 
-كل event يجب أن يسجل completion أو failure في `ensure`، من غير تسجيل قيم
-حساسة أو bind parameters.
+Every event must record completion or failure in an `ensure` block, without logging sensitive values or bind parameters.
 
-أضف tests تثبت:
+Add tests that prove:
 
-- hook يعمل عند النجاح.
-- hook يعمل عند exception.
-- checkout wait لا يدخل في SQL duration.
-- transaction يحسب checkout مرة واحدة فقط.
-- لا يحدث leak للـ connection أو permit عند exception.
+- The hook fires on success.
+- The hook fires on exception.
+- Checkout wait is not included in SQL duration.
+- A transaction accounts for checkout exactly once.
+- No connection or permit leak occurs on exception.
 
-### 2.3 pool metrics
+### 2.3 Pool Metrics
 
-اعرض أو وفّر instrumentation لـ:
+Expose or instrument:
 
-- open connections.
-- idle connections.
-- in-flight connections.
-- pool limit.
-- عدد المنتظرين إن كان ممكناً.
-- عدد pool timeouts.
-- عدد gate timeouts.
+- Open connections.
+- Idle connections.
+- In-flight connections.
+- Pool limit.
+- Number of waiters where feasible.
+- Number of pool timeouts.
+- Number of gate timeouts.
 
-يجب أن تكون metrics اختيارية ولا تضيف allocations أو clock reads في المسار
-الافتراضي عند تعطيلها.
+Metrics must be optional and must not add allocations or clock reads on the default path when disabled.
 
-## 3. المرحلة الثانية: timeouts وbackpressure
+## 3. Phase 2: Timeouts and Backpressure
 
-### 3.1 تنفيذ `db_query_timeout` فعلياً
+### 3.1 Actually Enforce `db_query_timeout`
 
-`config.db_query_timeout` موجود حالياً لكنه لا يُطبق. أصلحه بطريقة adapter-aware:
+`config.db_query_timeout` currently exists but is not enforced. Fix it in an adapter-aware way:
 
-- PostgreSQL: طبّق statement timeout لكل connection أو لكل transaction بطريقة
-  لا تلوث connection التالية، وراعِ reset عند release.
-- SQLite: ميّز بين query timeout وbusy timeout. لا تدّع أن busy timeout
-  يوقف query عامة؛ طبّق ما يسمح به driver فعلياً، أو ارفع configuration error
-  واضحاً إذا كان الخيار غير قابل للتنفيذ في adapter معين.
-- لا تستخدم thread يقتل query عشوائياً ويترك connection في حالة غير صالحة.
-- عند timeout، أغلق أو discard connection إذا كان driver قد يترك transaction
-  أو protocol في حالة غير آمنة.
+- PostgreSQL: Apply a statement timeout per connection or per transaction in a way that does not taint the next connection consumer, and handle reset on release.
+- SQLite: Distinguish between query timeout and busy timeout. Do not claim that a busy timeout stops a general query; apply only what the driver actually supports, or raise a clear configuration error if the option is not enforceable for a given adapter.
+- Do not use a thread that arbitrarily kills a query and leaves the connection in an invalid state.
+- On timeout, close or discard the connection if the driver may leave the transaction or protocol in an unsafe state.
 
-أضف specs لـ:
+Add specs for:
 
-- query تتجاوز timeout.
-- connection تعود إلى pool بعد timeout.
-- transaction تعمل rollback بعد timeout.
-- لا يمكن لـ timeout أن يترك `idle in transaction`.
-- PostgreSQL contract spec عند توفر PostgreSQL.
+- A query that exceeds the timeout.
+- Connection returned to the pool after a timeout.
+- Transaction rollback after a timeout.
+- A timeout cannot leave the connection as `idle in transaction`.
+- PostgreSQL contract spec when PostgreSQL is available.
 
-### 3.2 checkout deadline
+### 3.2 Checkout Deadline
 
-افصل بين:
+Separate:
 
-- `db_checkout_timeout` الخاص بالـ pool.
-- timeout انتظار admission gate.
-- request deadline الكلي.
+- The pool's `db_checkout_timeout`.
+- The admission gate wait timeout.
+- The overall request deadline.
 
-أضف config واضحاً، مثلاً `db_admission_timeout` أو equivalent، بحيث لا ينتظر
-request إلى ما لا نهاية داخل FIFO gate.
+Add explicit configuration, e.g. `db_admission_timeout` or equivalent, so a request does not wait indefinitely inside the FIFO gate.
 
-عند تجاوز deadline:
+When a deadline is exceeded:
 
-- حرر أي permit تم أخذه.
-- لا تدخل pool إذا انتهت المهلة.
-- أعد exception قابلة لتحويلها إلى 503/429 حسب policy موثقة.
-- لا تسجل body أو headers الحساسة.
+- Release any acquired permit.
+- Do not enter the pool if the deadline has elapsed.
+- Return an exception that can be mapped to 503/429 per a documented policy.
+- Do not log sensitive bodies or headers.
 
-### 3.3 إصلاح semantics الخاصة بـ PermitGate
+### 3.3 Fix `PermitGate` Semantics
 
-راجع `PermitGate` و`Semaphore` لتحديد contract واضح:
+Review `PermitGate` and `Semaphore` and define a clear contract:
 
-- gate يجب أن يحد active DB work فعلاً.
-- لا يجب أن يكون limit أكبر من pool بلا معنى. إما clamp موثق أو validation
-  يفشل عند boot.
-- queue قد تكون FIFO، لكن لا تدّع أنها bounded latency بدون timeout.
-- تبديل semaphore أثناء وجود requests يجب ألا يفقد permits أو يعلق fibers.
-- أضف tests للـ cancellation/timeout وexception وconcurrent reconfiguration.
+- The gate must actually bound active DB work.
+- A limit larger than the pool must not be silently meaningless. Either apply a documented clamp or add boot-time validation that fails fast.
+- The queue may be FIFO, but do not claim bounded latency without a timeout.
+- Swapping the semaphore while requests are in flight must not lose permits or stall fibers.
+- Add tests for cancellation / timeout, exceptions, and concurrent reconfiguration.
 
-لا تجعل admission gate global بين تطبيقات أو قواعد بيانات مختلفة إذا كان
-ذلك يخلط capacities؛ راجع global class state وأضف ownership واضحاً.
+Do not make the admission gate global across different applications or databases if that conflates capacities; review global class state and add clear ownership.
 
-## 4. المرحلة الثالثة: إزالة contention الداخلي
+## 4. Phase 3: Remove Internal Contention
 
-### 4.1 إصلاح `Altair::Record.connection`
+### 4.1 Fix `Altair::Record.connection`
 
-المطلوب fast path لا يأخذ mutex بعد initialization:
+Implement a fast path that does not take a mutex after initialization:
 
-- القراءة السريعة للاتصال المنشأ.
-- mutex فقط عند أول إنشاء أو close/reopen.
-- double-check آمن عند first touch.
-- لا تُستخدم قيمة قد تصبح dangling بعد `close_connection`.
+- Fast read of the already-initialized connection.
+- Mutex only on first creation or on close / reopen.
+- Safe double-checked initialization on first touch.
+- No use of a value that may become dangling after `close_connection`.
 
-أضف specs لـ:
+Add specs for:
 
-- first-touch concurrent initialization يفتح pool واحداً.
-- مئات fibers تحصل على نفس connection object/pool.
-- close ثم reopen لا يسبب race.
-- transactions لا تتأثر.
+- Concurrent first-touch initialization opens exactly one pool.
+- Hundreds of fibers obtain the same connection / pool object.
+- Close followed by reopen does not race.
+- Transactions are unaffected.
 
-قِس قبل وبعد عدد mutex operations في workload عالي التوازي.
+Measure mutex operations before and after under a highly concurrent workload.
 
-### 4.2 مراجعة locks الأخرى
+### 4.2 Review Other Locks
 
-راجع:
+Review:
 
-- transaction maps.
+- Transaction maps.
 - N+1 detector.
-- query handlers.
-- checkout handlers.
-- pool mutex في `crystal-db`.
+- Query handlers.
+- Checkout handlers.
+- Pool mutex inside `crystal-db`.
 
-لا تزل synchronization من state قابل للتغيير. الهدف تقليل lock scope وليس
-إخفاء race condition.
+Do not remove synchronization from mutable state. The goal is to reduce lock scope, not to hide a race condition.
 
-## 5. المرحلة الرابعة: prepared statements ومسار SQL
+## 5. Phase 4: Prepared Statements and SQL Path
 
-### 5.1 PostgreSQL prepared statements حقيقية
+### 5.1 Real PostgreSQL Prepared Statements
 
-تحقق من إمكانيات `lib/pg` و`crystal-pg` الحالية. نفّذ named prepared
-statements لكل physical connection مع:
+Verify the capabilities of the current `lib/pg` / `crystal-pg` driver. Implement named prepared statements per physical connection with:
 
-- اسم ثابت وآمن مشتق من query fingerprint.
-- cache محدود أو eviction policy واضحة.
-- invalidation عند connection reconnect.
-- عدم مشاركة statement بين physical connections.
-- fallback آمن إذا كان query dynamic أو driver لا يدعمه.
+- A stable, safe name derived from the query fingerprint.
+- A bounded cache or a clear eviction policy.
+- Invalidation on connection reconnect.
+- No sharing of statements across physical connections.
+- A safe fallback when the query is dynamic or the driver does not support it.
 
-لا تجعل كل SQL متغير بسبب اختلاف عدد placeholders إلا عند الضرورة.
+Do not make every SQL string variable solely due to differing placeholder counts unless necessary.
 
-أضف tests أو protocol-level verification تثبت أن query المتكرر لا يرسل
-Parse/Describe كاملين في كل مرة، إن كان driver يسمح بذلك.
+Add tests or protocol-level verification proving that a repeated query does not send a full Parse / Describe on every execution, where the driver allows it.
 
-قارن:
+Compare:
 
-- statement cache off.
-- default current behavior.
-- named prepared cache.
+- Statement cache off.
+- Current default behavior.
+- Named prepared cache.
 
-قارن throughput وp99، وليس average فقط.
+Compare throughput and p99, not just the average.
 
-### 5.2 تقليل SQL generation والـ allocations
+### 5.2 Reduce SQL Generation and Allocations
 
-في model macros:
+In model macros:
 
-- اجعل INSERT SQL ثابتاً قدر الإمكان ومولداً compile-time.
-- cache quoted table/column names.
-- لا تعيد بناء نفس placeholder lists في كل request.
-- حافظ على dirty tracking في UPDATE.
-- لا تغيّر bind safety.
+- Keep INSERT SQL as stable as possible and generate it at compile time.
+- Cache quoted table / column names.
+- Do not rebuild identical placeholder lists on every request.
+- Preserve dirty tracking for UPDATE.
+- Do not weaken bind safety.
 
-أضف benchmark صغير لمسار `create` و`update` يقيس allocations إن أمكن.
+Add a small benchmark for the `create` and `update` paths that measures allocations where possible.
 
-## 6. المرحلة الخامسة: إصلاح مسار الكتابة
+## 6. Phase 5: Fix the Write Path
 
-### 6.1 JSON parsing مرة واحدة
+### 6.1 Parse JSON Once
 
-عدّل `HTTP::Request` وController API بحيث:
+Update `HTTP::Request` and the controller API so that:
 
-- JSON يُحلل lazy أو مرة واحدة فقط.
-- controller يستخدم `request.json` أو typed body accessor.
-- لا يتم تحويل كل JSON scalars إلى strings ما لم يطلب التطبيق `params`.
-- malformed JSON ينتج behavior موثقاً ومتسقاً.
+- JSON is parsed lazily or at most once.
+- Controllers consume `request.json` or a typed body accessor.
+- JSON scalars are not coerced to strings unless the application explicitly accesses `params`.
+- Malformed JSON produces documented, consistent behavior.
 
-أضف specs تثبت:
+Add specs proving:
 
-- JSON parse يحدث مرة واحدة.
-- nested JSON يبقى متاحاً.
-- form params لا تتأثر.
-- precedence بين route/query/form/json لا تتغير.
+- JSON parsing occurs once.
+- Nested JSON remains accessible.
+- Form params are unaffected.
+- Precedence among route / query / form / JSON params is unchanged.
 
-### 6.2 uniqueness validation
+### 6.2 Uniqueness Validation
 
-حسّن validation بحيث:
+Improve validation so that:
 
-- توثق أنها optimization لا guarantee.
-- تقترح أو تتحقق من unique index في schema.
-- لا تنفذ query إذا كانت القيمة غير معدلة في update.
-- تستفيد من prepared statement ثابت.
-- تتعامل مع constraint violation كحالة validation مناسبة.
+- It is documented as an optimization, not a guarantee.
+- It suggests or verifies a unique index in the schema.
+- It does not execute a query when the value is unchanged on update.
+- It benefits from a stable prepared statement.
+- It handles a constraint violation as an appropriate validation outcome.
 
-أضف spec لعدم تكرار uniqueness query عند no-op update، وspec لـ race
-بين recordين على PostgreSQL.
+Add a spec for skipping the uniqueness query on a no-op update, and a race spec for two records on PostgreSQL.
 
-### 6.3 transaction overhead
+### 6.3 Transaction Overhead
 
-راجع policy لكل عملية:
+Review the policy for each operation:
 
-- plain insert/update بلا callbacks: statement واحد حيثما أمكن.
-- plain delete بلا callbacks أو dependent behavior: لا transaction إضافية
-  إذا كان ذلك آمناً.
-- callbacks وdependent behavior: حافظ على atomicity.
-- لا تجعل callback يفتح nested transaction غير ضرورية.
+- Plain insert / update without callbacks: a single statement where possible.
+- Plain delete without callbacks or dependent behavior: no extra transaction if that is safe.
+- Callbacks and dependent behavior: preserve atomicity.
+- Do not let a callback open an unnecessary nested transaction.
 
-أضف query-count specs لكل مسار، مع الحفاظ على rollback semantics.
+Add query-count specs for each path while preserving rollback semantics.
 
-### 6.4 dependent deletion
+### 6.4 Dependent Deletion
 
-أبقِ `dependent: :destroy` callback semantics كما هي، لكن حسّن الحالات:
+Preserve `dependent: :destroy` callback semantics, but improve the remaining cases:
 
-- `:delete_all`: bulk DELETE واحد.
-- `:nullify`: bulk UPDATE واحد.
-- `:destroy`: وضّح cost per child وقياسه.
-- تجنب savepoint لكل child إذا كان parent transaction موجوداً ويمكن تنفيذ
-  destroy callback بدون transaction wrapper إضافي.
-- أضف حماية من parent له آلاف children، مع instrumentation يوضح amplification.
+- `:delete_all`: a single bulk DELETE.
+- `:nullify`: a single bulk UPDATE.
+- `:destroy`: document and measure the per-child cost.
+- Avoid a savepoint per child when a parent transaction already exists and the destroy callback can execute without an additional transaction wrapper.
+- Add protection for a parent with thousands of children, with instrumentation that exposes the amplification.
 
-## 7. المرحلة السادسة: SQLite write path
+## 7. Phase 6: SQLite Write Path
 
-### 7.1 writer admission
+### 7.1 Writer Admission
 
-أضف policy صريحة لـ SQLite:
+Add an explicit policy for SQLite:
 
-- خيار `db_max_active_writes` أو equivalent.
-- default محافظ لا يسمح بتنافس writers غير المحدود.
-- لا تمنع القراءات بلا داعٍ عند استخدام WAL.
-- لا تطبق تحسيناً يقلل durability بصمت.
+- An option such as `db_max_active_writes` or equivalent.
+- A conservative default that does not allow unbounded writer contention.
+- No unnecessary blocking of reads when WAL is in use.
+- No optimization that silently reduces durability.
 
-### 7.2 durability وPRAGMA configuration
+### 7.2 Durability and PRAGMA Configuration
 
-اجعل الخيارات المهمة قابلة للتهيئة، مثل:
+Make critical options configurable, such as:
 
 - `journal_mode`.
 - `synchronous`.
 - `busy_timeout`.
 - WAL checkpoint policy.
 
-يجب أن تبقى default values آمنة ومُوثقة. أضف adapter specs تتحقق من
-القيم الفعلية، لا من config فقط.
+Defaults must remain safe and documented. Add adapter specs that assert the actual applied values, not just the configuration.
 
-### 7.3 SQLite tests
+### 7.3 SQLite Tests
 
-اختبر:
+Test:
 
-- concurrent writes.
-- read/write concurrency في WAL.
-- busy timeout.
-- writer timeout.
-- connection cleanup بعد SQLite error.
-- عدم ظهور `SQLITE_BUSY` غير متوقع تحت load محدود.
+- Concurrent writes.
+- Read / write concurrency under WAL.
+- Busy timeout.
+- Writer timeout.
+- Connection cleanup after an SQLite error.
+- No unexpected `SQLITE_BUSY` under bounded load.
 
-## 8. المرحلة السابعة: pool sizing وgeneral HTTP latency
+## 8. Phase 7: Pool Sizing and General HTTP Latency
 
-### 8.1 pool defaults
+### 8.1 Pool Defaults
 
-راجع العلاقة بين:
+Review the relationship between:
 
 - `db_initial_pool_size`.
 - `db_max_idle_pool_size`.
 - `db_max_pool_size`.
 
-لا تستخدم `max_idle=2` مع `max_pool=10` كـ warm pool بدون دليل قياسي.
-إما اجعل max idle قريباً من max pool في sustained workloads، أو وثق أن
-الإغلاق مقصود وقدم config profile للـ burst workloads.
+Do not present `max_idle=2` with `max_pool=10` as a warm pool without measurement evidence. Either make max idle close to max pool for sustained workloads, or document that reaping is intentional and provide a configuration profile for burst workloads.
 
-أضف pool churn benchmark يقيس connection opens/closes لكل دقيقة.
+Add a pool-churn benchmark that measures connection opens / closes per minute.
 
-### 8.2 request logger
+### 8.2 Request Logger
 
-اجعل request logging قابلاً لـ:
+Make request logging capable of:
 
-- disable في production.
-- sampling.
-- مستوى log مختلف للـ health checks.
-- عدم جعل sink بطيئاً يوقف request fibers.
+- Being disabled in production.
+- Sampling.
+- Using a distinct log level for health checks.
+- Not stalling request fibers due to a slow sink.
 
-أضف benchmark `/health` مع logger enabled/disabled.
+Add a `/health` benchmark with the logger enabled vs. disabled.
 
-### 8.3 static middleware
+### 8.3 Static Middleware
 
-حسّن static serving بحيث:
+Improve static serving so that it:
 
-- لا يقرأ الملف كاملاً إلى الذاكرة.
-- يستخدم streaming أو sendfile-compatible path.
-- يضيف cache headers وETag عند الحاجة.
-- لا يفحص filesystem لكل API request إذا كان static path prefix معروفاً.
+- Does not read the entire file into memory.
+- Uses streaming or a sendfile-compatible path.
+- Adds cache headers and ETag where appropriate.
+- Does not hit the filesystem on every API request when the static path prefix is known.
 
-أضف benchmark لملفات صغيرة وكبيرة مع p99 وRSS.
+Add benchmarks for small and large files with p99 and RSS.
 
-### 8.4 request body handling
+### 8.4 Request Body Handling
 
-لا تقرأ أو تحلل body أكثر مما يحتاجه route. حافظ على max body size وchunked
-request protection. أضف tests لعدم استهلاك body مرتين.
+Do not read or parse the body beyond what the route requires. Preserve max body size and chunked-request protection. Add tests that the body is not consumed twice.
 
-## 9. اختبار correctness والـ regression
+## 9. Correctness and Regression Testing
 
-كل إصلاح يحتاج spec قبل أو مع الإصلاح، وتشمل المجموعة:
+Every fix requires a spec before or alongside the fix. The suite must cover:
 
-- connection initialization races.
-- connection close/reopen races.
-- checkout timeout.
-- query timeout.
-- gate timeout وpermit release.
-- query timing separation.
-- query hooks عند failure.
+- Connection initialization races.
+- Connection close / reopen races.
+- Checkout timeout.
+- Query timeout.
+- Gate timeout and permit release.
+- Query timing separation.
+- Query hooks on failure.
 - PostgreSQL named preparation.
-- JSON parse مرة واحدة.
-- no-op update.
-- uniqueness/index behavior.
-- callback transaction rollback.
-- dependent deletion.
+- Single JSON parse.
+- No-op update.
+- Uniqueness / index behavior.
+- Callback transaction rollback.
+- Dependent deletion.
 - SQLite concurrent writes.
-- static streaming.
-- logger disabled/sampled.
+- Static streaming.
+- Logger disabled / sampled.
 
-شغّل بعد كل مرحلة:
+After each phase, run:
 
 ```bash
 crystal tool format --check src spec examples
@@ -415,85 +387,81 @@ crystal spec
 crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
 ```
 
-شغّل PostgreSQL contract suite مع `ALTAIR_TEST_PG_URL`، ولا تعتبر pending
-الخاص بها نجاحاً كاملاً لمسار PostgreSQL.
+Run the PostgreSQL contract suite with `ALTAIR_TEST_PG_URL`. Do not treat its pending state as full success for the PostgreSQL path.
 
-## 10. benchmark protocol النهائي
+## 10. Final Benchmark Protocol
 
-أنشئ benchmark matrix ثابتة:
+Establish a fixed benchmark matrix:
 
 ### Workloads
 
-- health/no DB.
+- Health / no DB.
 - PostgreSQL read.
 - PostgreSQL single-row insert.
 - PostgreSQL update.
 - PostgreSQL delete.
 - SQLite read.
 - SQLite write.
-- validation write.
-- callback write.
-- large cascade delete.
+- Validation write.
+- Callback write.
+- Large cascade delete.
 
 ### Configurations
 
-- pool صغير.
-- pool متوسط.
-- pool كبير.
-- admission gate off.
-- gate مساوي للـ pool.
-- gate أقل من pool.
-- prepared cache off/current.
-- prepared cache on.
-- logger/static enabled.
-- logger/static disabled.
+- Small pool.
+- Medium pool.
+- Large pool.
+- Admission gate off.
+- Gate equal to pool.
+- Gate smaller than pool.
+- Prepared cache off / current.
+- Prepared cache on.
+- Logger / static enabled.
+- Logger / static disabled.
 
 ### Protocol
 
-- نفس commit ونفس binary لكل run.
-- نفس CPU/memory limits.
-- PostgreSQL منفصل عن host عند الإمكان.
-- warm-up منفصل ولا يدخل percentiles النهائية.
-- sustained phase ثابتة.
-- خمس runs على الأقل لكل configuration.
-- أبلغ median وrange بين runs.
-- لا تقارن تطبيقات تغيرت محلياً دون تسجيل ذلك.
-- احفظ raw k6 JSON وserver logs وDB metrics.
+- Same commit and same binary for every run.
+- Same CPU / memory limits.
+- PostgreSQL separate from the host where possible.
+- Separate warm-up phase excluded from final percentiles.
+- Fixed sustained phase.
+- At least five runs per configuration.
+- Report median and range across runs.
+- Do not compare locally modified applications without recording the change.
+- Preserve raw k6 JSON, server logs, and DB metrics.
 
-### Acceptance targets
+### Acceptance Targets
 
-لا تستخدم أرقاماً مطلقة قبل baseline، لكن يجب تحقيق الآتي:
+Do not use absolute numbers before establishing a baseline, but the following must hold:
 
-- لا query تتجاوز timeout المحدد وتحتجز pool بلا نهاية.
-- لا gate waiter ينتظر بلا deadline.
-- لا connection leak بعد query/transaction timeout أو exception.
-- p99 وp99.9 يتحسنان تحت pool saturation مقارنة بـ baseline.
-- write p99 لا يسوء في الحمل الطبيعي.
-- SQLite لا ينهار إلى busy/timeout تحت الحمل المدعوم.
-- no regression في throughput ضمن هامش متفق عليه.
-- جميع specs وformatter وAmeba خضراء.
+- No query exceeds the configured timeout and holds the pool indefinitely.
+- No gate waiter waits without a deadline.
+- No connection leak after a query / transaction timeout or exception.
+- p99 and p99.9 improve under pool saturation compared to the baseline.
+- Write p99 does not regress under normal load.
+- SQLite does not collapse into busy / timeout under the supported load.
+- No throughput regression outside the agreed margin.
+- All specs, formatter, and Ameba checks are green.
 
-## 11. التوثيق والتسليم
+## 11. Documentation and Delivery
 
-حدّث:
+Update:
 
-- `CHANGELOG.md` تحت `[Unreleased]`.
-- `docs/architecture/performance-audit.md` مع فصل findings القديمة عن
-  findings التي أُغلقت فعلياً.
-- docs الخاصة بـ Record وconfiguration.
-- benchmark README بحيث يطابق scripts والنتائج الفعلية.
+- `CHANGELOG.md` under `[Unreleased]`.
+- `docs/architecture/performance-audit.md`, clearly separating historical findings from findings that have actually been closed.
+- Record and configuration documentation.
+- The benchmark README so that it matches the actual scripts and results.
 
-في نهاية التنفيذ، سلّم تقريراً يحتوي على:
+At the end of execution, deliver a report containing:
 
-1. قائمة الملفات المعدلة.
-2. كل issue وما إذا كان fixed أو deferred مع السبب.
-3. قبل/بعد لكل p50/p95/p99/p99.9/max.
-4. query count وcheckout wait وSQL time.
-5. عدد الاتصالات المفتوحة وconnection churn.
-6. نتائج SQLite وPostgreSQL بشكل منفصل.
-7. أوامر الاختبار ومخرجاتها.
-8. أي قيود بيئية أو pending specs.
+1. List of modified files.
+2. Each issue and whether it was fixed or deferred, with rationale.
+3. Before / after for p50 / p95 / p99 / p99.9 / max.
+4. Query count, checkout wait, and SQL time.
+5. Number of open connections and connection churn.
+6. SQLite and PostgreSQL results separately.
+7. Test commands and their outputs.
+8. Any environmental constraints or pending specs.
 
-لا تعتبر المهمة مكتملة بمجرد أن تمر specs؛ يجب أن تثبت القياسات أن tail
-latency أصبح قابلاً للتوقع وأن مسار الكتابة لم يعد يحتجز pool أو يضيف
-round trips غير ضرورية.
+The task is not considered complete once specs pass; measurements must demonstrate that tail latency is now predictable and that the write path no longer holds the pool or adds unnecessary round trips.
