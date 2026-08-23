@@ -304,5 +304,22 @@ module Altair::CLI
         expect_raises(Altair::Error) { Generators::New.new("blog").generate }
       end
     end
+
+    it "embeds a comprehensive agent skill into every new project" do
+      in_tempdir do
+        Generators::New.new("blog", "/tmp/fake-framework").generate
+        File.exists?("blog/AGENTS.md").should be_true
+        File.read("blog/AGENTS.md").should contain("Altair")
+        File.exists?("blog/.opencode/skills/altair/SKILL.md").should be_true
+        File.read("blog/.opencode/skills/altair/SKILL.md").should contain("Altair")
+        File.read("blog/.opencode/skills/altair/SKILL.md").should contain("description:")
+        # reference index
+        File.exists?("blog/.opencode/skills/altair/reference/routing.md").should be_true
+        File.exists?("blog/.opencode/skills/altair/reference/controllers.md").should be_true
+        File.exists?("blog/.opencode/skills/altair/reference/record.md").should be_true
+        File.read("blog/.opencode/skills/altair/reference/record.md").should contain("Altair::Record")
+        File.exists?("blog/.opencode/skills/altair/reference/testing.md").should be_true
+      end
+    end
   end
 end
