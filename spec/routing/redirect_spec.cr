@@ -12,6 +12,8 @@ class RedirectApp < Altair::Application
   routes do
     redirect "/old/draft", to: "/posts"
     redirect "/legacy/about", to: "/about"
+    redirect "/t/:id", to: "/tweets/:id"
+    redirect "/users/:user_id/posts/:id", to: "/members/:user_id/entries/:id?from=legacy"
     namespace :admin do
       redirect "/old", to: "/admin/posts"
     end
@@ -54,6 +56,21 @@ describe "redirect routes" do
     match = redirect_router.find("GET", "/legacy/about.html")
     match.should_not be_nil
     match.not_nil!.params["format"].should eq("html")
+  end
+
+  it "interpolates route parameters and preserves the format suffix" do
+    with_redirect_server do |port|
+      response = HTTP::Client.get("http://127.0.0.1:#{port}/t/5.json")
+      response.status_code.should eq(301)
+      response.headers["Location"].should eq("/tweets/5.json")
+    end
+  end
+
+  it "interpolates multiple parameters before a query string" do
+    with_redirect_server do |port|
+      response = HTTP::Client.get("http://127.0.0.1:#{port}/users/9/posts/42")
+      response.headers["Location"].should eq("/members/9/entries/42?from=legacy")
+    end
   end
 end
 

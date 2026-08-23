@@ -37,6 +37,32 @@ module Altair
     # errors. Applications may swap it for their own `Log` instance.
     property logger : Log = Log.for("altair")
 
+    # The application cache. It stays local by default; assign another
+    # `Altair::Cache::Store` when values must be shared across processes.
+    property cache : Altair::Cache::Store = Altair::Cache::MemoryStore.new
+
+    # The backend that persists uploaded application files.
+    property storage : Altair::Storage::Store = Altair::Storage::DiskStore.new(Path.new(Dir.current).join("public/uploads"))
+
+    # Enables built-in liveness and Prometheus-compatible metrics endpoints.
+    property? observability : Bool = false
+
+    # When enabled, the request logger emits one JSON object per request
+    # (method, path, status, duration, request_id) instead of aligned text.
+    # Cookies, Authorization and request bodies are never included.
+    property? structured_logs : Bool = false
+
+    # The liveness endpoint served before route dispatch when observability
+    # is enabled.
+    property health_path : String = "/health"
+
+    # The metrics endpoint served before route dispatch when observability
+    # is enabled.
+    property metrics_path : String = "/metrics"
+
+    # The WebSocket endpoint used by `Altair::Cable`.
+    property cable_path : String = "/cable"
+
     # Whether console colors are enabled. `nil` (the default) auto-detects
     # from `STDOUT.tty?` and `NO_COLOR`/`TERM`; `true`/`false` forces it.
     property logger_colors : Bool? = nil

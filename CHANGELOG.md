@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Dynamic redirect**: `redirect "/t/:id", to: "/tweets/:id"` now interpolates route params into the Location header and preserves format suffixes.
+- **Cache layer**: `Altair::Cache::MemoryStore` with bounded entries, TTL expiry, `fetch` block; accessible as `Altair.cache`.
+- **API mode**: `altair new --api` generates a JSON-only project (no views/assets) with CORS enabled.
+- **Observability**: `/health` and `/metrics` endpoints (Prometheus format) behind `config.observability = true`.
+- **Storage abstraction** — `DiskStore` (local uploads under `public/uploads/`) and `S3Store` (AWS SigV4, path-style and virtual-hosted); both share a common `upload/delete/url` contract.
+- **`has_one_attached` macro**: attach/purge files against any persisted model via lazy `altair_attachments` table; PG-compatible placeholders.
+- **WebSocket (`Altair::Cable`)**: channel-based broadcaster at `/cable` with automatic subscriber cleanup.
+- **Admin generator**: `altair g admin Post` writes a namespaced controller with `require_login` and registers `/admin/posts` routes.
+- **Structured logs**: `config.structured_logs = true` emits one JSON object per request (method/path/status/duration/request_id).
+
+
 ### Fixed
 
 - **`IN (...)` chunking in preload loaders**: eager loading (`includes`,

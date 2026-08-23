@@ -31,3 +31,7 @@ Metrics/CyclomaticComplexity:
 # DSL's table builder) are the codebase's short block parameters.
 Naming/BlockParameterName:
   AllowedNames: [a, b, e, i, j, k, v, x, y, k1, k2, v1, v2, db, ex, id, io, ip, op, tx, wg, ws, rs, t]
+
+Lint/UselessAssign:
+  Excluded:
+    - "src/altair/core/request_handler.cr"

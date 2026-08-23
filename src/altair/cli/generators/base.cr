@@ -172,7 +172,7 @@ module Altair
           path = Path.new("src/config/routes.cr")
           lines = File.read_lines(path)
 
-          return path if lines.any? { |line| new_lines.includes?(line.strip) }
+          return path if new_lines.first?.try { |first| lines.any? { |line| line.strip == first } }
 
           open = lines.index(&.includes?("routes do"))
           close = open.try { |i| (i + 1...lines.size).find { |j| lines[j].strip == "end" } }

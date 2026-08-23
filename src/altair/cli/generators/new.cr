@@ -18,14 +18,14 @@ module Altair
       class New
         include Base
 
-        # Runs `altair new <name> [--framework-path <path>]`. Reads the
+        # Runs `altair new <name> [--api] [--framework-path <path>]`. Reads the
         # framework path from a `--framework-path` flag or the
         # `ALTAIR_PATH` environment variable, defaulting to `nil` (GitHub).
         # The name may include a path, e.g. `altair new a/b` or
         # `/tmp/my_app`; only its basename becomes the application name.
         # Returns the process exit code.
         def self.run(args : Array(String)) : Int32
-          framework_path, remaining = parse_args(args)
+          framework_path, api, remaining = parse_args(args)
           framework_path = resolve_framework_path(framework_path)
 
           name = remaining.first?
@@ -37,15 +37,16 @@ module Altair
           end
 
           begin
-            New.new(name, framework_path).generate
+            New.new(name, framework_path, api).generate
           rescue ex : Altair::Error
             abort ex.message || ex.to_s
           end
           0
         end
 
-        private def self.parse_args(args : Array(String)) : {String?, Array(String)}
+        private def self.parse_args(args : Array(String)) : {String?, Bool, Array(String)}
           framework_path = nil
+          api = false
           remaining = [] of String
           index = 0
           while index < args.size
@@ -56,12 +57,15 @@ module Altair
             elsif arg.starts_with?("--framework-path=")
               framework_path = arg.split("=", 2)[1]? || ""
               index += 1
+            elsif arg == "--api"
+              api = true
+              index += 1
             else
               remaining << arg
               index += 1
             end
           end
-          {framework_path, remaining}
+          {framework_path, api, remaining}
         end
 
         private def self.resolve_framework_path(path : String?) : String?
@@ -88,7 +92,10 @@ module Altair
         # directory, otherwise the shard is fetched from GitHub.
         getter framework_path : String?
 
-        def initialize(raw_name : String, @framework_path : String? = nil)
+        # Whether this project exposes only JSON endpoints.
+        getter? api : Bool
+
+        def initialize(raw_name : String, @framework_path : String? = nil, @api : Bool = false)
           @raw_name = raw_name
           @name = Path.new(raw_name).basename.to_s
           if @name.empty? || @name == "." || @name == ".."
@@ -194,7 +201,7 @@ module Altair
             {".opencode/skills/altair/reference/middleware.md", ref_middleware},
             {".opencode/skills/altair/reference/cli.md", ref_cli},
             {".opencode/skills/altair/reference/gotchas.md", ref_gotchas},
-          ]
+          ].reject { |path, _| api? && (path.starts_with?("src/app/views/") || path.starts_with?("public/") || path == ".opencode/skills/altair/reference/views.md" || path == ".opencode/skills/altair/reference/assets.md") }
         end
 
         # The shard metadata. `framework_path` pins a local checkout;
@@ -313,6 +320,7 @@ module Altair
             io << "class #{app_class} < Altair::Application\n"
             io << "  config.name = \"#{app_class}\"\n"
             io << "  config.port = 3000\n"
+            io << "  config.cors.origins = [\"*\"]\n" if api?
             io << "end\n"
             io << "\n"
             io << "# Database and secrets come from `config/database.yml` and\n"
@@ -883,6 +891,13 @@ module Altair
           ```
 
           Custom primary keys: `table :posts, primary_key: :uuid` — string PKs auto-generate UUID.
+
+          Cache: `Altair.cache.fetch("key", expires_in: 5.minutes) { compute }`.
+          Storage: `Altair.storage.upload(file)` / `Altair.storage.url(key)` (Disk or S3).
+          Attachments: `has_one_attached :avatar` → `model.attach_avatar(upload)` / `model.avatar` / `model.purge_avatar`.
+          WebSocket: `Altair::Cable.broadcast("channel", message)`; endpoint at `/cable`.
+
+          API mode: `altair new app --api` generates JSON-only project with CORS.
 
           Migrations: `t.references :commentable, polymorphic: true` generates the id/type pair + composite index; `bin/altair db:migrate` regenerates `db/schema.cr`. Never hand-edit schema.
 

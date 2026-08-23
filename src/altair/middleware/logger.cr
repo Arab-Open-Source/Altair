@@ -27,6 +27,11 @@ class Altair::Middleware::Logger < Altair::Middleware
 
   private def format_line(request : Altair::HTTP::Request, response : Altair::HTTP::Response, elapsed_ms : Float64) : String
     config = app.config
+
+    if config.structured_logs?
+      return format_json(request, response, elapsed_ms)
+    end
+
     colors = Altair::Support::ANSI.enabled?(config.logger_colors)
     elapsed_str = "#{elapsed_ms.round(1)}ms"
     status = response.status.value
@@ -83,6 +88,22 @@ class Altair::Middleware::Logger < Altair::Middleware
       if id = request.request_id
         io << " (" << id << ")"
       end
+    end
+  end
+
+  # One JSON object per request — safe for log aggregators. Never includes
+  # cookies, Authorization headers or request bodies.
+  private def format_json(request : Altair::HTTP::Request, response : Altair::HTTP::Response, elapsed_ms : Float64) : String
+    String.build do |io|
+      io << "{\"method\":\""
+      io << request.method << "\",\"path\":\""
+      io << request.path << "\",\"status\":"
+      io << response.status.value << ",\"duration_ms\":"
+      io << elapsed_ms.round(1)
+      if id = request.request_id
+        io << ",\"request_id\":\"" << id << "\""
+      end
+      io << "}"
     end
   end
 

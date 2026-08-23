@@ -50,6 +50,8 @@ class Altair::Core::RequestHandler
   def call(context : ::HTTP::Server::Context) : Nil
     Altair::Record::NDetector.begin_request
     request = nil
+    response = nil
+    started = Time.instant
     begin
       request = Altair::HTTP::Request.new(context.request, max_body_size: @app.config.max_body_size)
       response = Altair::HTTP::Response.new(context.response)
@@ -58,6 +60,9 @@ class Altair::Core::RequestHandler
       handle_error(context, request, exception)
     ensure
       Altair::Record::NDetector.end_request
+      if @app.config.observability?
+        Altair::Observability.metrics.record(context.response.status.value, Time.instant - started)
+      end
     end
   end
 
@@ -76,7 +81,12 @@ class Altair::Core::RequestHandler
   end
 
   private def dispatch(request : Altair::HTTP::Request, response : Altair::HTTP::Response) : Nil
-    if @router.empty? && request.path == "/"
+    if @app.config.observability? && request.path == @app.config.health_path
+      response.json(%({"status":"ok"}))
+    elsif @app.config.observability? && request.path == @app.config.metrics_path
+      response.headers["Content-Type"] = "text/plain; version=0.0.4; charset=utf-8"
+      response.print(Altair::Observability.metrics.to_prometheus)
+    elsif @router.empty? && request.path == "/"
       render_welcome(response)
     else
       resolution = @router.resolve(effective_method(request), request.path)

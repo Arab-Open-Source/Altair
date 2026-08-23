@@ -16,6 +16,7 @@ module Altair
         "controller" => Generators::Controller,
         "scaffold"   => Generators::Scaffold,
         "auth"       => Generators::Auth,
+        "admin"      => Generators::Admin,
       }
 
       # Runs the generator named by `args[0]` with the remaining arguments.
@@ -39,6 +40,9 @@ module Altair
           name = required_name(rest, type)
           cols = rest.size > 1 ? rest[1..] : [] of String
           Generators::Scaffold.new(name, Base.parse_columns(cols)).generate
+          0
+        when "admin"
+          Generators::Admin.new(required_name(rest, type)).generate
           0
         when "auth"
           name = rest.first?
@@ -98,6 +102,7 @@ module Altair
             altair generate controller <Name>
             altair generate scaffold <Name> [column:type ...]
             altair generate auth [User]
+          altair generate admin <Name>
 
           Columns accept a type after a colon (defaults to string):
           title:string body:text price:float published:boolean

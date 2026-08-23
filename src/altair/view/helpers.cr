@@ -144,6 +144,12 @@ module Altair
         Altair::Assets.url(root, logical)
       end
 
+      # Caches a rendered fragment. The block runs only for a cache miss and
+      # its returned HTML is intentionally left raw for template output.
+      def cache(key : String, expires_in : Time::Span? = nil, &block : -> String) : String
+        Altair.cache.fetch(key, expires_in) { block.call }
+      end
+
       # Translates an attribute name: `hx_post` becomes `hx-post`,
       # `data_id` becomes `data-id`, and plain names are untouched.
       def attribute_name(key : Symbol) : String

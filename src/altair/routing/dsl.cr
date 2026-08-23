@@ -1517,7 +1517,7 @@ abstract class Altair::Application
       name: nil,
       handler: ->(request : Altair::HTTP::Request, response : Altair::HTTP::Response) {
         response.status = ::HTTP::Status::MOVED_PERMANENTLY
-        response.headers["Location"] = {{ to }}
+        response.headers["Location"] = Altair::Routing.redirect_location({{ to }}, request.params.to_h)
       }
     )
   end
@@ -1549,5 +1549,22 @@ abstract class Altair::Application
         {{ expr }}
       {% end %}
     {% end %}
+  end
+end
+
+module Altair::Routing
+  # Expands route parameters in a redirect destination and preserves an
+  # implicit format suffix when the destination does not name one itself.
+  def self.redirect_location(destination : String, params : Hash(String, String)) : String
+    expanded = destination
+    params.each do |name, value|
+      expanded = expanded.gsub(":#{name}", URI.encode_path(value))
+    end
+
+    format = params["format"]?
+    return expanded if format.nil? || destination.includes?(":format")
+
+    path, query = expanded.partition('?')
+    "#{path}.#{URI.encode_path(format)}#{query.empty? ? "" : "?#{query}"}"
   end
 end

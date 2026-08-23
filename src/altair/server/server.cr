@@ -18,7 +18,7 @@ class Altair::Server
   getter http_server : ::HTTP::Server
 
   def initialize(@app : Altair::Application, @handler : ::HTTP::Handler)
-    @http_server = ::HTTP::Server.new([@handler])
+    @http_server = ::HTTP::Server.new([Altair::Cable::Handler.new(@app), @handler])
   end
 
   # Binds the server to the application's configured host and port, or to

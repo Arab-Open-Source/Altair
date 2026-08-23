@@ -64,6 +64,18 @@ module Altair::CLI
   end
 
   describe Generators do
+    describe "new --api" do
+      it "generates a JSON-only project with CORS enabled" do
+        in_tempdir do
+          app = Generators::New.new("api_blog", nil, true)
+          app.generate
+          File.read("api_blog/src/config/application.cr").should contain "config.cors.origins = [\"*\"]"
+          File.exists?("api_blog/src/app/views/layouts/application.ecr").should be_false
+          File.exists?("api_blog/public/css/app.css").should be_false
+        end
+      end
+    end
+
     describe "model" do
       it "writes a classified model file into src/app/models" do
         in_tempdir do
@@ -295,6 +307,23 @@ module Altair::CLI
       in_tempdir do
         Generators::New.new("blog").generate
         File.read("blog/shard.yml").should contain "github: Arab-Open-Source/Altair"
+      end
+    end
+
+    it "generates an admin controller with require_login" do
+      in_tempdir do
+        Dir.mkdir_p("src/config")
+        File.write("src/config/routes.cr", "class Blog\n  routes do\n  end\nend\n")
+
+        Generators::Admin.new("Post").generate
+
+        controller = File.read("src/app/controllers/admin/posts_controller.cr")
+        controller.should contain("Admin::PostsController")
+        controller.should contain("before_action :require_login")
+
+        routes = File.read("src/config/routes.cr")
+        routes.should contain("namespace :admin do")
+        routes.should contain("resources :posts")
       end
     end
 
