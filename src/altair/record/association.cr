@@ -273,7 +273,7 @@ module Altair
               target_table = {{ model.id }}.table_name
               join_table = {{ through_node.stringify }}
               source_fk = {{ "#{source_node}_id".id.stringify }}
-              through_fk = "{{ @type.name.id.underscore }}_id"
+              through_fk = Altair::Inflector.singularize(TABLE_NAME) + "_id"
               sql = "SELECT DISTINCT #{connection.adapter.quote_identifier(target_table)}.* FROM #{connection.adapter.quote_identifier(target_table)} " \
                     "INNER JOIN #{connection.adapter.quote_identifier(join_table)} ON #{connection.adapter.quote_identifier(target_table)}.#{connection.adapter.quote_identifier("id")} = #{connection.adapter.quote_identifier(join_table)}.#{connection.adapter.quote_identifier(source_fk)} " \
                     "WHERE #{connection.adapter.quote_identifier(join_table)}.#{connection.adapter.quote_identifier(through_fk)} = #{connection.adapter.placeholder(0)} " \
@@ -303,7 +303,7 @@ module Altair
             target_table = {{ model.id }}.table_name
             join_table = {{ through_node.stringify }}
             source_fk = {{ "#{source_node}_id".id.stringify }}
-            through_fk = "{{ @type.name.id.underscore }}_id"
+            through_fk = Altair::Inflector.singularize(TABLE_NAME) + "_id"
             sql2 = "SELECT DISTINCT #{connection.adapter.quote_identifier(target_table)}.*, #{connection.adapter.quote_identifier(join_table)}.#{connection.adapter.quote_identifier(through_fk)} FROM #{connection.adapter.quote_identifier(target_table)} " \
                    "INNER JOIN #{connection.adapter.quote_identifier(join_table)} ON #{connection.adapter.quote_identifier(target_table)}.#{connection.adapter.quote_identifier("id")} = #{connection.adapter.quote_identifier(join_table)}.#{connection.adapter.quote_identifier(source_fk)} " \
                    "WHERE #{connection.adapter.quote_identifier(join_table)}.#{connection.adapter.quote_identifier(through_fk)} IN (#{placeholders.join(", ")}) " \
