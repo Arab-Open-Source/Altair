@@ -875,7 +875,14 @@ module Altair
           belongs_to :commentable, polymorphic: true   # commentable_id + commentable_type
           has_many :comments, as: :commentable, dependent: :destroy
           comment.commentable                          # Post or Video, by type column
+
+          # Ordering accumulates:
+          Post.all.order(:created_at).order(:title)    # ORDER BY created_at, title
+          Post.all.reorder(:title)                     # replaces existing orders
+          post.reload                                  # re-reads from database
           ```
+
+          Custom primary keys: `table :posts, primary_key: :uuid` — string PKs auto-generate UUID.
 
           Migrations: `t.references :commentable, polymorphic: true` generates the id/type pair + composite index; `bin/altair db:migrate` regenerates `db/schema.cr`. Never hand-edit schema.
 

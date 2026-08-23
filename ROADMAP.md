@@ -22,7 +22,7 @@ generators on top of that stack.
 | 4 | ORM (`Altair::Record`, 3 waves) | Completed |
 | 5 | CLI + Generators & scaffolding | Completed |
 | 6 | Hardening (sessions, flash, CSRF, config, security) | Completed |
-| 7 | Post-release features | Mostly completed — jobs, auth, assets, testing utilities, `joins` and `has_many :through`/polymorphic shipped; only console (deferred) remains |
+| 7 | Post-release features | Completed — jobs, auth, assets, testing utilities, joins, has_many :through/polymorphic, and Wave 0 ORM hardening (IN chunking, custom PK + UUID, atomic writes, order/reload) all shipped; only console (deferred) remains |
 | 8 | Database ergonomics | Planned — `altair new -d postgresql` and `bin/altair db:create` |
 | 9 | CLI ergonomics | Planned — destroy, job generator, db:status, server flags, assets/jobs helpers |
 | 10 | Router ergonomics | Planned — dynamic redirect interpolation |

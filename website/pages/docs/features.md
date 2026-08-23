@@ -149,6 +149,19 @@ Four features shipped, demonstrated end to end in `examples/blog`:
   `t.references :x, polymorphic: true` migration helper generates the
   id/type pair plus composite index
 
+### ORM hardening (Wave 0)
+
+- **`IN (...)` chunking** — eager loading splits oversized id lists at 500 binds,
+  so large collections never trip SQLite's variable limit
+- **Custom primary keys** — `table :posts, primary_key: :uuid`; string PKs
+  auto-generate `SecureRandom.uuid` before insert
+- **Ordering** — `order` accumulates (`order(:a).order(:b)` = `ORDER BY a, b`);
+  `reorder` replaces; `unscope_order` clears
+- **Reloading** — `Relation#reload` re-runs the query; `Model#reload`
+  re-reads attributes from the database
+- **Atomic writes** — `db/schema.cr` written via tmp+rename;
+  `db:migrate` acquires PG advisory lock against concurrent races
+
 ## What is planned next
 
 - **Phase 8 candidate:** multi-tenancy

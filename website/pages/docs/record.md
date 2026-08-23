@@ -278,6 +278,27 @@ Post.all.joins(:comments).where("comments.body", "hi").count   # COUNT(DISTINCT 
 with three matching comments appears once. Qualified columns (`"comments.body"`)
 are quoted per part; every value is still a bind parameter.
 
+## Ordering & reloading
+
+```crystal
+Post.all.order(:created_at).order(:title)       # ORDER BY created_at, title (accumulates)
+Post.all.order(:created_at).reorder(:title)     # ORDER BY title (replaces)
+Post.all.unscope_order                          # removes all ORDER BY
+
+post = Post.find!(1)
+post.reload                                     # re-reads from DB
+```
+
+## Custom primary keys
+
+```crystal
+table :posts, primary_key: :uuid   # column must exist in the migration
+```
+
+String PKs auto-generate a `SecureRandom.uuid` before insert. All finders,
+loaders, updates and deletes respect the custom name.
+
+## has_many :through
 ## has_many :through
 
 ```crystal

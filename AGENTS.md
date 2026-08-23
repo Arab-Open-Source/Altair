@@ -41,7 +41,7 @@ Nothing ships unless someone can look at it, click it, and see it work.
 - **Phases 0–5 done** (Foundation, Router, Controllers, Views, Record/ORM,
   CLI + Generators). `examples/blog` is the always-running persistence demo
   — its posts and comments survive restarts.
-- 817 specs passing (6 pending: the PostgreSQL concurrency contract
+- 848 specs passing (6 pending: the PostgreSQL concurrency contract
   tests, plus the fuller PostgreSQL contract suite gated on
   `ALTAIR_TEST_PG_URL`), formatter clean, Ameba silent on framework sources.
 - Phase 7 shipped four features: **testing utilities** (`Altair::Test.boot`
