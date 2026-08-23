@@ -264,6 +264,64 @@ N+1 signature — the same SQL firing more than `config.n_plus_one_threshold`
 Production never pays the detector's cost; disable it with
 `config.detect_n_plus_one = false` if it is ever noisy.
 
+## Joins
+
+Filter parents by their children in a single SQL query — no N+1, no manual SQL:
+
+```crystal
+Post.all.joins(:comments).where("comments.body", "altair")
+Post.all.left_joins(:comments)                 # keep owners without children
+Post.all.joins(:comments).where("comments.body", "hi").count   # COUNT(DISTINCT posts.id)
+```
+
+`joins` on a `has_many` automatically deduplicates (`SELECT DISTINCT`) so a post
+with three matching comments appears once. Qualified columns (`"comments.body"`)
+are quoted per part; every value is still a bind parameter.
+
+## has_many :through
+
+```crystal
+class Post < Altair::Record::Model
+  has_many :post_tags
+  has_many :tags, through: :post_tags     # source inferred (:tag)
+end
+
+post.tags                                  # lazy: one JOIN query
+Post.all.includes(:tags)                   # eager: one batched JOIN for all posts
+Post.all.joins(:tags).where("tags.name", "crystal")
+```
+
+Pass `source:` explicitly when the singular name is ambiguous — the framework
+raises at boot asking for it rather than guessing.
+
+## Polymorphic associations
+
+```crystal
+class Comment < Altair::Record::Model
+  belongs_to :commentable, polymorphic: true   # commentable_id + commentable_type
+end
+
+class Post < Altair::Record::Model
+  has_many :comments, as: :commentable, dependent: :destroy
+end
+class Video < Altair::Record::Model
+  has_many :comments, as: :commentable, dependent: :nullify
+end
+
+comment.commentable        # Post or Video, resolved from the type column
+post.comments              # filtered by notable_type = 'Post'
+Post.all.includes(:comments)   # one batched query per distinct type
+```
+
+Migrations get a helper too:
+
+```crystal
+schema.create_table(:comments) do |t|
+  t.string :body
+  t.references :commentable, polymorphic: true   # id + type + composite index
+end
+```
+
 ## Transactions
 
 `transaction` runs its block atomically; a raise rolls it back:

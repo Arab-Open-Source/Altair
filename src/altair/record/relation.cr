@@ -18,6 +18,8 @@ module Altair
       @preloaders = [] of Proc(Array(Altair::Record::Model), Array(Altair::Record::Model))
       @where = [] of String
       @binds = [] of Model::Value
+      @joins = [] of String
+      @distinct = false
       @order : String?
       @limit : Int32?
       @offset : Int32?
@@ -39,6 +41,8 @@ module Altair
       def merge(other : self) : self
         @where.concat(other.@where)
         @binds.concat(other.@binds)
+        @joins.concat(other.@joins)
+        @distinct = true if other.@distinct
         @order = other.@order if other.@order
         @limit = other.@limit if other.@limit
         @offset = other.@offset if other.@offset
@@ -50,7 +54,8 @@ module Altair
       def to_a : Array(T)
         @records ||= begin
           rows = [] of T
-          T.connection.query(T.select_sql + clause_sql, values: @binds) do |rs|
+          sql = select_sql_with_distinct + join_sql + clause_sql
+          T.connection.query(sql, values: @binds) do |rs|
             rs.each { rows << T.from_row(rs) }
           end
           unless @preloaders.empty?
@@ -61,6 +66,39 @@ module Altair
         end
       end
 
+      # Adds an INNER JOIN for each association:
+      #
+      # ```
+      # Post.all.joins(:comments).where("comments.body": "hi")
+      # ```
+      def joins(*associations : Symbol) : self
+        associations.each do |assoc|
+          @joins << build_join(assoc, "INNER JOIN")
+          @distinct = true if association_needs_distinct?(assoc)
+        end
+        self
+      end
+
+      # Adds a LEFT OUTER JOIN for each association.
+      def left_joins(*associations : Symbol) : self
+        associations.each do |assoc|
+          @joins << build_join(assoc, "LEFT OUTER JOIN")
+        end
+        self
+      end
+
+      # Ensures the result contains no duplicate rows. Automatically
+      # enabled by `joins` on `has_many` associations.
+      def distinct : self
+        @distinct = true
+        self
+      end
+
+      # Whether this relation will use `SELECT DISTINCT`.
+      def distinct? : Bool
+        @distinct
+      end
+
       # Scopes the query to the rows where `column` equals the value:
       #
       # ```
@@ -68,7 +106,19 @@ module Altair
       # Post.all.where(published: true)
       # ```
       def where(column : Symbol, value : Model::Value) : self
-        @where << "#{quoted(column)} = #{placeholder}"
+        @where << "#{quoted_qualified(column.to_s)} = #{placeholder}"
+        @binds << value
+        self
+      end
+
+      # Scopes the query to the rows where a qualified column equals the
+      # value:
+      #
+      # ```
+      # Post.all.joins(:comments).where("comments.body", "hi")
+      # ```
+      def where(column : String, value : Model::Value) : self
+        @where << "#{quoted_qualified(column)} = #{placeholder}"
         @binds << value
         self
       end
@@ -80,7 +130,7 @@ module Altair
       # ```
       def where(**pairs) : self
         pairs.each do |column, value|
-          @where << "#{quoted(column.to_s)} = #{placeholder}"
+          @where << "#{quoted_qualified(column.to_s)} = #{placeholder}"
           @binds << value
         end
         self
@@ -94,7 +144,7 @@ module Altair
       # ```
       def where(column : Symbol, operator : Symbol, value : Model::Value) : self
         raise ArgumentError.new("unsupported operator :#{operator}") unless {:<, :<=, :>, :>=, :!=}.includes?(operator)
-        @where << "#{quoted(column.to_s)} #{operator} #{placeholder}"
+        @where << "#{quoted_qualified(column.to_s)} #{operator} #{placeholder}"
         @binds << value
         self
       end
@@ -107,7 +157,7 @@ module Altair
       # ```
       def where(column : String, operator : Symbol, value : Model::Value) : self
         raise ArgumentError.new("unsupported operator :#{operator}") unless {:<, :<=, :>, :>=, :!=}.includes?(operator)
-        @where << "#{quoted(column)} #{operator} #{placeholder}"
+        @where << "#{quoted_qualified(column)} #{operator} #{placeholder}"
         @binds << value
         self
       end
@@ -118,7 +168,7 @@ module Altair
       # Post.all.order(:created_at, :desc)
       # ```
       def order(column : Symbol | String, direction : Symbol = :asc) : self
-        @order = "ORDER BY #{quoted(column.to_s)} #{direction == :desc ? "DESC" : "ASC"}"
+        @order = "ORDER BY #{quoted_qualified(column.to_s)} #{direction == :desc ? "DESC" : "ASC"}"
         self
       end
 
@@ -141,7 +191,13 @@ module Altair
         if records = @records
           records.size.to_i64
         else
-          sql = "SELECT COUNT(*) FROM #{T.connection.adapter.quote_identifier(T.table_name)}"
+          table = T.connection.adapter.quote_identifier(T.table_name)
+          pk = T.connection.adapter.quote_identifier(T.primary_key_name)
+          sql = if @distinct || !@joins.empty?
+                  "SELECT COUNT(DISTINCT #{table}.#{pk}) FROM #{table}#{join_sql}"
+                else
+                  "SELECT COUNT(*) FROM #{table}"
+                end
           sql += " WHERE #{@where.join(" AND ")}" unless @where.empty?
           count = 0_i64
           T.connection.query(sql, values: @binds) do |rs|
@@ -171,11 +227,12 @@ module Altair
       # ```
       def find_each(batch_size : Int32 = 64, &block : T ->) : Nil
         pk = T.primary_key_name
+        qualified_pk = "#{T.table_name}.#{pk}"
         last_id = nil
         loop do
           scoped = scoped_state
-          scoped.order(pk, :asc).limit(batch_size + 1)
-          scoped.where(pk, :>, last_id) if last_id
+          scoped.order(qualified_pk, :asc).limit(batch_size + 1)
+          scoped.where(qualified_pk, :>, last_id) if last_id
           rows = scoped.to_a
           break if rows.empty?
           more = rows.size > batch_size
@@ -189,14 +246,17 @@ module Altair
       # A fresh relation carrying this relation's scoped filters, bound
       # values and scheduled preloaders, used by `find_each` batches.
       private def scoped_state : Relation(T)
-        Relation(T).new.adopt_state(@where.dup, @binds.dup, @preloaders.dup)
+        Relation(T).new.adopt_state(@where.dup, @binds.dup, @joins.dup, @distinct, @preloaders.dup)
       end
 
       # Copies the scoped state of another relation onto this one.
       protected def adopt_state(where : Array(String), binds : Array(Model::Value),
+                                joins : Array(String), distinct : Bool,
                                 preloaders : Array(Proc(Array(Altair::Record::Model), Array(Altair::Record::Model)))) : self
         @where = where
         @binds = binds
+        @joins = joins
+        @distinct = distinct
         @preloaders = preloaders
         self
       end
@@ -244,12 +304,64 @@ module Altair
         parts.empty? ? "" : " " + parts.join(" ")
       end
 
+      private def join_sql : String
+        @joins.empty? ? "" : " " + @joins.join(" ")
+      end
+
+      private def effective_select_sql : String
+        if @joins.empty?
+          @distinct ? T.select_sql.sub("SELECT", "SELECT DISTINCT") : T.select_sql
+        else
+          table = T.connection.adapter.quote_identifier(T.table_name)
+          cols = T.column_names.map { |col| "#{table}.#{T.connection.adapter.quote_identifier(col)}" }.join(", ")
+          @distinct ? "SELECT DISTINCT #{cols} FROM #{table}" : "SELECT #{cols} FROM #{table}"
+        end
+      end
+
+      private def select_sql_with_distinct : String
+        effective_select_sql
+      end
+
       private def quoted(name : String) : String
-        T.connection.adapter.quote_identifier(name)
+        quoted_qualified(name)
+      end
+
+      private def quoted_qualified(name : String) : String
+        name.split(".").map { |part| T.connection.adapter.quote_identifier(part) }.join(".")
       end
 
       private def placeholder : String
         T.connection.adapter.placeholder(@binds.size)
+      end
+
+      private def build_join(association : Symbol, join_type : String) : String
+        meta = T.__association_meta_for(association)
+        owner_table = T.table_name
+        owner_quoted = T.connection.adapter.quote_identifier(owner_table)
+        pk_quoted = T.connection.adapter.quote_identifier("id")
+        if meta[:kind] == :has_many_through
+          through_table = T.connection.adapter.quote_identifier(meta[:through].to_s)
+          source_fk = T.connection.adapter.quote_identifier("#{meta[:source].to_s}_id")
+          through_fk = T.connection.adapter.quote_identifier("#{Altair::Inflector.underscore(T.name)}_id")
+          target_table = Altair::Inflector.tableize(Altair::Inflector.underscore(meta[:target_class].to_s))
+          target_quoted = T.connection.adapter.quote_identifier(target_table)
+          "#{join_type} #{through_table} ON #{through_table}.#{through_fk} = #{owner_quoted}.#{pk_quoted} " \
+          "#{join_type} #{target_quoted} ON #{target_quoted}.#{pk_quoted} = #{through_table}.#{source_fk}"
+        else
+          target_table = Altair::Inflector.tableize(Altair::Inflector.underscore(meta[:target_class].to_s))
+          target_quoted = T.connection.adapter.quote_identifier(target_table)
+          fk_quoted = T.connection.adapter.quote_identifier(meta[:foreign_key].to_s)
+          if meta[:kind] == :belongs_to
+            "#{join_type} #{target_quoted} ON #{target_quoted}.#{pk_quoted} = #{owner_quoted}.#{fk_quoted}"
+          else
+            "#{join_type} #{target_quoted} ON #{target_quoted}.#{fk_quoted} = #{owner_quoted}.#{pk_quoted}"
+          end
+        end
+      end
+
+      private def association_needs_distinct?(association : Symbol) : Bool
+        meta = T.__association_meta_for(association)
+        meta[:kind] == :has_many || meta[:kind] == :has_many_through
       end
     end
   end

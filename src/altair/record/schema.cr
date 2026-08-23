@@ -89,6 +89,26 @@ module Altair
           end
         {% end %}
 
+        # Declares a foreign-key column pair plus its index:
+        # `t.references :post` adds `post_id` + `index_posts_on_post_id`.
+        # With `polymorphic: true`, also adds `<name>_type` and a composite
+        # `(type, id)` index instead.
+        def references(name : Symbol, polymorphic : Bool = false, type : Symbol = :integer,
+                       null : Bool = true, index : Bool = true) : Nil
+          if polymorphic
+            column("#{name.id}_id", type, null)
+            column("#{name.id}_type", :string, null)
+            if index
+              self.index(["#{name.id}_type", "#{name.id}_id"], unique: false)
+            end
+          else
+            column("#{name.id}_id", type, null)
+            if index
+              self.index(["#{name.id}_id"], unique: false)
+            end
+          end
+        end
+
         # Declares an index on the given columns.
         def index(columns : Symbol | Array(Symbol), unique : Bool = false, name : String? = nil) : Nil
           names = columns.is_a?(Array) ? columns.map(&.to_s) : [columns.to_s]

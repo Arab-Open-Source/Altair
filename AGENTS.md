@@ -59,7 +59,10 @@ Nothing ships unless someone can look at it, click it, and see it work.
   double-run, exponential-backoff retries inside a per-job budget,
   `altair jobs:work` / `jobs:stats` commands, and an in-memory test mode).
   `examples/blog` demonstrates all of it end to end. Remaining Phase 7:
-  `joins` in the query DSL and `has_many :through` / polymorphic.
+  only the deferred console. `joins` (with table-qualified where,
+  DISTINCT, COUNT(DISTINCT)), `has_many :through` (inferred source)
+  and polymorphic (`belongs_to ... polymorphic:` / `has_many ..., as:`
+  with batched-per-type eager loading) shipped in the closing wave.
 - Phase 6 hardening shipped in waves: sessions + flash + CSRF + auth
   (`require_login` / `authenticate!` + `Altair::Auth::JWT`), then a
   configuration wave — `.env` (real env vars win; `.env.<environment>`
@@ -185,9 +188,9 @@ Three vertical waves, each ending green with something visible:
 ### Phase 7: Post-release
 - Shipped: background jobs, full authentication, asset pipeline, testing
   utilities (scopes + nested `includes` landed earlier in the query DSL).
-- Remaining: `joins` in the rich query DSL; `has_many :through` +
-  polymorphic associations. Multi-tenancy is a Phase 8 candidate
-  (`docs/architecture/orm-audit-and-tenancy-plan.md`).
+- Shipped in the closing wave: `joins` (table-qualified where, DISTINCT),
+  `has_many :through` (inferred source) and polymorphic associations.
+  Multi-tenancy remains a Phase 12 candidate.
 
 Golden rules from the roadmap: specs from day one, never skip an exit
 criterion, every week something visible, and hold off the complex 20%

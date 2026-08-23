@@ -25,6 +25,23 @@ module Altair
       end
     end
 
+    # The runtime registry backing polymorphic associations: every model
+    # registers itself here when defined, so `<name>_type` columns resolve
+    # to classes without compile-time enumeration.
+    def self.polymorphic_klasses : Hash(String, Model.class)
+      REGISTRY
+    end
+
+    def self.resolve_klass(type : String) : Model.class
+      klass = REGISTRY[type]?
+      raise Altair::Error.new(
+        "Unknown polymorphic type: #{type} — is it an Altair::Record::Model?"
+      ) unless klass
+      klass
+    end
+
+    REGISTRY = {} of String => Model.class
+
     # The base class of every record. Subclass it and declare the backing
     # table; the attributes, finders and pluckers follow:
     #
@@ -167,6 +184,13 @@ module Altair
         !@dirty.empty?
       end
 
+      # The primary key normalized to Int64 — the polymorphic loaders'
+      # type-safe handle, since the base class carries no `id` column of
+      # its own. Overridden by the `table` macro.
+      def __pk : Int64?
+        nil
+      end
+
       # The changed attributes, sorted by name.
       def changed_attributes : Array(Symbol)
         @dirty.to_a.sort
@@ -265,6 +289,13 @@ module Altair
 
         # The primary key; `nil` until the record is saved.
         @id : {{ CRYSTAL_TYPE[pk_type].id }}? = nil
+
+        # Normalized primary key for polymorphic grouping.
+        def __pk : Int64?
+          @{{ pk_name.id }}.try(&.to_i64)
+        end
+
+        TABLE_NAME = {{ name.id.stringify }}
 
         def self.table_name : String
           "{{ name.id }}"
@@ -808,6 +839,25 @@ module Altair
         "id"
       end
 
+      # Loads every record whose primary key appears in `ids`, in one
+      # batched query. The polymorphic loader's typed entry point: calling
+      # through a concrete subclass keeps `from_row`'s id accessors
+      # compile-time visible.
+      def self.select_all(ids : Array(Int64 | Int32)) : Array(self)
+        return [] of self if ids.empty?
+        normalized = ids.map(&.to_i64)
+        rows = [] of self
+        placeholders = normalized.each_index.map { |index| connection.adapter.placeholder(index) }
+        connection.query(
+          "#{select_sql} WHERE #{connection.adapter.quote_identifier(primary_key_name)} " \
+          "IN (#{placeholders.join(", ")})",
+          values: normalized
+        ) do |rs|
+          rs.each { rows << from_row(rs) }
+        end
+        rows
+      end
+
       # The number of records.
       def self.count : Int64
         connection.query_one(
@@ -948,11 +998,14 @@ module Altair
       end
 
       macro inherited
+        Altair::Record.polymorphic_klasses[{{ @type.name.stringify }}] = {{ @type }}
+
         @@callbacks = {} of Symbol => Array(Proc({{@type.id}}, Nil))
         @@validations = [] of Rule
         @@custom_validations = [] of Proc({{@type.id}}, Nil)
         @@confirmations = {} of String => Proc({{@type.id}}, Value?)
         @@preloaders = {} of Symbol => Proc(Array(Altair::Record::Model), Array(Altair::Record::Model))
+        @@association_metas = {} of Symbol => NamedTuple(kind: Symbol, target_class: String, foreign_key: String, through: String, source: String)
 
         # Whether the model registers any save callbacks; a callback-free
         # model saves without the transaction wrapper.
@@ -965,6 +1018,13 @@ module Altair
         # dispatch reaches the subclass override.
         def self.__preloader_for(name : Symbol) : Proc(Array(Altair::Record::Model), Array(Altair::Record::Model))
           @@preloaders[name]? || raise ArgumentError.new(
+            "Unknown association :#{name} for #{self}"
+          )
+        end
+
+        # The association metadata for `joins`, or a clear error.
+        def self.__association_meta_for(name : Symbol) : NamedTuple(kind: Symbol, target_class: String, foreign_key: String, through: String, source: String)
+          @@association_metas[name]? || raise ArgumentError.new(
             "Unknown association :#{name} for #{self}"
           )
         end

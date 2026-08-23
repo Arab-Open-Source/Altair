@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`Relation#joins` / `left_joins`**: `Post.all.joins(:comments).where("comments.body", "hi")`
+  emits a real INNER JOIN with table-qualified `where`/`order` columns. Joins on
+  `has_many` automatically enable `SELECT DISTINCT` and `COUNT(DISTINCT pk)` so
+  duplicate child matches never inflate results; `left_joins` keeps unmatched
+  owners. Unknown associations raise at first use.
+- **`has_many :through`**: `has_many :tags, through: :post_tags` works lazily
+  (single JOIN query per owner), eagerly (`includes(:tags)` loads all owners in
+  one batched JOIN with an extra grouping column), and composes with `joins`.
+  The source association is inferred from the association name's singular;
+  pass `source:` explicitly when inference is ambiguous (compile-time error
+  otherwise).
+- **Polymorphic associations**: `belongs_to :commentable, polymorphic: true`
+  stores `<name>_id` + `<name>_type` (type stored as the full class name,
+  validated at runtime against the model registry); `has_many :comments,
+  as: :commentable` filters by owner type and supports `dependent:
+  :destroy/:nullify`. Eager loading batches one query per distinct type.
+- **`t.references :name, polymorphic: true`** migration helper generates the
+  id/type column pair plus composite index; plain `references` adds the FK
+  column + index.
+
+
 ## [0.3.2] — 2026-08-23
 
 ### Fixed

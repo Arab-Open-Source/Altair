@@ -20,9 +20,11 @@ class Altair::Record::Schema
       updated_at: {type: :datetime, null: true, primary: false},
     },
     comments: {
-      id:      {type: :integer, null: false, primary: true},
-      post_id: {type: :integer, null: true, primary: false},
-      body:    {type: :text, null: false, primary: false},
+      id:           {type: :integer, null: false, primary: true},
+      post_id:      {type: :integer, null: true, primary: false},
+      body:         {type: :text, null: false, primary: false},
+      notable_id:   {type: :integer, null: true, primary: false},
+      notable_type: {type: :string, null: true, primary: false},
     },
     users: {
       id:   {type: :integer, null: false, primary: true},
@@ -93,6 +95,21 @@ class Altair::Record::Schema
       email:           {type: :string, null: true, primary: false},
       password_digest: {type: :string, null: true, primary: false},
     },
+    post_tags: {
+      id:      {type: :integer, null: false, primary: true},
+      post_id: {type: :integer, null: true, primary: false},
+      tag_id:  {type: :integer, null: true, primary: false},
+    },
+    videos: {
+      id:    {type: :integer, null: false, primary: true},
+      title: {type: :string, null: true, primary: false},
+    },
+    notes: {
+      id:           {type: :integer, null: false, primary: true},
+      body:         {type: :string, null: true, primary: false},
+      notable_id:   {type: :integer, null: true, primary: false},
+      notable_type: {type: :string, null: true, primary: false},
+    },
   }
 end
 
@@ -159,14 +176,8 @@ class Child < Altair::Record::Model
   belongs_to :human
 end
 
-# A model with a plain uniqueness rule.
-class Tag < Altair::Record::Model
-  table :tags
-
-  validates_uniqueness_of :name
-end
-
-# A model whose uniqueness rule is scoped and uses a custom message.
+# A model with a plain uniqueness rule (Tag is declared below with the
+# join-table fixtures so `has_many :through` can reuse it).
 class Label < Altair::Record::Model
   table :labels
 
@@ -207,6 +218,35 @@ class Member < Altair::Record::Model
   validates_confirmation_of :password
 
   property password_confirmation : String?
+end
+
+class Tag < Altair::Record::Model
+  table :tags
+
+  validates_uniqueness_of :name
+end
+
+class PostTag < Altair::Record::Model
+  table :post_tags
+
+  belongs_to :post
+  belongs_to :tag
+end
+
+class Video < Altair::Record::Model
+  table :videos
+end
+
+class Note < Altair::Record::Model
+  table :notes
+
+  belongs_to :notable, polymorphic: true
+end
+
+# Reopen Post to add through association for testing
+class Post
+  has_many :post_tags, dependent: :delete_all
+  has_many :tags, through: :post_tags
 end
 
 class Comment < Altair::Record::Model
@@ -295,6 +335,9 @@ module RecordSpec
     connection.exec("DROP TABLE IF EXISTS members")
     connection.exec("DROP TABLE IF EXISTS auth_users")
     connection.exec("DROP TABLE IF EXISTS tags")
+    connection.exec("DROP TABLE IF EXISTS post_tags")
+    connection.exec("DROP TABLE IF EXISTS videos")
+    connection.exec("DROP TABLE IF EXISTS notes")
     connection.exec("DROP TABLE IF EXISTS children")
     connection.exec("DROP TABLE IF EXISTS humans")
     connection.exec("DROP TABLE IF EXISTS articles")
@@ -313,7 +356,7 @@ module RecordSpec
     connection.exec(
       "CREATE TABLE comments (" \
       "id INTEGER PRIMARY KEY AUTOINCREMENT, " \
-      "post_id INTEGER, body TEXT NOT NULL)"
+      "post_id INTEGER, body TEXT NOT NULL, notable_id INTEGER, notable_type TEXT)"
     )
     connection.exec(
       "CREATE TABLE users (" \
@@ -370,6 +413,18 @@ module RecordSpec
     connection.exec(
       "CREATE TABLE auth_users (" \
       "id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT, password_digest TEXT)"
+    )
+    connection.exec(
+      "CREATE TABLE post_tags (" \
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER, tag_id INTEGER)"
+    )
+    connection.exec(
+      "CREATE TABLE videos (" \
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT)"
+    )
+    connection.exec(
+      "CREATE TABLE notes (" \
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, body TEXT, notable_id INTEGER, notable_type TEXT)"
     )
   end
 end

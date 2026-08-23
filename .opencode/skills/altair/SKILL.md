@@ -65,7 +65,7 @@ N+1 detector warns on identical SQL past `config.n_plus_one_threshold`
 |---|---|---|
 | 0–5 | Foundation / Router / Controllers / Views / ORM / CLI + Generators | Completed |
 | 6 | Hardening (sessions, CSRF, config, security) | Completed |
-| 7 | Post-release (jobs, auth, assets, rich queries) | Mostly completed — testing utilities, full authentication, asset pipeline and background jobs shipped; `joins` and `has_many :through`/polymorphic remain |
+| 7 | Post-release (jobs, auth, assets, rich queries) | Completed — jobs, auth, assets, testing utilities, `joins`, `has_many :through` and polymorphic shipped; console intentionally deferred |
 
 Exit criteria per phase and golden rules are in `ROADMAP.md`.
 

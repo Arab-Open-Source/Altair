@@ -22,7 +22,7 @@ generators on top of that stack.
 | 4 | ORM (`Altair::Record`, 3 waves) | Completed |
 | 5 | CLI + Generators & scaffolding | Completed |
 | 6 | Hardening (sessions, flash, CSRF, config, security) | Completed |
-| 7 | Post-release features | Mostly completed — jobs, auth, assets, testing utilities shipped; `joins` and `has_many :through`/polymorphic remain |
+| 7 | Post-release features | Mostly completed — jobs, auth, assets, testing utilities, `joins` and `has_many :through`/polymorphic shipped; only console (deferred) remains |
 | 8 | Database ergonomics | Planned — `altair new -d postgresql` and `bin/altair db:create` |
 | 9 | CLI ergonomics | Planned — destroy, job generator, db:status, server flags, assets/jobs helpers |
 | 10 | Router ergonomics | Planned — dynamic redirect interpolation |
@@ -155,8 +155,8 @@ pushing a `v*` tag, which triggers `release.yml`.
 | Full authentication | Registration, login, logout | Completed — `altair g auth` writes model + migration (unique email), sessions/registrations controllers and views; `password_auth` hashes through PBKDF2-SHA256 (`Altair::Auth::PasswordHasher`); built on sessions/CSRF/JWT from Phase 6 |
 | Asset pipeline | CSS/JS bundling and serving | Completed — `assets/` fingerprinted into `public/assets/` with manifest via `altair assets:precompile`; `stylesheet_link_tag` / `javascript_asset_tag` / `asset_url`; immutable caching on fingerprints |
 | Background jobs | Scheduled work runs | Completed — typed `params` jobs with compile-checked `enqueue`/`enqueue_in`/`enqueue_at`, lazy `altair_jobs` table, atomic claiming, exponential-backoff retries, `altair jobs:work` / `jobs:stats`, in-memory test mode |
-| Rich query DSL (joins, preload, scopes, nested `includes`) | Complex data access is natural | Partially completed — scopes, `merge`, nested `includes` shipped; `joins` deferred to its own wave |
-| `has_many :through` + polymorphic associations | Advanced model relationships | Planned |
+| Rich query DSL (joins, preload, scopes, nested `includes`) | Complex data access is natural | Completed — scopes, `merge`, nested `includes`, plus `joins`/`left_joins` with table-qualified `where` and automatic `DISTINCT`/`COUNT(DISTINCT)` |
+| `has_many :through` + polymorphic associations | Advanced model relationships | Completed — `has_many :tags, through: :post_tags` (source inferred, ambiguous requires explicit `source:`), `belongs_to :commentable, polymorphic: true`, `has_many :comments, as: :commentable` with batched-per-type eager loading and `dependent: :destroy/:nullify`; `t.references ..., polymorphic: true` migration helper |
 
 ## Phase 8: Database ergonomics (planned — deferred)
 
