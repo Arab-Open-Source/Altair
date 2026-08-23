@@ -41,7 +41,7 @@ Nothing ships unless someone can look at it, click it, and see it work.
 - **Phases 0–5 done** (Foundation, Router, Controllers, Views, Record/ORM,
   CLI + Generators). `examples/blog` is the always-running persistence demo
   — its posts and comments survive restarts.
-- 848 specs passing (6 pending: the PostgreSQL concurrency contract
+- 902 specs passing (6 pending: the PostgreSQL concurrency contract
   tests, plus the fuller PostgreSQL contract suite gated on
   `ALTAIR_TEST_PG_URL`), formatter clean, Ameba silent on framework sources.
 - Phase 7 shipped four features: **testing utilities** (`Altair::Test.boot`
@@ -58,11 +58,14 @@ Nothing ships unless someone can look at it, click it, and see it work.
   `altair_jobs` table, atomic claiming so concurrent workers never
   double-run, exponential-backoff retries inside a per-job budget,
   `altair jobs:work` / `jobs:stats` commands, and an in-memory test mode).
-  `examples/blog` demonstrates all of it end to end. Remaining Phase 7:
-  only the deferred console. `joins` (with table-qualified where,
-  DISTINCT, COUNT(DISTINCT)), `has_many :through` (inferred source)
-  and polymorphic (`belongs_to ... polymorphic:` / `has_many ..., as:`
-  with batched-per-type eager loading) shipped in the closing wave.
+  `examples/blog` demonstrates all of it end to end. Phase 7 fully complete: joins (table-qualified where,
+  DISTINCT, COUNT(DISTINCT)), has_many :through (inferred source),
+  polymorphic associations, cache layer (Memory + Redis), storage
+  (Disk + S3 with SigV4), WebSocket Cable (auth hook + heartbeat +
+  JSON envelopes), admin generator, API mode, structured logs,
+  observability (/health + /metrics), dynamic redirect interpolation,
+  Altair::Redis pure-Crystal client, and Wave 0 ORM hardening
+  (IN chunking, custom PK + UUID, atomic writes, order/reload).
 - Phase 6 hardening shipped in waves: sessions + flash + CSRF + auth
   (`require_login` / `authenticate!` + `Altair::Auth::JWT`), then a
   configuration wave — `.env` (real env vars win; `.env.<environment>`
@@ -216,6 +219,8 @@ src/altair/
   exceptions/    The exception hierarchy
   server/        HTTP server wiring
   record/        Adapter, SQLite3, Connection, Schema, migrations, N+1 detector
+  redis/         Pure-Crystal Redis client (RESP2, pool, pub/sub, pipeline, tx)
+  cable/         WebSocket broadcaster (channels, auth hook, heartbeat, JSON envelope)
   auth/          PasswordHasher (PBKDF2), password_auth model macro, JWT
   assets/        Pipeline: fingerprint assets/ -> public/assets/ + manifest
   jobs/          Job (params macro), Queue (lazy table, claim), Worker

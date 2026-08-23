@@ -161,6 +161,8 @@ describe "Phase 10 integration" do
       sleep 50.milliseconds
 
       response = Altair::Test.post(port, "/broadcast", form: "channel=integration&message=live-update")
+      # TODO: debug why broadcast via HTTP returns 500; module-level
+      # broadcast works (cable_spec.cr passes). Likely controller routing.
       response.status_code.should eq(204)
 
       select

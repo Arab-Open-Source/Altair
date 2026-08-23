@@ -198,12 +198,12 @@ No implementation until scheduled.
 | Priority | Idea | Exit criterion | Effort |
 |----------|------|-----------------|--------|
 | ✅ Medium | Dynamic `redirect` interpolation (`redirect "/t/:id", to: "/tweets/:id"`) | `GET /t/5` → `301 /tweets/5` with format preserved; spec covers single and multiple params | 1-2 days |
-| Medium | Real-time / WebSocket (`Altair::Cable`) | Live feed demo — new tweet appears without refresh; Crystal fibers ideal | 7-10 days |
-| Small | Cache layer (fragment + `Altair.cache` memory/Redis) | Homepage built once and served cached to all visitors | 3 days |
-| Medium | Storage abstraction (`has_one_attached :avatar` → S3/local) | Avatar upload works locally and on S3 with same code | 5-7 days |
-| Small | API mode (`altair new --api` generates JSON-only project) | Backend for mobile app — no views, no assets, CORS enabled | 2-3 days |
-| Medium | Admin dashboard generator (`altair g admin Post`) | Ready CRUD panel at `/admin/posts` in seconds | 5-7 days |
-| Small | Observability (`/health`, metrics, structured logs) | Production monitoring: is server alive? requests/second? | 2-3 days |
+| ✅ Medium | Real-time / WebSocket (`Altair::Cable`) | Live feed demo — new tweet appears without refresh; Crystal fibers ideal | 7-10 days |
+| ✅ Small | Cache layer (fragment + `Altair.cache` memory/Redis) | Homepage built once and served cached to all visitors | 3 days |
+| ✅ Medium | Storage abstraction (`has_one_attached :avatar` → S3/local) | Avatar upload works locally and on S3 with same code | 5-7 days |
+| ✅ Small | API mode (`altair new --api` generates JSON-only project) | Backend for mobile app — no views, no assets, CORS enabled | 2-3 days |
+| ✅ Medium | Admin dashboard generator (`altair g admin Post`) | Ready CRUD panel at `/admin/posts` in seconds | 5-7 days |
+| ✅ Small | Observability (`/health`, metrics, structured logs) | Production monitoring: is server alive? requests/second? | 2-3 days |
 
 > Multi-tenancy is a later Phase 12 candidate: see
 > `docs/architecture/orm-audit-and-tenancy-plan.md` for the audited gaps and

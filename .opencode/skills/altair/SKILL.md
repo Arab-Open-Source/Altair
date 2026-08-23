@@ -50,7 +50,7 @@ full authentication (`altair g auth` + `password_auth` + PBKDF2 hashing),
 the asset pipeline (`assets:precompile`, manifest-backed helpers, immutable
 caching) and background jobs (typed `params` jobs, lazy `altair_jobs`
 table, atomic claiming, backoff retries, `jobs:work` / `jobs:stats`).
-848 specs passing
+902 specs passing
 (6 pending: the PostgreSQL contract suite on `ALTAIR_TEST_PG_URL`).
 The record layer shipped a post-Phase-4 performance wave: `find_each`
 keeps scoped `where` filters + `includes` preloaders across batches,

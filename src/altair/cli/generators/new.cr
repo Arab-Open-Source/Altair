@@ -201,6 +201,10 @@ module Altair
             {".opencode/skills/altair/reference/middleware.md", ref_middleware},
             {".opencode/skills/altair/reference/cli.md", ref_cli},
             {".opencode/skills/altair/reference/gotchas.md", ref_gotchas},
+            {".opencode/skills/altair/reference/cache.md", ref_cache},
+            {".opencode/skills/altair/reference/storage.md", ref_storage},
+            {".opencode/skills/altair/reference/cable.md", ref_cable},
+            {".opencode/skills/altair/reference/redis.md", ref_redis},
           ].reject { |path, _| api? && (path.starts_with?("src/app/views/") || path.starts_with?("public/") || path == ".opencode/skills/altair/reference/views.md" || path == ".opencode/skills/altair/reference/assets.md") }
         end
 
@@ -657,6 +661,15 @@ module Altair
           - `_method` override only on POST forms.
           - New files must be required in dependency order via `src/#{@name}.cr`.
 
+          ## Cache, Storage, Cable, Redis
+
+          ```crystal
+          Altair.cache.fetch("key") { compute }
+          Altair.storage.upload(file)
+          Altair::Cable.broadcast("ch", "event", data)
+          client = Altair::Redis::Client.new(uri)
+          ```
+
           Full reference: `.opencode/skills/altair/reference/*.md`
           MD
         end
@@ -1067,6 +1080,70 @@ module Altair
           `new` prints `shards install` reminder. Standalone `altair` auto-forwards app-context commands by walking up to `bin/altair.cr`.
 
           The `jobs` table and `assets` manifest are lazy — no extra migration needed.
+          MD
+        end
+
+        private def ref_cache : String
+          <<-MD
+          # Cache — Altair
+
+          MemoryStore (dev) and RedisStore (production).
+
+          ```crystal
+          Altair.cache.write("key", "value", expires_in: 5.minutes)
+          Altair.cache.read("key")
+          Altair.cache.fetch("key") { compute_expensive }
+          ```
+          MD
+        end
+
+        private def ref_storage : String
+          <<-MD
+          # Storage & Attachments — Altair
+
+          ```crystal
+          config.storage = Altair::Storage::DiskStore.new(Path.new("public/uploads"))
+          stored = Altair.storage.upload(upload)
+          Altair.storage.url(stored.key)
+          has_one_attached :avatar
+          user.attach_avatar(upload); user.avatar; user.purge_avatar
+          ```
+
+          Migration: `t.references :name, polymorphic: true`.
+          MD
+        end
+
+        private def ref_cable : String
+          <<-MD
+          # WebSocket Cable — Altair
+
+          Channel-based broadcaster with auth hook and heartbeat.
+
+          ```crystal
+          config.cable_auth = ->(req, ctx) {
+            !request.session["user_id"]?.nil?
+          }
+          Altair::Cable.broadcast("room:1", "message", {"text" => "hello"})
+          ```
+          MD
+        end
+
+        private def ref_redis : String
+          <<-MD
+          # Redis Client — Altair (pure Crystal, no external shard)
+
+          ```crystal
+          client = Altair::Redis::Client.new(URI.parse("redis://localhost:6379"))
+          client.set("k", "v", ex: 60.seconds)
+          client.get("k")
+          client.publish("ch", "msg")
+          client.pipeline do |pipe|
+            pipe.set("a", "1"); pipe.incr("c")
+          end
+          client.multi do |txn|
+            txn.set("k", "v"); txn.expire("k", 60)
+          end
+          ```
           MD
         end
 

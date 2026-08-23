@@ -156,10 +156,10 @@ polymorphic associations, a development console, and multi-tenancy
 
 ### Planned
 
-- Rich query DSL completion: `joins`, `group` / `having`, richer operators
-- `has_many :through` and polymorphic associations
-- Development console
 - Multi-tenancy (candidate)
+- Rate limiting middleware
+- Email sending
+- Full-text search
 
 ---
 

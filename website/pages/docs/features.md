@@ -162,6 +162,22 @@ Four features shipped, demonstrated end to end in `examples/blog`:
 - **Atomic writes** — `db/schema.cr` written via tmp+rename;
   `db:migrate` acquires PG advisory lock against concurrent races
 
+### Phase 10 — Router & future features
+
+- **Dynamic redirect**: `redirect "/t/:id", to: "/tweets/:id"` interpolates route params into Location headers
+- **Cache layer**: MemoryStore (dev) + RedisStore (production); `Altair.cache.fetch` with TTL expiry
+- **Storage abstraction**: DiskStore (local) + S3Store (AWS SigV4); shared upload/delete/url contract; `has_one_attached` macro for model attachments via lazy `altair_attachments` table
+- **WebSocket Cable**: channel-based broadcaster at `/cable` with auth hook (`cable_auth`), heartbeat ping/pong, JSON envelope protocol, automatic subscriber cleanup
+- **API mode**: `altair new --api` generates JSON-only project (no views/assets) with CORS enabled
+- **Admin generator**: `altair g admin Post` writes namespaced controller with `require_login` + routes
+- **Observability**: `/health` and `/metrics` (Prometheus format) behind `config.observability = true`
+- **Structured logs**: `config.structured_logs = true` emits one JSON object per request
+- **Redis client**: Pure-Crystal `Altair::Redis::Client` built from scratch — RESP2, connection pool, pub/sub, pipeline, transactions. No external Redis shard needed.
+
 ## What is planned next
+
+- **Phase 12 candidate:** multi-tenancy
+- Rate limiting middleware
+- Email sending
 
 - **Phase 8 candidate:** multi-tenancy

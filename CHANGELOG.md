@@ -89,6 +89,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Pure-Crystal Redis client (`Altair::Redis`)**: built from scratch —
+  RESP2 protocol, connection pool with idle timeout, TLS support, AUTH +
+  SELECT, auto-reconnect, pipeline (batch in one round trip), transactions
+  (MULTI/EXEC/DISCARD/WATCH), pub/sub with dedicated listener fiber.
+  Covers strings, hashes, lists, sets, sorted sets and key commands.
+- **Cache::RedisStore**: implements the Cache::Store contract on top of
+  `Altair::Redis::Client`, so cached values survive process restarts and
+  are shared across all application instances.
 - **Offline framework installs**: every release now ships the framework
   source as `altair-src-v<version>.tar.gz` / `.zip` assets (shard.yml +
   src/, checksummed alongside the binaries). The installers gain a
