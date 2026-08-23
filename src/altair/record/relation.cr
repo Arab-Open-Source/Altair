@@ -341,14 +341,14 @@ module Altair
         pk_quoted = T.connection.adapter.quote_identifier("id")
         if meta[:kind] == :has_many_through
           through_table = T.connection.adapter.quote_identifier(meta[:through].to_s)
-          source_fk = T.connection.adapter.quote_identifier("#{meta[:source].to_s}_id")
-          through_fk = T.connection.adapter.quote_identifier("#{Altair::Inflector.underscore(T.name)}_id")
-          target_table = Altair::Inflector.tableize(Altair::Inflector.underscore(meta[:target_class].to_s))
+          source_fk = T.connection.adapter.quote_identifier(meta[:source] + "_id")
+          through_fk = T.connection.adapter.quote_identifier(Altair::Inflector.underscore(T.name) + "_id")
+          target_table = Altair::Inflector.tableize(Altair::Inflector.underscore(meta[:target_class]))
           target_quoted = T.connection.adapter.quote_identifier(target_table)
           "#{join_type} #{through_table} ON #{through_table}.#{through_fk} = #{owner_quoted}.#{pk_quoted} " \
           "#{join_type} #{target_quoted} ON #{target_quoted}.#{pk_quoted} = #{through_table}.#{source_fk}"
         else
-          target_table = Altair::Inflector.tableize(Altair::Inflector.underscore(meta[:target_class].to_s))
+          target_table = Altair::Inflector.tableize(Altair::Inflector.underscore(meta[:target_class]))
           target_quoted = T.connection.adapter.quote_identifier(target_table)
           fk_quoted = T.connection.adapter.quote_identifier(meta[:foreign_key].to_s)
           if meta[:kind] == :belongs_to

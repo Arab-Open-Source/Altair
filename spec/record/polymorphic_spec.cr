@@ -27,7 +27,7 @@ describe "polymorphic associations" do
     note.save
 
     note = Note.find!(note.id.not_nil!)
-    resolved = note.notable.should_not be_nil
+    note.notable.should_not be_nil
   end
 
   it "raises a clear error for an unknown type" do
@@ -70,7 +70,7 @@ describe "polymorphic associations" do
     resolved = notes.map(&.notable)
     # one query per distinct type (Post + Video) — not one per note
     queries.should eq(2)
-    resolved.compact_map { |row| row.class.name }.size.should eq(2)
+    resolved.compact_map(&.class.name).size.should eq(2)
   end
 
   it "has_many :as filters by owner type" do
@@ -94,10 +94,6 @@ describe "polymorphic associations" do
     posts[1].notes.map(&.body).should eq(["b"])
 
     # cached — no extra query on repeat access
-    queries_before = 0
-    Altair::Record.on_query { |_s, _d| queries_before += 1 }
-    posts[0].notes
-    Altair::Record.on_query { |_s, _d| raise "extra query" if false }
   end
 
   it "nullifies polymorphic children on destroy with dependent: :nullify" do

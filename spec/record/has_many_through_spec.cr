@@ -13,7 +13,7 @@ describe "has_many :through" do
     PostTag.create(post_id: post.id, tag_id: tag1.id)
     PostTag.create(post_id: post.id, tag_id: tag2.id)
 
-    post.tags.compact_map(&.name).sort.should eq(["crystal", "web"])
+    post.tags.compact_map(&.name).sort!.should eq(["crystal", "web"])
   end
 
   it "returns empty when no through records" do
@@ -55,7 +55,7 @@ describe "has_many :through" do
 
   it "supports joins through the association" do
     post1 = Post.create(title: "p1", views: 1, published: true)
-    post2 = Post.create(title: "p2", views: 1, published: true)
+    Post.create(title: "p2", views: 1, published: true)
     tag = Tag.create(name: "findme")
     PostTag.create(post_id: post1.id, tag_id: tag.id)
 

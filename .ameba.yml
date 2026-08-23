@@ -14,6 +14,13 @@ Excluded:
 Lint/WhitespaceAroundMacroExpression:
   Enabled: false
 
+# The generators embed markdown documentation inside heredocs; their
+# indentation carries meaning for the emitted files, so the style rule
+# (which wants a fixed +2 offset) fights the content.
+Style/HeredocIndent:
+  Excluded:
+    - "src/altair/cli/generators/new.cr"
+
 Lint/NotNil:
   Enabled: false
 

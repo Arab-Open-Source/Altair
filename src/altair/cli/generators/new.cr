@@ -860,9 +860,24 @@ module Altair
           post.changed?; post.changed_attributes; post.restore_attributes(:title)
           Post.insert_all([{title: "a"}, {title: "b"}])
           Post.transaction { post.save!; Comment.create!(post_id: post.id) }
+
+          # Joins — filter parents by children in one SQL query:
+          Post.all.joins(:comments).where("comments.body", "altair")   # INNER JOIN + DISTINCT
+          Post.all.left_joins(:comments)                                # keep childless owners
+          Post.all.joins(:comments).count                               # COUNT(DISTINCT posts.id)
+
+          # has_many :through — source inferred from the singular name:
+          has_many :tags, through: :post_tags       # add source: :tag if ambiguous
+          post.tags                                 # lazy: one JOIN query
+          Post.all.includes(:tags)                  # eager: one batched JOIN
+
+          # Polymorphic:
+          belongs_to :commentable, polymorphic: true   # commentable_id + commentable_type
+          has_many :comments, as: :commentable, dependent: :destroy
+          comment.commentable                          # Post or Video, by type column
           ```
 
-          Migrations: `altair g migration CreatePosts title:string body:text` → `db/migrations/*_create_posts.cr` with `schema.create_table` then `bin/altair db:migrate` regenerates `db/schema.cr`. Never hand-edit schema.
+          Migrations: `t.references :commentable, polymorphic: true` generates the id/type pair + composite index; `bin/altair db:migrate` regenerates `db/schema.cr`. Never hand-edit schema.
 
           Validations: presence/length/numericality/uniqueness/inclusion/exclusion/format/confirmation + `validate :custom`.
           Callbacks: `before_save/after_save/before_create/.../after_destroy` — `save` wraps in TX when callbacks exist.

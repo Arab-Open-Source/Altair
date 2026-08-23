@@ -44,9 +44,9 @@ describe Altair::Record::Relation do
   end
 
   it "supports left outer joins" do
-    post_with = Post.create(title: "with", views: 1, published: true)
-    post_without = Post.create(title: "without", views: 1, published: true)
-    Comment.create(post_id: post_with.id, body: "hello world")
+    Post.create(title: "with", views: 1, published: true)
+    Post.create(title: "without", views: 1, published: true)
+    Comment.create(post_id: Post.find_by_title!("with").id, body: "hello world")
 
     results = Post.all.left_joins(:comments).order(:title).to_a
     results.map(&.title).should eq(["with", "without"])

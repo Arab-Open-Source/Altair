@@ -133,8 +133,22 @@ Four features shipped, demonstrated end to end in `examples/blog`:
 - Formatter clean, linter silent on framework sources
 - Smart error pages: 404 with route suggestions, 405 with `_method` explanation, detailed 500 diagnostics in debug mode only
 
+### Rich query DSL completion + advanced associations (closing Phase 7 wave)
+
+- **Joins** — `Post.all.joins(:comments).where("comments.body", "altair")`
+  emits a real INNER JOIN with table-qualified `where`; `has_many` joins
+  auto-enable `SELECT DISTINCT` and `COUNT(DISTINCT pk)`; `left_joins`
+  keeps unmatched owners
+- **`has_many :through`** — `has_many :tags, through: :post_tags` works
+  lazily (one JOIN per owner), eagerly (`includes(:tags)` batches all
+  owners into one JOIN), and composes with `joins`; source association is
+  inferred from the name — explicit `source:` only when ambiguous
+- **Polymorphic** — `belongs_to :commentable, polymorphic: true` +
+  `has_many :comments, as: :commentable` with batched-per-type eager
+  loading and `dependent: :destroy/:nullify`;
+  `t.references :x, polymorphic: true` migration helper generates the
+  id/type pair plus composite index
+
 ## What is planned next
 
-- **Phase 7 remainder:** `joins` in the rich query DSL;
-  `has_many :through` and polymorphic associations
 - **Phase 8 candidate:** multi-tenancy
