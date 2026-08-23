@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`IN (...)` chunking in preload loaders**: eager loading (`includes`,
+  polymorphic batched-per-type, `has_many :through`) now splits oversized id
+  lists into consecutive queries at a 500-bind ceiling, so large collections
+  no longer trip SQLite's variable limit.
+- **Custom primary keys**: `table :posts, primary_key: :uuid` generates typed
+  accessors, finders and CRUD against the named column; string PKs
+  auto-generate `SecureRandom.uuid` before insert. All SQL paths (update,
+  delete, finders, loaders) respect the custom name.
+
+### Changed
+
+- **`Relation#order` accumulates** instead of overwriting — `order(:a).order(:b)`
+  produces `ORDER BY a, b`. Use `reorder` to replace or `unscope_order` to clear.
+
+### Added
+
+- **`Relation#reload`** clears the cached records so the next access re-runs the query.
+- **`Model#reload`** re-reads all attributes from the database on a persisted record.
+- **`Record.clear_handlers!`** clears instrumentation hooks between test examples.
+
+
 ### Added
 
 - **`Relation#joins` / `left_joins`**: `Post.all.joins(:comments).where("comments.body", "hi")`

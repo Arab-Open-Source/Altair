@@ -23,7 +23,9 @@ module Altair
 
         # Applies every pending migration, in file order, then regenerates
         # the schema file. Returns the number of migrations applied.
+        # A guard prevents two concurrent migrate processes from racing.
         def migrate : Int32
+          acquire_migrate_lock
           ensure_schema_migrations
           applied = applied_versions
           pending = migration_files.select { |file| !applied.includes?(file.stem) }
@@ -118,6 +120,19 @@ module Altair
 
         private def generate_schema : Nil
           SchemaGenerator.new(@adapter, @schema_path).write(schema_for_replay)
+        end
+
+        # Prevents two `db:migrate` processes from racing on the same
+        # database. PostgreSQL uses advisory locks; SQLite's single-writer
+        # model plus busy_timeout already serializes writers.
+        private def acquire_migrate_lock : Nil
+          @connection.exec(
+            "SELECT #{@connection.adapter.quote_identifier("pg_advisory_lock")}" \
+            "(hashtext('altair_migrate'))"
+          )
+        rescue
+          # SQLite and other adapters don't support advisory locks — their
+          # single-writer model plus busy_timeout already serializes writes.
         end
       end
     end

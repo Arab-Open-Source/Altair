@@ -210,6 +210,14 @@ module Altair
     @@connection : Connection? = nil
     @@connection_lock = Mutex.new
 
+    # Clears all instrumentation and checkout handlers. Used by specs to
+    # prevent cross-example leakage.
+    def self.clear_handlers! : Nil
+      @@query_handlers.clear
+      @@query_event_handlers.clear
+      @@checkout_handlers.clear
+    end
+
     # Closes the pooled connection (used by specs and runner scripts). The
     # nil write happens under the lock so a concurrent fast-path reader
     # either sees the previous connection (about to be closed, already

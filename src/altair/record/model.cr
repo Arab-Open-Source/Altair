@@ -92,6 +92,21 @@ module Altair
       # PostgreSQL 65535).
       INSERT_ALL_MAX_BINDS = 900
 
+      # The bind-parameter ceiling for preload `IN (...)` clauses. The
+      # loaders split oversized id lists into consecutive queries and
+      # concatenate the rows, so eager loading never trips the driver's
+      # variable limit on large collections.
+      PRELOAD_MAX_BINDS = 500
+
+      # Yields each chunk of `ids` sized to stay under
+      # `PRELOAD_MAX_BINDS` bind parameters. Accepts any numeric id array
+      # (Int32/Int64 primary keys) and yields as bind-compatible values.
+      def self.each_preload_chunk(ids : Enumerable(Int64 | Int32), & : Array(Model::Value) -> Nil) : Nil
+        ids.each_slice(PRELOAD_MAX_BINDS) do |chunk|
+          yield chunk.map(&.as(Model::Value))
+        end
+      end
+
       # The validation errors of a record, keyed by attribute.
       class Errors
         # The messages per attribute.
@@ -268,7 +283,7 @@ module Altair
       #
       # The column metadata comes from the `META` constant of a generated
       # `db/schema.cr`, which must be required before the model file.
-      macro table(name)
+      macro table(name, primary_key = "id")
         {% unless Altair::Record::Schema::META.keys.any? { |key| key.stringify == name.id.stringify } %}
           {% raise "Unknown table :#{name.id} — db/schema.cr defines: #{Altair::Record::Schema::META.keys.map(&.id).join(", ")}. Run the migrations to regenerate it." %}
         {% end %}
@@ -278,21 +293,45 @@ module Altair
         {% select_columns = columns.map { |col_name, _| "\"#{col_name.id}\"" }.join(", ") %}
         {% select_sql_literal = "SELECT " + select_columns + " FROM \"" + name.id.stringify + "\"" %}
 
-        {% pk_name = "id" %}
+        {% pk_name = primary_key.id %}
         {% pk_type = :integer %}
         {% for col_name, col in columns %}
-          {% if col[:primary] %}
-            {% pk_name = col_name.id %}
+          {% if col[:primary] || col_name.id == pk_name %}
             {% pk_type = col[:type] %}
           {% end %}
         {% end %}
+        PRIMARY_KEY_NAME = {{ pk_name.stringify }}
 
         # The primary key; `nil` until the record is saved.
         @id : {{ CRYSTAL_TYPE[pk_type].id }}? = nil
 
-        # Normalized primary key for polymorphic grouping.
-        def __pk : Int64?
-          @{{ pk_name.id }}.try(&.to_i64)
+        # Normalized primary key for polymorphic grouping. String PKs
+        # (e.g. UUID) hash to a stable numeric via their bytes.
+        def __pk : Int64
+          value = @{{ pk_name.id }}
+          case value
+          when Int32 then value.to_i64
+          when Int64 then value
+          when String then value.bytes.sum { |byte| byte.to_i64 * 31 }
+          else 0_i64
+          end
+        end
+
+        # Re-reads this record's attributes from the database.
+        def reload : self
+          raise Altair::Error.new("Cannot reload an unpersisted record") if @{{ pk_name.id }}.nil?
+          fresh = self.class.find!(@{{ pk_name.id }}.not_nil!)
+          {% for col_name, _ in columns %}
+            @{{ col_name.id }} = fresh.{{ col_name.id }}
+          {% end %}
+          clear_dirty
+          self
+        end
+
+        # Whether the primary key auto-generates (numeric AUTOINCREMENT).
+        # String PKs (UUID) are assigned before insert instead.
+        def self.auto_pk? : Bool
+          {{ pk_type != :string }}
         end
 
         TABLE_NAME = {{ name.id.stringify }}
@@ -303,6 +342,10 @@ module Altair
 
         def self.column_names : Array(String)
           [{% for col_name, col in columns %}"{{ col_name.id }}", {% end %}]
+        end
+
+        def self.primary_key_name : String
+          {{ pk_name.stringify }}
         end
 
         def self.timestamp_columns : Array(Symbol)
@@ -602,24 +645,33 @@ module Altair
 
         private def insert : Nil
           conn = connection
+          {% if pk_type == :string %}
+            unless @{{ pk_name.id }}
+              @{{ pk_name.id }} = Random::Secure.uuid
+            end
+          {% end %}
           {% args = [] of String %}
           {% for col_name, col in columns %}
-            {% unless col[:primary] %}
+            {% unless col[:primary] && pk_type != :string %}
               {% args << "connection.adapter.encode_column(@#{col_name.id}, :#{col[:type].id})" %}
             {% end %}
           {% end %}
-          if conn.adapter.supports_returning?(:insert)
-            conn.query_one(
-              self.class.insert_sql(true),
-              {{ args.join(", ").id }}
-            ) { |rs| @id = rs.read({{ CRYSTAL_TYPE[pk_type].id }}) }
-          else
-            result = conn.exec(
-              self.class.insert_sql(false),
-              {{ args.join(", ").id }}
-            )
-            @id = {% if pk_type == :bigint %}conn.last_insert_id(result){% else %}conn.last_insert_id(result).to_i32{% end %}
-          end
+          {% if pk_type == :string %}
+            conn.exec(self.class.insert_sql(false), {{ args.join(", ").id }})
+          {% else %}
+            if conn.adapter.supports_returning?(:insert)
+              conn.query_one(
+                self.class.insert_sql(true),
+                {{ args.join(", ").id }}
+              ) { |rs| @{{ pk_name.id }} = rs.read({{ CRYSTAL_TYPE[pk_type].id }}) }
+            else
+              result = conn.exec(
+                self.class.insert_sql(false),
+                {{ args.join(", ").id }}
+              )
+              @{{ pk_name.id }} = {% if pk_type == :bigint %}conn.last_insert_id(result){% else %}conn.last_insert_id(result).to_i32{% end %}
+            end
+          {% end %}
         end
 
         # The cached INSERT statement. `returning` selects the variant that
@@ -638,7 +690,7 @@ module Altair
         end
 
         private def self.build_insert_sql : String
-          columns = column_names.reject { |column| column == "id" }
+          columns = column_names.reject { |column| column == primary_key_name }
           quoted = columns.map { |column| connection.adapter.quote_identifier(column) }
           placeholders = columns.each_index.map { |index| connection.adapter.placeholder(index) }
           "INSERT INTO #{connection.adapter.quote_identifier(table_name)} " \
@@ -675,7 +727,7 @@ module Altair
           args = columns.map { |column| bind_attribute(column) } + [@id]
           conn.exec(
             "UPDATE #{conn.adapter.quote_identifier(self.class.table_name)} " \
-            "SET #{set.join(", ")} WHERE #{conn.adapter.quote_identifier("id")} = #{conn.adapter.placeholder(columns.size)}",
+            "SET #{set.join(", ")} WHERE #{conn.adapter.quote_identifier(self.class.primary_key_name)} = #{conn.adapter.placeholder(columns.size)}",
             args: args
           )
         end
@@ -810,7 +862,7 @@ module Altair
       # Finds the record with the given id, or `nil`.
       def self.find(id : Int32 | Int64) : self?
         connection.query_one(
-          select_sql + " WHERE #{connection.adapter.quote_identifier("id")} = #{connection.adapter.placeholder(0)} LIMIT 1", id
+          select_sql + " WHERE #{connection.adapter.quote_identifier(primary_key_name)} = #{connection.adapter.placeholder(0)} LIMIT 1", id
         ) { |rs| from_row(rs) }
       rescue DB::NoResultsError
         nil
@@ -878,7 +930,7 @@ module Altair
       def self.exists?(id : Int32 | Int64) : Bool
         connection.query_one(
           "SELECT 1 FROM #{connection.adapter.quote_identifier(table_name)} " \
-          "WHERE #{connection.adapter.quote_identifier("id")} = #{connection.adapter.placeholder(0)} LIMIT 1",
+          "WHERE #{connection.adapter.quote_identifier(primary_key_name)} = #{connection.adapter.placeholder(0)} LIMIT 1",
           id
         ) { |rs| rs.read(Int64) } == 1
       rescue DB::NoResultsError
@@ -972,7 +1024,7 @@ module Altair
           _run_callbacks(:before_destroy)
           result = connection.exec(
             "DELETE FROM #{connection.adapter.quote_identifier(self.class.table_name)} " \
-            "WHERE #{connection.adapter.quote_identifier("id")} = #{connection.adapter.placeholder(0)}",
+            "WHERE #{connection.adapter.quote_identifier(self.class.primary_key_name)} = #{connection.adapter.placeholder(0)}",
             @id
           )
           deleted = result.rows_affected > 0

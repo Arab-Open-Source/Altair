@@ -16,7 +16,9 @@ module Altair
         # created when missing.
         def write(schema : Schema) : Nil
           Dir.mkdir_p(@schema_path.parent.to_s)
-          File.write(@schema_path, render(schema))
+          tmp = @schema_path.to_s + ".tmp"
+          File.write(tmp, render(schema))
+          File.rename(tmp, @schema_path)
         end
 
         private def render(schema : Schema) : String

@@ -156,14 +156,16 @@ module Altair
         private def self.__load_{{ assoc.id }}(records : Array({{ @type.id }})) : Array({{ model.id }})
           ids = records.compact_map(&.{{ fk.id }}).uniq
           return [] of {{ model.id }} if ids.empty?
-          placeholders = ids.each_index.map { |index| connection.adapter.placeholder(index) }
           rows = [] of {{ model.id }}
-          connection.query(
-            "#{{{ model.id }}.select_sql} WHERE #{connection.adapter.quote_identifier("id")} " \
-            "IN (#{placeholders.join(", ")})",
-            values: ids
-          ) do |rs|
-            rs.each { rows << {{ model.id }}.from_row(rs) }
+          Altair::Record::Model.each_preload_chunk(ids) do |chunk|
+            placeholders = chunk.each_index.map { |index| connection.adapter.placeholder(index) }
+            connection.query(
+              "#{{{ model.id }}.select_sql} WHERE #{connection.adapter.quote_identifier("id")} " \
+              "IN (#{placeholders.join(", ")})",
+              values: chunk
+            ) do |rs|
+              rs.each { rows << {{ model.id }}.from_row(rs) }
+            end
           end
           by_id = rows.to_h { |owner| {owner.id.not_nil!, owner} }
           records.each { |record| record.__set_preloaded_{{ assoc.id }}(by_id[record.{{ fk.id }}]?) }
@@ -371,21 +373,23 @@ module Altair
             rows = [] of {{ model.id }}
             grouped = Hash(Int64, Array({{ model.id }})).new { |h, k| h[k] = [] of {{ model.id }} }
             {% if polymorphic_type != "" %}
-            placeholders = ids.each_index.map { |index| connection.adapter.placeholder(index + 1) }
             fk_name = {{ fk.stringify }}.gsub('"', "")
             type_col_name = {{ "#{polymorphic_type}_type".id.stringify }}.gsub('"', "")
             type_col_q = connection.adapter.quote_identifier(type_col_name)
             fk_q = connection.adapter.quote_identifier(fk_name)
             pk_q = connection.adapter.quote_identifier("id")
-            connection.query(
-              "#{{{ model.id }}.select_sql} WHERE #{type_col_q} = #{connection.adapter.placeholder(0)} AND #{fk_q} IN (#{placeholders.join(", ")}) " \
-              "ORDER BY #{pk_q}",
-              values: ["{{ @type.name }}"] + ids
-            ) do |rs|
-              rs.each do
-                row = {{ model.id }}.from_row(rs)
-                grouped[row.{{ fk.id.stringify.gsub(/"/, "").id }}.not_nil!.to_i64] << row
-                rows << row
+            Altair::Record::Model.each_preload_chunk(ids) do |chunk|
+              placeholders = chunk.each_index.map { |index| connection.adapter.placeholder(index + 1) }
+              connection.query(
+                "#{{{ model.id }}.select_sql} WHERE #{type_col_q} = #{connection.adapter.placeholder(0)} AND #{fk_q} IN (#{placeholders.join(", ")}) " \
+                "ORDER BY #{pk_q}",
+                values: ["{{ @type.name }}"] + chunk
+              ) do |rs|
+                rs.each do
+                  row = {{ model.id }}.from_row(rs)
+                  grouped[row.{{ fk.id.stringify.gsub(/"/, "").id }}.not_nil!.to_i64] << row
+                  rows << row
+                end
               end
             end
             {% else %}

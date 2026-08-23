@@ -20,7 +20,7 @@ module Altair
       @binds = [] of Model::Value
       @joins = [] of String
       @distinct = false
-      @order : String?
+      @orders = [] of String
       @limit : Int32?
       @offset : Int32?
 
@@ -43,7 +43,7 @@ module Altair
         @binds.concat(other.@binds)
         @joins.concat(other.@joins)
         @distinct = true if other.@distinct
-        @order = other.@order if other.@order
+        @orders.concat(other.@orders)
         @limit = other.@limit if other.@limit
         @offset = other.@offset if other.@offset
         other.@preloaders.each { |preloader| @preloaders << preloader }
@@ -84,6 +84,12 @@ module Altair
         associations.each do |assoc|
           @joins << build_join(assoc, "LEFT OUTER JOIN")
         end
+        self
+      end
+
+      # Clears the cached records so the next access re-runs the query.
+      def reload : self
+        @records = nil
         self
       end
 
@@ -168,7 +174,23 @@ module Altair
       # Post.all.order(:created_at, :desc)
       # ```
       def order(column : Symbol | String, direction : Symbol = :asc) : self
-        @order = "ORDER BY #{quoted_qualified(column.to_s)} #{direction == :desc ? "DESC" : "ASC"}"
+        @orders << "#{quoted_qualified(column.to_s)} #{direction == :desc ? "DESC" : "ASC"}"
+        self
+      end
+
+      # Replaces all existing `ORDER BY` clauses:
+      #
+      # ```
+      # Post.all.order(:created_at).reorder(:title) # ORDER BY title only
+      # ```
+      def reorder(column : Symbol | String, direction : Symbol = :asc) : self
+        @orders.clear
+        order(column, direction)
+      end
+
+      # Removes all `ORDER BY` clauses.
+      def unscope_order : self
+        @orders.clear
         self
       end
 
@@ -246,17 +268,18 @@ module Altair
       # A fresh relation carrying this relation's scoped filters, bound
       # values and scheduled preloaders, used by `find_each` batches.
       private def scoped_state : Relation(T)
-        Relation(T).new.adopt_state(@where.dup, @binds.dup, @joins.dup, @distinct, @preloaders.dup)
+        Relation(T).new.adopt_state(@where.dup, @binds.dup, @joins.dup, @distinct, @orders.dup, @preloaders.dup)
       end
 
       # Copies the scoped state of another relation onto this one.
       protected def adopt_state(where : Array(String), binds : Array(Model::Value),
-                                joins : Array(String), distinct : Bool,
+                                joins : Array(String), distinct : Bool, orders : Array(String),
                                 preloaders : Array(Proc(Array(Altair::Record::Model), Array(Altair::Record::Model)))) : self
         @where = where
         @binds = binds
         @joins = joins
         @distinct = distinct
+        @orders = orders
         @preloaders = preloaders
         self
       end
@@ -297,7 +320,7 @@ module Altair
       private def clause_sql : String
         parts = [] of String
         parts << "WHERE #{@where.join(" AND ")}" unless @where.empty?
-        parts << @order.not_nil! if @order
+        parts << "ORDER BY #{@orders.join(", ")}" unless @orders.empty?
         if @limit || @offset
           parts << T.connection.adapter.limit_offset_clause(@limit, @offset)
         end
