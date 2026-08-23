@@ -25,6 +25,7 @@ generators on top of that stack.
 | 7 | Post-release features | Mostly completed — jobs, auth, assets, testing utilities shipped; `joins` and `has_many :through`/polymorphic remain |
 | 8 | Database ergonomics | Planned — `altair new -d postgresql` and `bin/altair db:create` |
 | 9 | CLI ergonomics | Planned — destroy, job generator, db:status, server flags, assets/jobs helpers |
+| 10 | Router ergonomics | Planned — dynamic redirect interpolation |
 
 > **Note on the CLI:** the original Phase 4 plan listed `altair new` /
 > `altair server` / `altair routes`. That CLI landed in Phase 5, together
@@ -189,7 +190,17 @@ less friction for daily use.
 
 Deferred by request — no code changes in this commit. Waves: A (job + destroy), B (db:status + server flags), C (assets/jobs helpers + help).
 
-> Multi-tenancy is a later Phase 10 candidate: see
+## Phase 10: Router ergonomics (planned — deferred)
+
+Imaginary shape for apps like `twitter` — the 80% that already works plus the missing 20%.
+
+| Priority | Task | Exit criterion |
+|----------|------|----------------|
+| Medium | Dynamic `redirect` interpolation (`redirect "/t/:id", to: "/tweets/:id"`) | `Route` captures `:id` and interpolates it into `Location`; `GET /t/5` → `301 /tweets/5` with format preserved; spec covers single and multiple params |
+
+Deferred by request — no code changes in this commit. Current router (`src/altair/routing/dsl.cr:1507`) only accepts a static `to:` string.
+
+> Multi-tenancy is a later Phase 11 candidate: see
 > `docs/architecture/orm-audit-and-tenancy-plan.md` for the audited gaps and
 > the wave plan.
 
