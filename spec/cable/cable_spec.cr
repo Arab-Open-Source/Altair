@@ -21,21 +21,30 @@ describe Altair::Cable do
     Altair::Cable.subscriber_count("test-channel").should eq(0)
   end
 
-  it "broadcasts to all subscribers on the same channel without error" do
-    ws_a = ::HTTP::WebSocket.new(::IO::Memory.new)
-    ws_b = ::HTTP::WebSocket.new(::IO::Memory.new)
-    other = ::HTTP::WebSocket.new(::IO::Memory.new)
-    Altair::Cable.subscribe("broadcast-test", ws_a)
-    Altair::Cable.subscribe("broadcast-test", ws_b)
-    Altair::Cable.subscribe("other-ch", other)
-
-    Altair::Cable.broadcast("broadcast-test", "hello")
-  end
-
   it "cleans up empty channels after last unsubscribe" do
     ws = ::HTTP::WebSocket.new(::IO::Memory.new)
     Altair::Cable.subscribe("cleanup-ch", ws)
     Altair::Cable.unsubscribe("cleanup-ch", ws)
     Altair::Cable.subscriber_count("cleanup-ch").should eq(0)
+  end
+
+  it "broadcasts JSON envelopes with channel and event" do
+    envelope = Altair::Cable::Envelope.new("room:1", "message", JSON.parse(%({"text": "hi"})))
+    json = envelope.to_json_string
+    parsed = JSON.parse(json)
+    parsed["channel"].as_s.should eq("room:1")
+    parsed["event"].as_s.should eq("message")
+    parsed["data"]["text"].as_s.should eq("hi")
+  end
+end
+
+describe Altair::Cable::ConnectionContext do
+  it "carries the request and channel" do
+    request = Altair::HTTP::Request.new(::HTTP::Request.new("GET", "/cable?channel=room:1"))
+    ctx = Altair::Cable::ConnectionContext.new(request, "room:1")
+    ctx.channel.should eq("room:1")
+    ctx.current_user_id.should be_nil
+    ctx.current_user_id = "42"
+    ctx.current_user_id.should eq("42")
   end
 end

@@ -206,3 +206,53 @@ describe Altair::Redis::Client do
     end
   end
 end
+
+require "../../../src/altair/cache/redis_store"
+
+describe Altair::Cache::RedisStore do
+  it "implements the Cache::Store contract on top of Redis" do
+    with_redis do |client|
+      store = Altair::Cache::RedisStore.new(client)
+
+      store.read("key").should be_nil
+      store.write("key", "value").should eq("value")
+      store.read("key").should eq("value")
+      store.delete("key").should be_true
+      store.read("key").should be_nil
+    end
+  end
+
+  it "expires values after TTL" do
+    with_redis do |client|
+      store = Altair::Cache::RedisStore.new(client)
+      store.write("temp", "data", expires_in: 1.second)
+      store.read("temp").should eq("data")
+      sleep 2.seconds
+      store.read("temp").should be_nil
+    end
+  end
+
+  it "fetch computes and stores on miss" do
+    with_redis do |client|
+      store = Altair::Cache::RedisStore.new(client)
+      computed = 0
+      result = store.fetch("expensive") { computed += 1; "computed-value" }
+      result.should eq("computed-value")
+      # Second call reads from cache — block not executed
+      result = store.fetch("expensive") { computed += 1; "should-not-run" }
+      result.should eq("computed-value")
+      computed.should eq(1)
+    end
+  end
+
+  it "clear removes all cache-prefixed keys" do
+    with_redis do |client|
+      store = Altair::Cache::RedisStore.new(client)
+      store.write("a", "1")
+      store.write("b", "2")
+      store.clear
+      store.read("a").should be_nil
+      store.read("b").should be_nil
+    end
+  end
+end

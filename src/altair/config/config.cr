@@ -63,6 +63,24 @@ module Altair
     # The WebSocket endpoint used by `Altair::Cable`.
     property cable_path : String = "/cable"
 
+    # Whether the Cable WebSocket handler is installed. Set to false to
+    # skip the handler entirely (e.g. for API-only projects).
+    property? cable_enabled : Bool = true
+
+    # Called during the Cable handshake with a ConnectionContext. Return
+    # false to reject the connection with 401. When nil, no auth check runs.
+    property cable_auth : Proc(Altair::HTTP::Request, Altair::Cable::ConnectionContext, Bool)? = nil
+
+    # When set, only requests whose Origin header matches one of these
+    # values are allowed through; others receive 403.
+    property cable_allowed_origins : Array(String)? = nil
+
+    # How often the Cable heartbeat sends ping frames.
+    property cable_heartbeat_interval : Time::Span = 30.seconds
+
+    # How long to wait for a pong before closing a stale connection.
+    property cable_pong_budget : Time::Span = 10.seconds
+
     # Whether console colors are enabled. `nil` (the default) auto-detects
     # from `STDOUT.tty?` and `NO_COLOR`/`TERM`; `true`/`false` forces it.
     property logger_colors : Bool? = nil

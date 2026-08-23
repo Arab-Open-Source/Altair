@@ -47,8 +47,14 @@ class ShowcaseController < Altair::Controller
   end
 
   def broadcast : Nil
-    Altair::Cable.broadcast(params["channel"]? || "default", params["message"]? || "")
-    head :no_content
+    channel = params["channel"]? || "default"
+    message = params["message"]? || ""
+    begin
+      Altair::Cable.broadcast(channel, message)
+      head(::HTTP::Status::NO_CONTENT)
+    rescue e
+      render text: "BROADCAST_ERROR: #{e.class} #{e.message}", status: ::HTTP::Status::INTERNAL_SERVER_ERROR
+    end
   end
 
   def health : Nil
