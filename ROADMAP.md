@@ -25,7 +25,7 @@ generators on top of that stack.
 | 7 | Post-release features | Completed — jobs, auth, assets, testing utilities, joins, has_many :through/polymorphic, and Wave 0 ORM hardening (IN chunking, custom PK + UUID, atomic writes, order/reload) all shipped; only console (deferred) remains |
 | 8 | Database ergonomics | Planned — `altair new -d postgresql` and `bin/altair db:create` |
 | 9 | CLI ergonomics | Planned — destroy, job generator, db:status, server flags, assets/jobs helpers |
-| 10 | Router ergonomics | Planned — dynamic redirect interpolation |
+| 10 | Router & future features | Completed — dynamic redirect, Cable, cache, storage, API mode, admin generator, observability |
 
 > **Note on the CLI:** the original Phase 4 plan listed `altair new` /
 > `altair server` / `altair routes`. That CLI landed in Phase 5, together
@@ -190,10 +190,11 @@ less friction for daily use.
 
 Deferred by request — no code changes in this commit. Waves: A (job + destroy), B (db:status + server flags), C (assets/jobs helpers + help).
 
-## Phase 10: Router & future features pool (planned — deferred)
+## Phase 10: Router & future features (completed)
 
-Collected from review — each row becomes its own wave when prioritized.
-No implementation until scheduled.
+Collected from review — each row shipped as its own wave. Multi-tenancy
+remains the next big candidate (Phase 12): see
+`docs/architecture/orm-audit-and-tenancy-plan.md`.
 
 | Priority | Idea | Exit criterion | Effort |
 |----------|------|-----------------|--------|

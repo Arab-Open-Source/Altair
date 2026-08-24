@@ -102,4 +102,11 @@ describe Altair::Record::Relation do
     end
     count.should eq(1)
   end
+
+  it "counts within limit and offset" do
+    Post.all.count.should eq(4)
+    Post.all.limit(3).count.should eq(3)
+    Post.all.limit(2).offset(2).count.should eq(2)
+    Post.all.offset(3).count.should eq(1)
+  end
 end

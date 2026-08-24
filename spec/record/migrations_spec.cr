@@ -166,3 +166,72 @@ describe Altair::Record::Migrations::Runner do
     end
   end
 end
+
+describe Altair::Record::Schema, "change_column_null" do
+  it "toggles nullability on SQLite by rebuilding the table in place" do
+    dir = Path.new(Dir.tempdir, "altair_null_#{Random.rand(1_000_000)}")
+    FileUtils.mkdir_p(dir)
+    conn = Altair::Record::Connection.new(
+      Altair::Record::Adapters::SQLite3.instance,
+      "sqlite3://#{dir.join("test.db")}",
+      DB::Pool::Options.new(max_pool_size: 1),
+      5.seconds
+    )
+    begin
+      schema = Altair::Record::Schema.new(Altair::Record::Adapters::SQLite3.instance, conn)
+      schema.create_table(:widgets) do |t|
+        t.string :name, null: false
+        t.text :note
+      end
+      schema.add_index(:widgets, :name, unique: true)
+      conn.exec(%(INSERT INTO "widgets" ("name", "note") VALUES ('keep', 'first note')))
+      conn.exec(%(INSERT INTO "widgets" ("name", "note") VALUES ('blank', 'second note')))
+
+      # A later migration receives a fresh Schema with no in-memory state,
+      # so the rebuild must read the shape from the database itself.
+      fresh = Altair::Record::Schema.new(Altair::Record::Adapters::SQLite3.instance, conn)
+      fresh.change_column_null(:widgets, :note, false)
+
+      names = [] of String
+      notes = [] of String
+      conn.query(%(SELECT "name", "note" FROM "widgets" ORDER BY "name")) do |rs|
+        rs.each do
+          names << rs.read(String)
+          notes << rs.read(String)
+        end
+      end
+      names.should eq(["blank", "keep"])
+      notes.should eq(["second note", "first note"])
+
+      violated = false
+      begin
+        conn.exec(%(INSERT INTO "widgets" ("name", "note") VALUES ('nullish', NULL)))
+      rescue e
+        violated = e.message.to_s.includes?("NOT NULL")
+      end
+      violated.should be_true
+
+      fresh.change_column_null(:widgets, :note, true)
+      conn.exec(%(INSERT INTO "widgets" ("name", "note") VALUES ('nullish', NULL)))
+      total = conn.query_one(%(SELECT COUNT(*) FROM "widgets")) { |rs| rs.read(Int64) }
+      total.should eq(3)
+
+      # The explicit index survived the rebuild, still unique.
+      unique_flags = [] of Bool
+      conn.query(%(PRAGMA index_list("widgets"))) do |rs|
+        rs.each do
+          rs.read(Int64)
+          rs.read(String)
+          unique = rs.read(Int64) == 1
+          origin = rs.read(String)
+          rs.read(Int64)
+          unique_flags << unique if origin == "c"
+        end
+      end
+      unique_flags.should eq([true])
+    ensure
+      conn.close
+      FileUtils.rm_rf(dir)
+    end
+  end
+end

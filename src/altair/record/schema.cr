@@ -212,15 +212,122 @@ module Altair
         @tables.each(&.indexes.reject!(&.name.==(name.to_s)))
       end
 
-      # Toggles a column's nullability.
+      # Toggles a column's nullability. Adapters that can alter a column
+      # in place issue one `ALTER TABLE` statement; the rest rebuild the
+      # table (create-copy-drop-rename), preserving rows and indexes.
       def change_column_null(table : Symbol, name : Symbol, null : Bool) : Nil
-        @connection.try(&.exec(
-          "ALTER TABLE #{@adapter.quote_identifier(table.to_s)} " \
-          "ALTER COLUMN #{@adapter.quote_identifier(name.to_s)} " \
-          "#{null ? "DROP" : "SET"} NOT NULL"
-        ))
+        if conn = @connection
+          if @adapter.supports_alter_column_null?
+            conn.exec(
+              "ALTER TABLE #{@adapter.quote_identifier(table.to_s)} " \
+              "ALTER COLUMN #{@adapter.quote_identifier(name.to_s)} " \
+              "#{null ? "DROP" : "SET"} NOT NULL"
+            )
+          else
+            rebuild_for_column_null(conn, table.to_s, name.to_s, null)
+          end
+        end
         found = @tables.find(&.name.==(table.to_s))
         found.try { |t| t.columns.find(&.name.==(name.to_s)).try(&.null=(null)) }
+      end
+
+      # SQLite has no `ALTER COLUMN`, so nullability changes rebuild the
+      # table: read the live shape with `PRAGMA table_info` (the schema
+      # state may not know this table — each migration runs against a
+      # fresh `Schema`), create a temp copy with the flipped constraint,
+      # copy the rows over, swap and recreate the explicit indexes.
+      private def rebuild_for_column_null(conn : Connection, table_name : String, column_name : String, null : Bool) : Nil
+        quoted_table = @adapter.quote_identifier(table_name)
+        columns = [] of NamedTuple(name: String, type: String, notnull: Bool, pk: Bool)
+        conn.query("PRAGMA table_info(#{quoted_table})") do |rs|
+          rs.each do
+            rs.read(Int64)
+            name = rs.read(String)
+            type = rs.read(String)
+            notnull = rs.read(Int64) != 0
+            rs.read(DB::Any)
+            pk = rs.read(Int64) != 0
+            columns << {name: name, type: type, notnull: notnull, pk: pk}
+          end
+        end
+        raise Altair::Error.new("change_column_null: no such table #{table_name}") if columns.empty?
+        unless columns.any? { |column| column[:name] == column_name }
+          raise Altair::Error.new("change_column_null: no column #{column_name} on #{table_name}")
+        end
+
+        autoincrement = conn.query_one(
+          "SELECT COALESCE(instr(sql, 'AUTOINCREMENT'), 0) FROM sqlite_master " \
+          "WHERE type = 'table' AND name = #{quoted_table}"
+        ) { |rs| rs.read(Int64) } != 0
+        explicit_indexes = explicit_indexes_for(conn, quoted_table)
+
+        definitions = columns.map do |column|
+          enforce = column[:name] == column_name ? !null : column[:notnull]
+          ddl = "#{@adapter.quote_identifier(column[:name])} #{column[:type]}"
+          ddl += " NOT NULL" if enforce
+          if column[:pk]
+            ddl += " PRIMARY KEY"
+            ddl += " AUTOINCREMENT" if autoincrement && column[:type].upcase == "INTEGER"
+          end
+          ddl
+        end
+        quoted_columns = columns.map { |column| @adapter.quote_identifier(column[:name]) }.join(", ")
+        temp = @adapter.quote_identifier("altair_alter_#{table_name}")
+
+        conn.exec("DROP TABLE IF EXISTS #{temp}")
+        conn.exec("CREATE TABLE #{temp} (#{definitions.join(", ")})")
+        conn.exec("INSERT INTO #{temp} (#{quoted_columns}) SELECT #{quoted_columns} FROM #{quoted_table}")
+        conn.exec("DROP TABLE #{quoted_table}")
+        conn.exec("ALTER TABLE #{temp} RENAME TO #{quoted_table}")
+
+        recreate_indexes(conn, quoted_table, explicit_indexes)
+      end
+
+      # The explicitly-created indexes (`origin = 'c'`) of a table, with
+      # their column lists — both must be captured before a rebuild drops
+      # them along with the table. The listing is drained before the
+      # per-index lookups: nested queries would deadlock a single-
+      # connection pool.
+      private def explicit_indexes_for(conn : Connection, quoted_table : String)
+        entries = [] of NamedTuple(name: String, unique: Bool)
+        conn.query("PRAGMA index_list(#{quoted_table})") do |rs|
+          rs.each do
+            rs.read(Int64)
+            index_name = rs.read(String)
+            unique = rs.read(Int64) != 0
+            origin = rs.read(String)
+            rs.read(Int64)
+            next unless origin == "c"
+            entries << {name: index_name, unique: unique}
+          end
+        end
+        indexes = [] of NamedTuple(name: String, unique: Bool, columns: Array(String))
+        entries.each do |entry|
+          cols = [] of String
+          conn.query("PRAGMA index_info(#{@adapter.quote_identifier(entry[:name])})") do |rs|
+            rs.each do
+              rs.read(Int64)
+              rs.read(Int64?)
+              cols << rs.read(String)
+            end
+          end
+          indexes << {name: entry[:name], unique: entry[:unique], columns: cols}
+        end
+        indexes
+      end
+
+      # Recreates the captured explicit indexes on the rebuilt table.
+      # Indexes born from constraints (`u`, `pk`) live in the column
+      # definitions and are carried by the rebuild itself.
+      private def recreate_indexes(conn : Connection, quoted_table : String,
+                                   indexes : Array(NamedTuple(name: String, unique: Bool, columns: Array(String)))) : Nil
+        indexes.each do |index|
+          quoted = index[:columns].map { |column| @adapter.quote_identifier(column) }.join(", ")
+          conn.exec(
+            "CREATE #{index[:unique] ? "UNIQUE " : ""}INDEX " \
+            "#{@adapter.quote_identifier(index[:name])} ON #{quoted_table} (#{quoted})"
+          )
+        end
       end
 
       private def builder_sql(table : Table) : String

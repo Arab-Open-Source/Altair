@@ -31,6 +31,13 @@ module Altair
       # statement kind (`:insert`, `:update` or `:delete`).
       abstract def supports_returning?(statement : Symbol) : Bool
 
+      # Whether a single `ALTER TABLE ... ALTER COLUMN ... SET/DROP NOT NULL`
+      # statement can toggle nullability in place. When `false`, the schema
+      # layer rebuilds the table (create-copy-drop-rename) instead.
+      def supports_alter_column_null? : Bool
+        false
+      end
+
       # The SQL type for a logical column type (`:string`, `:integer`,
       # `:boolean`, ...).
       abstract def column_type_sql(logical_type : Symbol) : String
