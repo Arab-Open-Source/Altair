@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Query DSL completion** (`Relation`): `where_not` (keyword pairs or a
+  single column/value), `or_where` — whose alternatives fold into the
+  preceding condition as one parenthesized OR group instead of ANDing with
+  the whole scope — and new operators on `where`: `:like`, `:in` (an empty
+  list matches nothing without hitting bind limits), and the bind-free
+  `:null` / `:not_null`.
+- **Relation finders**: `first` / `first?` (primary key ascending unless
+  the scope orders), `last` / `last?` (reverses the scope's explicit
+  ordering), `take(n)`, `ids`, `pick(:column)` and the LIMIT-1 existence
+  probes `exists?` / `any?` / `none?`.
+- **Bulk writes**: `Relation#update_all(**fields)` and `Relation#delete_all`
+  run one statement per scope and return affected-row counts. They bypass
+  callbacks, validations and timestamps by design, refuse joined relations,
+  and ignore order/limit/offset (no portable meaning across engines).
+- `change_column_null` now works on SQLite via table rebuild; adapters
+  declare in-place capability through `Adapter#supports_alter_column_null?`.
+
 ### Fixed
 
 - **`change_column_null` was broken on SQLite** (the default adapter): it

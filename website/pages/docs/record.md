@@ -64,6 +64,42 @@ Post.all.where(published: true)
 Post.all.where(:views, :>=, 15).order(:created_at).to_a
 ```
 
+### Querying relations
+
+Negation, alternatives, pattern matching and membership — every value
+travels as a bind parameter:
+
+```crystal
+Post.all.where_not(published: true)         # NOT (published = ?)
+Post.all.where(:title, :like, "%altair%")   # title LIKE ?
+Post.all.where(:views, :in, [3, 12])        # views IN (?, ?); empty matches nothing
+Post.all.where(:user_id, :null)             # IS NULL (also :not_null)
+Post.all.where(views: 30).or_where(views: 45)
+# WHERE (views = ? OR views = ?) — alternatives fold into the previous clause
+```
+
+Relation finders read without materializing the scope:
+
+```crystal
+Post.all.first / first?                     # pk ascending unless the scope orders
+Post.all.last / last?                       # reverses the scope's ordering
+Post.all.take(2)                            # first n rows, order untouched
+Post.all.ids                                # scoped primary keys
+Post.all.order(:views).pick(:title)         # one column from the leading scoped row
+Post.all.exists? / any? / none?             # LIMIT 1 probe, never a full load
+```
+
+Bulk writes run one statement for the whole scope. They bypass callbacks,
+validations and timestamps — this is the administrative path:
+
+```crystal
+Post.all.where(published: false).update_all(published: true)
+Post.all.where(views: 0).delete_all
+```
+
+`.count` respects `limit`/`offset`: a bounded relation counts exactly the
+rows `to_a` would return.
+
 ### Bulk inserts, dirty tracking and enum columns
 
 ```crystal
@@ -127,6 +163,10 @@ Column types are `string`, `text`, `integer`, `bigint`, `float`, `decimal`,
 exist. `db/schema.cr` is regenerated after every run and feeds the
 compile-time column metadata, so the model's accessors always match the
 database.
+
+`change_column_null(:posts, :title, false)` toggles nullability on every
+adapter: engines that can alter a column in place issue one statement,
+SQLite rebuilds the table (rows and explicit indexes preserved).
 
 ## Validations
 

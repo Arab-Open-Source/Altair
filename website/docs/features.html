@@ -100,6 +100,42 @@ parameter bag (scalar fields as params, files as
 opt-in <code>Cors</code> (<code>config.cors.origins</code> enables it; preflight answered
 directly)</li>
 </ul>
+<h2>Phase 7 — Post-release</h2>
+<p>Four features shipped, demonstrated end to end in <code>examples/blog</code>:</p>
+<ul>
+<li><strong>Testing utilities</strong> — <code>Altair::Test.boot(App)</code> binds an ephemeral port
+(with a <code>configure:</code> hook for per-spec settings such as
+<code>secret_key_base</code>), plain <code>get</code>/<code>post</code>/<code>post_json</code>/<code>put</code>/<code>patch</code>/
+<code>delete</code> helpers for one-off requests, and the cookie-jar
+<code>Altair::Test::Client</code> whose session survives between requests with
+browser-like redirect following. Database helpers: <code>migrate!</code> applies
+pending migrations through the same engine the CLI drives, and
+<code>transactional { }</code> wraps an example in an always-rolled-back
+transaction (nested calls join through savepoints)</li>
+<li><strong>Full authentication</strong> — <code>altair g auth [User]</code> writes a complete
+registration/login stack: User model with unique email, a migration
+carrying the unique index, sessions and registrations controllers,
+login/register views and the <code>/login</code>, <code>/register</code>, <code>/logout</code> routes.
+The <code>password_auth</code> model macro stages plain passwords, hashes them
+into a digest column through PBKDF2-HMAC-SHA256
+(<code>Altair::Auth::PasswordHasher</code> — OpenSSL stdlib, no new dependencies),
+validates length and confirmation as ordinary record errors, and gates
+logins behind <code>authenticate_password</code></li>
+<li><strong>Asset pipeline</strong> — <code>assets/</code> sources compile into fingerprinted files
+under <code>public/assets/&lt;name&gt;-&lt;sha256&gt;.&lt;ext&gt;</code> plus a <code>manifest.json</code> via
+<code>altair assets:precompile</code>; <code>stylesheet_link_tag</code>,
+<code>javascript_asset_tag</code> and <code>asset_url</code> resolve through the manifest
+when compiled and fall back to plain copies in development;
+fingerprinted responses carry <code>Cache-Control: immutable</code></li>
+<li><strong>Background jobs</strong> — job classes declare typed parameters once
+(<code>params user_id : Int64</code>) and get compile-checked <code>enqueue</code>,
+<code>enqueue_in</code> and <code>enqueue_at</code>. Jobs persist in a lazily-created
+<code>altair_jobs</code> table (no migration needed), claiming is atomic so
+concurrent workers never double-run a row, failures retry with
+exponential backoff inside a per-job budget, <code>altair jobs:work</code> runs
+the worker with graceful shutdown, <code>altair jobs:stats</code> prints status
+counts, and test mode collects enqueues for synchronous draining</li>
+</ul>
 <h2>Performance hardening</h2>
 <ul>
 <li><code>find_each</code> streams bounded batches that keep the scoped <code>where</code> filters and <code>includes</code> preloaders</li>
@@ -116,13 +152,61 @@ quoted statements, halving the write-path allocations (PostgreSQL:
 </ul>
 <h2>Testing and quality</h2>
 <ul>
-<li>752 specs passing (6 pending: the PostgreSQL concurrency contract tests; the full PostgreSQL contract suite runs when <code>ALTAIR_TEST_PG_URL</code> is set)</li>
+<li>817 specs passing (6 pending: the PostgreSQL concurrency contract tests; the full PostgreSQL contract suite runs when <code>ALTAIR_TEST_PG_URL</code> is set)</li>
 <li>Formatter clean, linter silent on framework sources</li>
 <li>Smart error pages: 404 with route suggestions, 405 with <code>_method</code> explanation, detailed 500 diagnostics in debug mode only</li>
 </ul>
+<h3>Rich query DSL completion + advanced associations (closing Phase 7 wave)</h3>
+<ul>
+<li><strong>Joins</strong> — <code>Post.all.joins(:comments).where(&quot;comments.body&quot;, &quot;altair&quot;)</code>
+emits a real INNER JOIN with table-qualified <code>where</code>; <code>has_many</code> joins
+auto-enable <code>SELECT DISTINCT</code> and <code>COUNT(DISTINCT pk)</code>; <code>left_joins</code>
+keeps unmatched owners</li>
+<li><strong><code>has_many :through</code></strong> — <code>has_many :tags, through: :post_tags</code> works
+lazily (one JOIN per owner), eagerly (<code>includes(:tags)</code> batches all
+owners into one JOIN), and composes with <code>joins</code>; source association is
+inferred from the name — explicit <code>source:</code> only when ambiguous</li>
+<li><strong>Polymorphic</strong> — <code>belongs_to :commentable, polymorphic: true</code> +
+<code>has_many :comments, as: :commentable</code> with batched-per-type eager
+loading and <code>dependent: :destroy/:nullify</code>;
+<code>t.references :x, polymorphic: true</code> migration helper generates the
+id/type pair plus composite index</li>
+</ul>
+<h3>ORM hardening (Wave 0)</h3>
+<ul>
+<li><strong><code>IN (...)</code> chunking</strong> — eager loading splits oversized id lists at 500 binds,
+so large collections never trip SQLite&#39;s variable limit</li>
+<li><strong>Custom primary keys</strong> — <code>table :posts, primary_key: :uuid</code>; string PKs
+auto-generate <code>SecureRandom.uuid</code> before insert</li>
+<li><strong>Ordering</strong> — <code>order</code> accumulates (<code>order(:a).order(:b)</code> = <code>ORDER BY a, b</code>);
+<code>reorder</code> replaces; <code>unscope_order</code> clears</li>
+<li><strong>Reloading</strong> — <code>Relation#reload</code> re-runs the query; <code>Model#reload</code>
+re-reads attributes from the database</li>
+<li><strong>Atomic writes</strong> — <code>db/schema.cr</code> written via tmp+rename;
+<code>db:migrate</code> acquires PG advisory lock against concurrent races</li>
+</ul>
+<h3>Phase 10 — Router &amp; future features</h3>
+<ul>
+<li><strong>Dynamic redirect</strong>: <code>redirect &quot;/t/:id&quot;, to: &quot;/tweets/:id&quot;</code> interpolates route params into Location headers</li>
+<li><strong>Cache layer</strong>: MemoryStore (dev) + RedisStore (production); <code>Altair.cache.fetch</code> with TTL expiry</li>
+<li><strong>Storage abstraction</strong>: DiskStore (local) + S3Store (AWS SigV4); shared upload/delete/url contract; <code>has_one_attached</code> macro for model attachments via lazy <code>altair_attachments</code> table</li>
+<li><strong>WebSocket Cable</strong>: channel-based broadcaster at <code>/cable</code> with auth hook (<code>cable_auth</code>), heartbeat ping/pong, JSON envelope protocol, automatic subscriber cleanup</li>
+<li><strong>API mode</strong>: <code>altair new --api</code> generates JSON-only project (no views/assets) with CORS enabled</li>
+<li><strong>Admin generator</strong>: <code>altair g admin Post</code> writes namespaced controller with <code>require_login</code> + routes</li>
+<li><strong>Observability</strong>: <code>/health</code> and <code>/metrics</code> (Prometheus format) behind <code>config.observability = true</code></li>
+<li><strong>Structured logs</strong>: <code>config.structured_logs = true</code> emits one JSON object per request</li>
+<li><strong>Redis client</strong>: Pure-Crystal <code>Altair::Redis::Client</code> built from scratch — RESP2, connection pool, pub/sub, pipeline, transactions. No external Redis shard needed.</li>
+</ul>
 <h2>What is planned next</h2>
 <ul>
-<li><strong>Phase 7 (Post-release):</strong> background jobs, full authentication, asset pipeline, rich query DSL, testing utilities</li>
+<li><p><strong>Phase 12 candidate:</strong> multi-tenancy</p>
+</li>
+<li><p>Rate limiting middleware</p>
+</li>
+<li><p>Email sending</p>
+</li>
+<li><p><strong>Phase 8 candidate:</strong> multi-tenancy</p>
+</li>
 </ul>
 <div class="docs-pager"><div class="pager-progress">Page 14 of 16</div><div class="pager-links"><a class="pager-card" href="testing.html"><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span><span><span class="label">Previous</span><span class="pager-title">Testing</span></span></a><a class="pager-card right" href="cli.html"><span><span class="label">Next</span><span class="pager-title">CLI reference</span></span><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></a></div></div></article></div>
   </main>

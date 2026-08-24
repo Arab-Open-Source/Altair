@@ -94,30 +94,16 @@
 <td>A model file and its table.</td>
 </tr>
 <tr>
-<td><code>altair g migration Create&lt;Table&gt; [column:type ...]</code></td>
-<td>A timestamped migration.</td>
-</tr>
-<tr>
-<td><code>altair g controller &lt;Name&gt;</code></td>
-<td>A controller and its views.</td>
-</tr>
-<tr>
-<td><code>altair install [--dir DIR] [--force]</code></td>
-<td>Install the binary onto <code>PATH</code>.</td>
-</tr>
-<tr>
-<td><code>altair update [--check] [--force]</code></td>
-<td>Update the binary to the latest release.</td>
-</tr>
-<tr>
-<td><code>altair version</code></td>
-<td>Print <code>Altair &lt;version&gt;</code>.</td>
-</tr>
-<tr>
-<td><code>altair help</code></td>
-<td>Print usage.</td>
+<td><code>altair g auth [User]</code></td>
+<td>Full registration/login stack: User model (<code>password_auth</code>, unique email), migration with the unique index, sessions + registrations controllers, login/register views, and the <code>/login</code>, <code>/register</code>, <code>/logout</code> routes.</td>
 </tr>
 </tbody></table>
+<p>| <code>altair g migration Create&lt;Table&gt; [column:type ...]</code> | A timestamped migration. |
+| <code>altair g controller &lt;Name&gt;</code> | A controller and its views. |
+| <code>altair install [--dir DIR] [--force]</code> | Install the binary onto <code>PATH</code>. |
+| <code>altair update [--check] [--force]</code> | Update the binary to the latest release. |
+| <code>altair version</code> | Print <code>Altair &lt;version&gt;</code>. |
+| <code>altair help</code> | Print usage. |</p>
 <p>Column specs take a type after a colon and default to <code>string</code>: <code>title:string body:text price:float published:boolean</code>.</p>
 <h2>Inside a generated project</h2>
 <p>App-context commands run against the project&#39;s application. From anywhere
@@ -151,11 +137,26 @@ need to type <code>bin/</code>:</p>
 <td><code>altair db:seed</code></td>
 <td>Run the blocks registered in <code>db/seeds.cr</code>.</td>
 </tr>
+<tr>
+<td><code>altair assets:precompile</code></td>
+<td>Fingerprint <code>assets/</code> into <code>public/assets/</code> and write the manifest the view helpers resolve through.</td>
+</tr>
+<tr>
+<td><code>altair jobs:work</code></td>
+<td>Run the background-jobs worker until interrupted (graceful SIGINT/SIGTERM shutdown).</td>
+</tr>
+<tr>
+<td><code>altair jobs:stats</code></td>
+<td>Print background-job status counts (<code>pending</code>/<code>running</code>/<code>done</code>/<code>failed</code>).</td>
+</tr>
 </tbody></table>
 <p><code>db/seeds.cr</code> registers its blocks when the file is required and runs
 them only through <code>db:seed</code> — booting a server never plants data. Blocks
 re-run on every invocation, so guard with <code>unless Model.exists?</code> to stay
 idempotent.</p>
+<p>The jobs table (<code>altair_jobs</code>) creates itself lazily on first enqueue —
+no migration is needed; point <code>jobs:work</code> at the same database as the
+server and enqueued work drains in order with retries on failure.</p>
 <p><code>altair g scaffold ...</code> and the other generators write into the current
 project the same way. The project launcher itself (<code>bin/altair</code>, or
 <code>bin/altair.cr</code> in projects created before the executable wrapper) is
