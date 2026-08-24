@@ -41,9 +41,10 @@ Nothing ships unless someone can look at it, click it, and see it work.
 - **Phases 0–5 done** (Foundation, Router, Controllers, Views, Record/ORM,
   CLI + Generators). `examples/blog` is the always-running persistence demo
   — its posts and comments survive restarts.
-- 989 specs passing (8 pending: the PostgreSQL concurrency contract
-  tests, plus the fuller PostgreSQL contract suite gated on
-  `ALTAIR_TEST_PG_URL`), formatter clean, Ameba silent on framework sources.
+- 992 specs (15 pending: 7 Redis rate-limit + 1 Redis middleware + 6
+  PostgreSQL concurrency contract gated on `ALTAIR_TEST_PG_CONCURRENCY`, plus
+  the fuller PostgreSQL contract suite on `ALTAIR_TEST_PG_URL`), formatter
+  clean, Ameba silent on framework sources.
 - Phase 7 shipped four features: **testing utilities** (`Altair::Test.boot`
   with a `configure:` hook, the cookie-jar `Altair::Test::Client` with
   browser-like redirects, `migrate!`, `transactional`),
@@ -80,7 +81,9 @@ Nothing ships unless someone can look at it, click it, and see it work.
   `SecurityHeaders` (default `nosniff` / `SAMEORIGIN` / referrer policy,
   driven by `config.security_headers`), `RequestId` (`request.request_id`,
   echo-back through `config.request_id_header`, appended to the request log
-  line), and opt-in `Cors` (`config.cors.origins` enables it; preflight
+  line), `RateLimit` (sliding-window, `config.rate_limit` — `MemoryStore` /
+  `RedisStore` with `Retry-After` + `X-RateLimit-*`; `examples/rate_limit_demo`
+  shows it live), and opt-in `Cors` (`config.cors.origins` enables it; preflight
   answered directly).
 - The router shipped three post-Phase-1 waves: `resources` blocks
   (`member`/`collection`/nested, Phase 1 era), constraints + implicit

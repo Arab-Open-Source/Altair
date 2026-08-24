@@ -82,8 +82,8 @@
 </tr>
 </thead>
 <tbody><tr>
-<td><code>altair new &lt;name&gt; [--framework-path DIR]</code></td>
-<td>Scaffold a runnable project. <code>&lt;name&gt;</code> may include a path (<code>a/b</code>, <code>/tmp/my_app</code>); only its basename becomes the application name. Names must be lowercase letters, digits and underscores starting with a letter — <code>my-app</code> is rejected with a suggestion <code>my_app</code>. By default it depends on the published shard; pass <code>--framework-path</code> (or set <code>ALTAIR_PATH</code>) to use a local checkout.</td>
+<td><code>altair new &lt;name&gt; [--framework-path DIR] [-d sqlite|postgresql]</code></td>
+<td>Scaffold a runnable project. <code>&lt;name&gt;</code> may include a path (<code>a/b</code>, <code>/tmp/my_app</code>); only its basename becomes the application name. Names must be lowercase letters, digits and underscores starting with a letter — <code>my-app</code> is rejected with a suggestion <code>my_app</code>. By default it depends on the published shard; pass <code>--framework-path</code> (or set <code>ALTAIR_PATH</code>) to use a local checkout. <code>-d postgresql</code> wires the <code>pg</code> shard, postgres URLs in <code>config/database.yml</code> and the adapter require; <code>-d sqlite</code> is the default (<code>ALTAIR_DATABASE</code> env fallback).</td>
 </tr>
 <tr>
 <td><code>altair g scaffold &lt;Name&gt; [column:type ...]</code></td>
@@ -132,6 +132,14 @@ need to type <code>bin/</code>:</p>
 <tr>
 <td><code>altair db:rollback</code></td>
 <td>Undo the latest migration.</td>
+</tr>
+<tr>
+<td><code>altair db:create</code></td>
+<td>Create every environment database from <code>config/database.yml</code> (idempotent; PostgreSQL targets are created through the maintenance database).</td>
+</tr>
+<tr>
+<td><code>altair db:drop</code></td>
+<td>Drop those databases. Refuses in production without <code>--force</code>.</td>
 </tr>
 <tr>
 <td><code>altair db:seed</code></td>

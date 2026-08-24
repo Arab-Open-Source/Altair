@@ -19,7 +19,7 @@ Its goal is to provide an exceptional developer experience while taking
 advantage of Crystal's native performance, low memory usage and single-binary
 deployment.
 
-> **Status:** early development — Phases 0–6 complete, Phase 7 mostly complete
+> **Status:** early development — Phases 0–7 complete, 992 specs (15 pending without Redis)
 
 > **Website:** <https://arab-open-source.github.io/Altair/> — install, usage and
 > what is implemented, generated from markdown in [`website/`](website/).
@@ -54,7 +54,7 @@ What is already in place:
 | Middleware | `use`-based pipeline, request logging, static files with traversal protection |
 | Errors | `rescue_from`, smart debug pages (404 suggestions, 405 methods, 500 diagnostics), plain in production |
 | Hardening | 2 MB request-body limit, `413` before the body is read |
-| Config & security | `.env` + `config/database.yml`, multipart uploads (`params.upload`), `SecurityHeaders` / `RequestId` / opt-in `Cors` middleware |
+| Config & security | `.env` + `config/database.yml`, multipart uploads (`params.upload`), `SecurityHeaders` / `RequestId` / `RateLimit` (sliding-window, per-path, `MemoryStore`/`RedisStore`) / opt-in `Cors` middleware |
 | Sessions & auth | signed-cookie sessions, flash, CSRF tokens on protected forms, `require_login`/`authenticate!`, `Altair::Auth::JWT` |
 | Testing utilities | `Altair::Test.boot` with a `configure:` hook, stateless HTTP helpers plus a cookie-jar `Test::Client` with redirect following, `migrate!` and transactional wrappers |
 | Full authentication | `altair g auth` writes model + migration + controllers + views + routes; `password_auth` macro hashes through PBKDF2-SHA256 (`Altair::Auth::PasswordHasher`) |
@@ -65,10 +65,10 @@ What is already in place:
 | Generators | `altair new <name>` scaffolds the standard layout; `altair g model` / `g migration` / `g controller` / `g scaffold Post title:string body:text` write ready-to-edit files (model, migration, controller, views, routes, schema) |
 
 What is still missing (in rough order): the remaining rich-query DSL
-(`joins`, `group`/`having`, richer operators), `has_many :through` and
-polymorphic associations, a development console, and multi-tenancy
+(`group`/`having`), a development console, and multi-tenancy
 (candidate for the next phase — see
-`docs/architecture/orm-audit-and-tenancy-plan.md`).
+`docs/architecture/orm-audit-and-tenancy-plan.md`). `examples/rate_limit_demo`
+now shows the limiter live.
 
 ---
 
@@ -157,7 +157,6 @@ polymorphic associations, a development console, and multi-tenancy
 ### Planned
 
 - Multi-tenancy (candidate)
-- Rate limiting middleware
 - Email sending
 - Full-text search
 

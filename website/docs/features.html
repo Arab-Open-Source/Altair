@@ -94,11 +94,13 @@ parameter bag (scalar fields as params, files as
 <code>Altair::HTTP::UploadedFile</code> via <code>params.upload(&quot;avatar&quot;)</code>, with
 <code>UploadedFile#save</code> + <code>#content</code>)</li>
 <li><strong>Security middleware set</strong> — <code>SecurityHeaders</code> (default <code>nosniff</code> /
-<code>SAMEORIGIN</code> / referrer policy, driven by <code>config.security_headers</code>),
-<code>RequestId</code> (<code>request.request_id</code>, echo-back through
-<code>config.request_id_header</code>, appended to the request log line), and
-opt-in <code>Cors</code> (<code>config.cors.origins</code> enables it; preflight answered
-directly)</li>
+  <code>SAMEORIGIN</code> / referrer policy, driven by <code>config.security_headers</code>),
+  <code>RequestId</code> (<code>request.request_id</code>, echo-back through
+  <code>config.request_id_header</code>, appended to the request log line),
+  <code>RateLimit</code> (sliding-window, <code>config.rate_limit</code> — <code>MemoryStore</code> /
+  <code>RedisStore</code>, per-path rules, <code>X-RateLimit-*</code> + <code>Retry-After</code>), and
+  opt-in <code>Cors</code> (<code>config.cors.origins</code> enables it; preflight answered
+  directly)</li>
 </ul>
 <h2>Phase 7 — Post-release</h2>
 <p>Four features shipped, demonstrated end to end in <code>examples/blog</code>:</p>
@@ -199,14 +201,8 @@ re-reads attributes from the database</li>
 </ul>
 <h2>What is planned next</h2>
 <ul>
-<li><p><strong>Phase 12 candidate:</strong> multi-tenancy</p>
-</li>
-<li><p>Rate limiting middleware</p>
-</li>
-<li><p>Email sending</p>
-</li>
-<li><p><strong>Phase 8 candidate:</strong> multi-tenancy</p>
-</li>
+<li><strong>Phase 12 candidate:</strong> multi-tenancy</li>
+<li>Email sending</li>
 </ul>
 <div class="docs-pager"><div class="pager-progress">Page 14 of 16</div><div class="pager-links"><a class="pager-card" href="testing.html"><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span><span><span class="label">Previous</span><span class="pager-title">Testing</span></span></a><a class="pager-card right" href="cli.html"><span><span class="label">Next</span><span class="pager-title">CLI reference</span></span><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></a></div></div></article></div>
   </main>

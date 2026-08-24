@@ -84,6 +84,28 @@ answer; requested headers are honored when the client names extra ones.</li>
 <li>Combine CORS with the framework&#39;s signed session cookie, which carries
 <code>SameSite=Lax</code> by default, to keep cross-origin sessions honest.</li>
 </ul>
+<h2>Rate limiting</h2>
+<p><code>Altair::Middleware::RateLimit</code> is a <strong>pass-through until you configure it</strong>.
+Declare rules on <code>config.rate_limit</code> — every value travels as a bind
+parameter internally, and the middleware enforces the most restrictive
+matching rule per request:</p>
+<pre><code class="language-crystal">config.rate_limit.configure do |rl|
+  rl.store :memory          # or :redis for multi-instance deployments
+  rl.limit 100, per: 1.minute
+  rl.limit 5, per: 1.minute, only: [&quot;/login&quot;]
+end
+</code></pre>
+<ul>
+<li><code>store :memory</code> — per-process, evicts dead keys lazily.</li>
+<li><code>store :redis</code> — shared via <code>Altair::Redis</code> (set <code>redis_url</code> or <code>ALTAIR_REDIS_URL</code>).</li>
+<li><code>only:</code> scopes a rule to path prefixes (<code>&quot;/login&quot;</code> matches <code>/login</code> and
+<code>/login/*</code>); unmatched paths are free.</li>
+<li><code>trusted_headers = true</code> makes <code>X-Forwarded-For</code> the client key — only
+enable behind a proxy you control.</li>
+</ul>
+<p>Allowed responses carry <code>X-RateLimit-Limit</code> / <code>-Remaining</code> / <code>-Reset</code>;
+denied ones answer <code>429 Too Many Requests</code> with <code>Retry-After</code>.</p>
+<p>See <code>examples/rate_limit_demo</code> for a runnable demo.</p>
 <h2>The full stack</h2>
 <p>The default <code>config.middleware</code> runs, in order:</p>
 <table>
@@ -100,6 +122,10 @@ answer; requested headers are honored when the client names extra ones.</li>
 <tr>
 <td><code>RequestId</code></td>
 <td>Assign and echo a request identifier</td>
+</tr>
+<tr>
+<td><code>RateLimit</code></td>
+<td>Sliding-window rate limiting (pass-through by default)</td>
 </tr>
 <tr>
 <td><code>SecurityHeaders</code></td>

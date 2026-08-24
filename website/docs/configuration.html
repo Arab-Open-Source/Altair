@@ -52,7 +52,10 @@ into the database settings.</p>
 </li>
 </ol>
 <p><code>altair new</code> generates both <code>.env</code> and <code>config/database.yml</code>, so a fresh
-project is file-driven from day one.</p>
+project is file-driven from day one. <code>altair new -d postgresql</code> starts that
+file on <code>postgres://</code> URLs and wires the <code>pg</code> shard; <code>ENV[&quot;DATABASE_URL&quot;]</code>
+overrides whatever the file says, and the same override drives
+<code>bin/altair db:create</code> / <code>db:drop</code>.</p>
 <h2><code>.env</code></h2>
 <p><code>KEY=VALUE</code> pairs loaded into the process environment. Handles <code>export</code>,
 quoted and unquoted values and <code>#</code> comments:</p>
