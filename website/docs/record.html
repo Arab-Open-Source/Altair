@@ -173,6 +173,13 @@ false:</p>
   validates_confirmation_of :password
 end
 </code></pre>
+<p>Every macro accepts <code>if:</code> / <code>unless:</code> predicate methods and <code>allow_nil:</code>;
+uniqueness takes <code>case_sensitive: false</code> to match through <code>LOWER</code>:</p>
+<pre><code class="language-crystal">validates_length_of :name, minimum: 5, if: :verified?
+validates_presence_of :handle, unless: :importing?
+validates_format_of :website, with: %r{https://}, allow_nil: true
+validates_uniqueness_of :email, case_sensitive: false
+</code></pre>
 <pre><code class="language-crystal">post = Post.new(title: &quot;&quot;)
 post.valid?            # false
 post.errors[:title]    # [&quot;Title can&#39;t be blank&quot;]
@@ -226,6 +233,17 @@ class Comment &lt; Altair::Record::Model
   belongs_to :post
 end
 </code></pre>
+<p><code>counter_cache: true</code> on a <code>belongs_to</code> maintains <code>&lt;assoc&gt;_count</code> (or the
+named column) on the owner atomically as children are created and deleted:</p>
+<pre><code class="language-crystal">class Comment &lt; Altair::Record::Model
+  belongs_to :post, counter_cache: true   # posts.comments_count
+end
+
+post.comments_count                       # no COUNT query at read time
+</code></pre>
+<p>When the child model declares no destroy callbacks, <code>dependent: :destroy</code>
+collapses into one <code>DELETE ... WHERE fk = ?</code>; children with their own
+lifecycle still run it row by row.</p>
 <pre><code class="language-crystal">post.comments.each { |c| puts c.body }
 Post.all.includes(:comments).to_a          # 2 queries total
 </code></pre>

@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`counter_cache` on `belongs_to`**: `belongs_to :post, counter_cache: true`
+  (or a custom column name) maintains `posts.<assoc>_count` atomically as
+  children are created and destroyed — listing pages read the count column
+  instead of paying a `COUNT` per row. Bulk paths (`insert_all`,
+  `update_all`, `delete_all`) bypass the hooks and must maintain counts
+  themselves.
+- **Batched `dependent: :destroy`**: when the child model declares no
+  destroy callbacks of its own, destroying a parent removes all children
+  with a single `DELETE ... WHERE fk = ?`; children carrying their own
+  lifecycle still run it row by row.
+- **Conditional validations**: every `validates_*` macro accepts `if:` /
+  `unless:` predicate methods and `allow_nil:`; `validates_uniqueness_of`
+  gains `case_sensitive: false` (LOWER-folded comparison on both sides).
 - **`after_commit` / `after_rollback` lifecycle hooks**: fire once the
   record's save or delete transaction lands (or on rollback, before the
   exception re-raises). The safe place to enqueue background jobs and

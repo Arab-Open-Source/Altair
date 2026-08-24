@@ -176,12 +176,29 @@ module Altair
         # A custom message replacing the default one.
         getter message : String?
 
+        # The predicate method an `if:` option names — the rule runs only
+        # while it returns true.
+        getter if_method : Symbol?
+
+        # The predicate method an `unless:` option names — the rule is
+        # skipped while it returns true.
+        getter unless_method : Symbol?
+
+        # Whether a nil attribute value skips this rule.
+        getter? allow_nil : Bool
+
+        # Whether uniqueness compares case-sensitively; `false` folds both
+        # sides through LOWER before matching.
+        getter? case_sensitive : Bool
+
         def initialize(@kind : Symbol, @attribute : Symbol? = nil, @method : Symbol? = nil,
                        @minimum : Int32? = nil, @maximum : Int32? = nil,
                        @greater_than : Float64? = nil, @integer : Bool? = nil,
                        @scope : Symbol? = nil, @message : String? = nil,
                        @possibilities : (Array(String) | Range(Int32, Int32))? = nil,
-                       @format : Regex? = nil)
+                       @format : Regex? = nil,
+                       @if_method : Symbol? = nil, @unless_method : Symbol? = nil,
+                       @allow_nil : Bool = false, @case_sensitive : Bool = true)
         end
       end
 
@@ -1150,6 +1167,7 @@ module Altair
         @@callbacks = {} of Symbol => Array(Proc({{@type.id}}, Nil))
         @@validations = [] of Rule
         @@custom_validations = [] of Proc({{@type.id}}, Nil)
+        @@conditions = {} of Symbol => Proc(Altair::Record::Model, Bool)
         @@confirmations = {} of String => Proc({{@type.id}}, Value?)
         @@preloaders = {} of Symbol => Proc(Array(Altair::Record::Model), Array(Altair::Record::Model))
         @@association_metas = {} of Symbol => NamedTuple(kind: Symbol, target_class: String, foreign_key: String, through: String, source: String)
@@ -1158,6 +1176,13 @@ module Altair
         # model saves without the transaction wrapper.
         def self.__callbacks? : Bool
           @@callbacks.values.any?(&.any?)
+        end
+
+        # Whether the model declares destroy lifecycle callbacks — batched
+        # dependent deletes honor them instead of one DELETE statement.
+        def self.__destroy_callbacks? : Bool
+          @@callbacks.fetch(:before_destroy, [] of Proc({{@type.id}}, Nil)).any? ||
+            @@callbacks.fetch(:after_destroy, [] of Proc({{@type.id}}, Nil)).any?
         end
 
         # The eager loader for an association, or a clear error. The
@@ -1187,6 +1212,15 @@ module Altair
             callback.call(self)
           end
           @@validations.each do |rule|
+            if if_method = rule.if_method
+              next unless condition?(if_method)
+            end
+            if unless_method = rule.unless_method
+              next if condition?(unless_method)
+            end
+            if rule.allow_nil? && (attribute = rule.attribute) && attribute_value(attribute).nil?
+              next
+            end
             case rule.kind
             when :presence     then check_presence(rule)
             when :length       then check_length(rule)
@@ -1198,6 +1232,12 @@ module Altair
             when :confirmation then check_confirmation(rule)
             end
           end
+        end
+
+        private def condition?(name : Symbol) : Bool
+          predicate = @@conditions[name]?
+          raise Altair::Error.new("unknown validation condition :#{name} on #{self.class}") unless predicate
+          predicate.call(self)
         end
       end
 
@@ -1265,51 +1305,78 @@ module Altair
         {% end %}
       end
 
-      macro validates_presence_of(*attributes, message = nil)
-        {% for attribute in attributes %}
-          @@validations << Rule.new(:presence, attribute: {{ attribute }}, message: {{ message }})
+      # Every `validates_*` macro accepts `if:` / `unless:` predicate
+      # method names and `allow_nil:` — a nil attribute skips the rule.
+      # `validates_uniqueness_of` also takes `case_sensitive: false` to
+      # match through LOWER on both sides.
+
+      macro register_condition(name)
+        {% if name %}
+          @@conditions[{{ name.id.symbolize }}] ||= ->(record : Altair::Record::Model) { record.as({{@type.id}}).{{ name.id }} }
         {% end %}
       end
 
-      macro validates_length_of(*attributes, minimum = nil, maximum = nil, message = nil)
+      macro validates_presence_of(*attributes, message = nil, **opts)
+        register_condition({{ opts[:if] }})
+        register_condition({{ opts[:unless] }})
         {% for attribute in attributes %}
-          @@validations << Rule.new(:length, attribute: {{ attribute }}, minimum: {{ minimum }}, maximum: {{ maximum }}, message: {{ message }})
+          @@validations << Rule.new(:presence, attribute: {{ attribute }}, message: {{ message }}, if_method: {{ opts[:if] }}, unless_method: {{ opts[:unless] }}, allow_nil: {{ opts[:allow_nil] || false }})
         {% end %}
       end
 
-      macro validates_numericality_of(*attributes, greater_than = nil, integer = nil, message = nil)
+      macro validates_length_of(*attributes, minimum = nil, maximum = nil, message = nil, **opts)
+        register_condition({{ opts[:if] }})
+        register_condition({{ opts[:unless] }})
         {% for attribute in attributes %}
-          @@validations << Rule.new(:numericality, attribute: {{ attribute }}, greater_than: {{ greater_than }}, integer: {{ integer }}, message: {{ message }})
+          @@validations << Rule.new(:length, attribute: {{ attribute }}, minimum: {{ minimum }}, maximum: {{ maximum }}, message: {{ message }}, if_method: {{ opts[:if] }}, unless_method: {{ opts[:unless] }}, allow_nil: {{ opts[:allow_nil] || false }})
         {% end %}
       end
 
-      macro validates_uniqueness_of(*attributes, scope = nil, message = nil)
+      macro validates_numericality_of(*attributes, greater_than = nil, integer = nil, message = nil, **opts)
+        register_condition({{ opts[:if] }})
+        register_condition({{ opts[:unless] }})
         {% for attribute in attributes %}
-          @@validations << Rule.new(:uniqueness, attribute: {{ attribute }}, scope: {{ scope }}, message: {{ message }})
+          @@validations << Rule.new(:numericality, attribute: {{ attribute }}, greater_than: {{ greater_than }}, integer: {{ integer }}, message: {{ message }}, if_method: {{ opts[:if] }}, unless_method: {{ opts[:unless] }}, allow_nil: {{ opts[:allow_nil] || false }})
+        {% end %}
+      end
+
+      macro validates_uniqueness_of(*attributes, scope = nil, message = nil, case_sensitive = true, **opts)
+        register_condition({{ opts[:if] }})
+        register_condition({{ opts[:unless] }})
+        {% for attribute in attributes %}
+          @@validations << Rule.new(:uniqueness, attribute: {{ attribute }}, scope: {{ scope }}, message: {{ message }}, case_sensitive: {{ case_sensitive }}, if_method: {{ opts[:if] }}, unless_method: {{ opts[:unless] }}, allow_nil: {{ opts[:allow_nil] || false }})
         {% end %}
       end
 
       macro validates_inclusion_of(*attributes, message = nil, **options)
+        register_condition({{ options[:if] }})
+        register_condition({{ options[:unless] }})
         {% for attribute in attributes %}
-          @@validations << Rule.new(:inclusion, attribute: {{ attribute }}, possibilities: {{ options[:in] }}, message: {{ message }})
+          @@validations << Rule.new(:inclusion, attribute: {{ attribute }}, possibilities: {{ options[:in] }}, message: {{ message }}, if_method: {{ options[:if] }}, unless_method: {{ options[:unless] }}, allow_nil: {{ options[:allow_nil] || false }})
         {% end %}
       end
 
       macro validates_exclusion_of(*attributes, message = nil, **options)
+        register_condition({{ options[:if] }})
+        register_condition({{ options[:unless] }})
         {% for attribute in attributes %}
-          @@validations << Rule.new(:exclusion, attribute: {{ attribute }}, possibilities: {{ options[:in] }}, message: {{ message }})
+          @@validations << Rule.new(:exclusion, attribute: {{ attribute }}, possibilities: {{ options[:in] }}, message: {{ message }}, if_method: {{ options[:if] }}, unless_method: {{ options[:unless] }}, allow_nil: {{ options[:allow_nil] || false }})
         {% end %}
       end
 
       macro validates_format_of(*attributes, message = nil, **options)
+        register_condition({{ options[:if] }})
+        register_condition({{ options[:unless] }})
         {% for attribute in attributes %}
-          @@validations << Rule.new(:format, attribute: {{ attribute }}, format: {{ options[:with] }}, message: {{ message }})
+          @@validations << Rule.new(:format, attribute: {{ attribute }}, format: {{ options[:with] }}, message: {{ message }}, if_method: {{ options[:if] }}, unless_method: {{ options[:unless] }}, allow_nil: {{ options[:allow_nil] || false }})
         {% end %}
       end
 
-      macro validates_confirmation_of(*attributes, message = nil)
+      macro validates_confirmation_of(*attributes, message = nil, **opts)
+        register_condition({{ opts[:if] }})
+        register_condition({{ opts[:unless] }})
         {% for attribute in attributes %}
-          @@validations << Rule.new(:confirmation, attribute: {{ attribute }}, message: {{ message }})
+          @@validations << Rule.new(:confirmation, attribute: {{ attribute }}, message: {{ message }}, if_method: {{ opts[:if] }}, unless_method: {{ opts[:unless] }}, allow_nil: {{ opts[:allow_nil] || false }})
           @@confirmations[{{ attribute.id.stringify }}] = ->(record : {{ @type.id }}) : Value? { record.{{ attribute.id }}_confirmation }
         {% end %}
       end
@@ -1372,8 +1439,13 @@ module Altair
         adapter = connection.adapter
         where = [] of String
         args = [] of Value
-        where << "#{adapter.quote_identifier(attribute.to_s)} = #{adapter.placeholder(args.size)}"
-        args << value
+        if rule.case_sensitive?
+          where << "#{adapter.quote_identifier(attribute.to_s)} = #{adapter.placeholder(args.size)}"
+          args << value
+        else
+          where << "LOWER(#{adapter.quote_identifier(attribute.to_s)}) = LOWER(#{adapter.placeholder(args.size)})"
+          args << value
+        end
         if id = @id
           where << "#{adapter.quote_identifier("id")} != #{adapter.placeholder(args.size)}"
           args << id

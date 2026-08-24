@@ -186,6 +186,16 @@ class Post < Altair::Record::Model
 end
 ```
 
+Every macro accepts `if:` / `unless:` predicate methods and `allow_nil:`;
+uniqueness takes `case_sensitive: false` to match through `LOWER`:
+
+```crystal
+validates_length_of :name, minimum: 5, if: :verified?
+validates_presence_of :handle, unless: :importing?
+validates_format_of :website, with: %r{https://}, allow_nil: true
+validates_uniqueness_of :email, case_sensitive: false
+```
+
 ```crystal
 post = Post.new(title: "")
 post.valid?            # false
@@ -254,6 +264,21 @@ class Comment < Altair::Record::Model
   belongs_to :post
 end
 ```
+
+`counter_cache: true` on a `belongs_to` maintains `<assoc>_count` (or the
+named column) on the owner atomically as children are created and deleted:
+
+```crystal
+class Comment < Altair::Record::Model
+  belongs_to :post, counter_cache: true   # posts.comments_count
+end
+
+post.comments_count                       # no COUNT query at read time
+```
+
+When the child model declares no destroy callbacks, `dependent: :destroy`
+collapses into one `DELETE ... WHERE fk = ?`; children with their own
+lifecycle still run it row by row.
 
 ```crystal
 post.comments.each { |c| puts c.body }

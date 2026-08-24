@@ -926,6 +926,11 @@ module Altair
           post.touch                 # updated_at = now, bypasses callbacks
           post.touch(:reviewed_at)   # listed timestamp columns bump too
           post.increment!(:views)    # atomic views = views + 1 (decrement! too)
+
+          # Counter cache + conditional validations:
+          belongs_to :post, counter_cache: true        # maintains posts.comments_count
+          validates_length_of :name, minimum: 5, if: :verified?
+          validates_uniqueness_of :email, case_sensitive: false
           ```
 
           Custom primary keys: `table :posts, primary_key: :uuid` — string PKs auto-generate UUID.

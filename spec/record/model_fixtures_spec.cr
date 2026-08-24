@@ -9,15 +9,16 @@ require "../spec_helper"
 class Altair::Record::Schema
   META = {
     posts: {
-      id:         {type: :integer, null: false, primary: true},
-      title:      {type: :string, null: true, primary: false},
-      body:       {type: :text, null: true, primary: false},
-      views:      {type: :integer, null: false, primary: false},
-      published:  {type: :boolean, null: false, primary: false},
-      rating:     {type: :float, null: true, primary: false},
-      user_id:    {type: :integer, null: true, primary: false},
-      created_at: {type: :datetime, null: true, primary: false},
-      updated_at: {type: :datetime, null: true, primary: false},
+      id:             {type: :integer, null: false, primary: true},
+      title:          {type: :string, null: true, primary: false},
+      body:           {type: :text, null: true, primary: false},
+      views:          {type: :integer, null: false, primary: false},
+      published:      {type: :boolean, null: false, primary: false},
+      rating:         {type: :float, null: true, primary: false},
+      user_id:        {type: :integer, null: true, primary: false},
+      comments_count: {type: :integer, null: false, primary: false},
+      created_at:     {type: :datetime, null: true, primary: false},
+      updated_at:     {type: :datetime, null: true, primary: false},
     },
     comments: {
       id:           {type: :integer, null: false, primary: true},
@@ -359,6 +360,7 @@ module RecordSpec
       "id INTEGER PRIMARY KEY AUTOINCREMENT, " \
       "title TEXT, body TEXT, views INTEGER NOT NULL DEFAULT 0, " \
       "published BOOLEAN NOT NULL DEFAULT 0, rating FLOAT, user_id INTEGER, " \
+      "comments_count INTEGER NOT NULL DEFAULT 0, " \
       "created_at DATETIME, updated_at DATETIME)"
     )
     connection.exec(

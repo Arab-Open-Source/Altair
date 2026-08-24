@@ -68,6 +68,11 @@ operators; finders `first`/`last` (+ bang-less nil forms), `take`,
 `delete_all` bypass callbacks, validations and timestamps.
 Lifecycle hooks: enqueue jobs in `after_commit`, never `after_save`;
 `touch` / `increment!` / `decrement!` are direct writes.
+Associations: `belongs_to ..., counter_cache: true` maintains an
+atomic `<assoc>_count`; `dependent: :destroy` collapses to one DELETE
+when children declare no destroy callbacks. Validations take
+`if:`/`unless:`/`allow_nil:` everywhere; uniqueness takes
+`case_sensitive: false`.
 `change_column_null` works on every adapter — SQLite rebuilds the table.
 
 | Phase | Focus | Status |
