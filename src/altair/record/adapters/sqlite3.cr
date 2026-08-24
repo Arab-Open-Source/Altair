@@ -42,7 +42,9 @@ module Altair
 
         def limit_offset_clause(limit : Int32?, offset : Int32?) : String
           clauses = [] of String
-          clauses << "LIMIT #{limit}" if limit
+          # SQLite rejects a bare `OFFSET` — a limit is mandatory, so an
+          # offset-only clause gets the sentinel `-1` (unbounded).
+          clauses << "LIMIT #{limit || -1}" if limit || offset
           clauses << "OFFSET #{offset}" if offset
           clauses.join(" ")
         end

@@ -230,7 +230,8 @@ src/altair/
   cli/           CLI dispatcher, per-project commands, generators
   plugins/       (planned — empty placeholder)
   concerns/      (planned — empty placeholder)
-  testing/       (planned — empty placeholder)
+  testing/       test.cr (boot with configure: hook, migrate!, transactional),
+                 client.cr (cookie-jar HTTP client with redirects)
 spec/            Mirrors src/altair, plus controller/routing integration specs
 examples/        hello_world is the always-running demo app; examples/blog
                  is the persistence demo (Phase 4)

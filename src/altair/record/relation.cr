@@ -208,19 +208,31 @@ module Altair
 
       # The number of rows the scoped query returns, without materializing
       # them. Uses the cached records once the relation has been loaded.
-      # `order`, `limit` and `offset` do not affect the count.
+      # `limit` and `offset` bound what is counted, so a bounded relation
+      # counts exactly the rows `to_a` would return.
       def count : Int64
         if records = @records
           records.size.to_i64
         else
-          table = T.connection.adapter.quote_identifier(T.table_name)
-          pk = T.connection.adapter.quote_identifier(T.primary_key_name)
-          sql = if @distinct || !@joins.empty?
-                  "SELECT COUNT(DISTINCT #{table}.#{pk}) FROM #{table}#{join_sql}"
-                else
-                  "SELECT COUNT(*) FROM #{table}"
-                end
-          sql += " WHERE #{@where.join(" AND ")}" unless @where.empty?
+          adapter = T.connection.adapter
+          table = adapter.quote_identifier(T.table_name)
+          pk = adapter.quote_identifier(T.primary_key_name)
+          collapse = @distinct || !@joins.empty?
+          inner = String.build do |sql|
+            sql << "SELECT "
+            if collapse
+              sql << "DISTINCT #{table}.#{pk} "
+            else
+              sql << "1 "
+            end
+            sql << "FROM #{table}#{join_sql}"
+            sql << " WHERE #{@where.join(" AND ")}" unless @where.empty?
+            if @limit || @offset
+              sql << " ORDER BY #{@orders.join(", ")}" unless @orders.empty?
+              sql << " #{adapter.limit_offset_clause(@limit, @offset)}"
+            end
+          end
+          sql = "SELECT COUNT(*) FROM (#{inner}) AS altair_count"
           count = 0_i64
           T.connection.query(sql, values: @binds) do |rs|
             rs.move_next
@@ -244,7 +256,7 @@ module Altair
       #
       # ```
       # Post.all.where(published: true).includes(:comments).find_each do |post|
-      #   post.touch
+      #   post.update(views: post.views + 1)
       # end
       # ```
       def find_each(batch_size : Int32 = 64, &block : T ->) : Nil

@@ -5,6 +5,26 @@ All notable changes to Altair will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **`change_column_null` was broken on SQLite** (the default adapter): it
+  emitted PostgreSQL's `ALTER TABLE ... ALTER COLUMN ... SET/DROP NOT NULL`,
+  which SQLite rejects outright. Adapters now declare whether they can alter
+  nullability in place (`Adapter#supports_alter_column_null?`); SQLite takes
+  a rebuild path that reads the live shape with `PRAGMA table_info` (each
+  migration runs against a fresh schema state, so the table may be unknown
+  to it), creates a temp copy with the flipped constraint, copies the rows,
+  swaps the tables and recreates the explicit indexes captured beforehand.
+- **`Relation#count` ignored `limit` and `offset`** — `Post.all.limit(5).count`
+  returned the full table size. The count now wraps a bounded subquery, so a
+  limited relation counts exactly the rows `to_a` would return; joins keep
+  their distinct-pk collapsing inside the subquery.
+- **A bare `offset` crashed every query on SQLite**: `LIMIT -1 OFFSET n` is
+  required there (SQLite rejects `OFFSET` without `LIMIT`) — affected both
+  `count` and materialized reads on offset-only relations.
+
 ## [0.3.3] — 2026-08-24
 
 ### Fixed
