@@ -23,7 +23,7 @@ generators on top of that stack.
 | 5 | CLI + Generators & scaffolding | Completed |
 | 6 | Hardening (sessions, flash, CSRF, config, security) | Completed |
 | 7 | Post-release features | Completed — jobs, auth, assets, testing utilities, joins, has_many :through/polymorphic, and Wave 0 ORM hardening (IN chunking, custom PK + UUID, atomic writes, order/reload) all shipped; only console (deferred) remains |
-| 8 | Database ergonomics | Planned — `altair new -d postgresql` and `bin/altair db:create` |
+| 8 | Database ergonomics | Completed — `altair new -d postgresql`, `bin/altair db:create` / `db:drop`, `ENV["DATABASE_URL"]` applied at boot, PG contract suite in CI |
 | 9 | CLI ergonomics | Planned — destroy, job generator, db:status, server flags, assets/jobs helpers |
 | 10 | Router & future features | Completed — dynamic redirect, Cable, cache, storage, API mode, admin generator, observability |
 | v0.4.0 | ORM completion wave | Completed — query DSL (negation, alternatives, finders, bulk writes), after_commit hooks, touch/increment!, counter caches, batched dependent destroy, conditional validations |
@@ -159,7 +159,7 @@ pushing a `v*` tag, which triggers `release.yml`.
 | Rich query DSL (joins, preload, scopes, nested `includes`) | Complex data access is natural | Completed — scopes, `merge`, nested `includes`, plus `joins`/`left_joins` with table-qualified `where` and automatic `DISTINCT`/`COUNT(DISTINCT)` |
 | `has_many :through` + polymorphic associations | Advanced model relationships | Completed — `has_many :tags, through: :post_tags` (source inferred, ambiguous requires explicit `source:`), `belongs_to :commentable, polymorphic: true`, `has_many :comments, as: :commentable` with batched-per-type eager loading and `dependent: :destroy/:nullify`; `t.references ..., polymorphic: true` migration helper |
 
-## Phase 8: Database ergonomics (planned — deferred)
+## Phase 8: Database ergonomics (completed — shipped after v0.4.0, unreleased)
 
 Mirrors the `new -d` / `db:create` ergonomics of the reference framework,
 without mentioning it in code — flag is `-d` / `--database`.

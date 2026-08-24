@@ -50,7 +50,7 @@ full authentication (`altair g auth` + `password_auth` + PBKDF2 hashing),
 the asset pipeline (`assets:precompile`, manifest-backed helpers, immutable
 caching) and background jobs (typed `params` jobs, lazy `altair_jobs`
 table, atomic claiming, backoff retries, `jobs:work` / `jobs:stats`).
-957 specs passing
+989 specs passing
 (6 pending: the PostgreSQL contract suite on `ALTAIR_TEST_PG_URL`).
 The record layer shipped a post-Phase-4 performance wave: `find_each`
 keeps scoped `where` filters + `includes` preloaders across batches,
@@ -74,6 +74,10 @@ when children declare no destroy callbacks. Validations take
 `if:`/`unless:`/`allow_nil:` everywhere; uniqueness takes
 `case_sensitive: false`.
 `change_column_null` works on every adapter — SQLite rebuilds the table.
+Database ergonomics: `altair new -d postgresql` wires the pg shard, URLs
+and adapter require; `bin/altair db:create` / `db:drop` manage every env
+in `config/database.yml`; `ENV["DATABASE_URL"]` overrides at boot and in
+those commands.
 
 | Phase | Focus | Status |
 |---|---|---|

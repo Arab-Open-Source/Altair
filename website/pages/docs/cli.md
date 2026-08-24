@@ -55,7 +55,7 @@ It prints the installed binary's SHA-256 digest so you can verify the copy match
 
 | Command | Purpose |
 |---------|---------|
-| `altair new <name> [--framework-path DIR]` | Scaffold a runnable project. `<name>` may include a path (`a/b`, `/tmp/my_app`); only its basename becomes the application name. Names must be lowercase letters, digits and underscores starting with a letter — `my-app` is rejected with a suggestion `my_app`. By default it depends on the published shard; pass `--framework-path` (or set `ALTAIR_PATH`) to use a local checkout. |
+| `altair new <name> [--framework-path DIR] [-d sqlite\|postgresql]` | Scaffold a runnable project. `<name>` may include a path (`a/b`, `/tmp/my_app`); only its basename becomes the application name. Names must be lowercase letters, digits and underscores starting with a letter — `my-app` is rejected with a suggestion `my_app`. By default it depends on the published shard; pass `--framework-path` (or set `ALTAIR_PATH`) to use a local checkout. `-d postgresql` wires the `pg` shard, postgres URLs in `config/database.yml` and the adapter require; `-d sqlite` is the default (`ALTAIR_DATABASE` env fallback). |
 | `altair g scaffold <Name> [column:type ...]` | Model + migration + RESTful controller + ECR views + `resources` route + seeded `db/schema.cr`. |
 | `altair g model <Name> [column:type ...]` | A model file and its table. |
 | `altair g auth [User]` | Full registration/login stack: User model (`password_auth`, unique email), migration with the unique index, sessions + registrations controllers, login/register views, and the `/login`, `/register`, `/logout` routes. |
@@ -82,6 +82,8 @@ need to type `bin/`:
 | `altair routes` | Print the compiled route table. |
 | `altair db:migrate` | Run pending migrations. |
 | `altair db:rollback` | Undo the latest migration. |
+| `altair db:create` | Create every environment database from `config/database.yml` (idempotent; PostgreSQL targets are created through the maintenance database). |
+| `altair db:drop` | Drop those databases. Refuses in production without `--force`. |
 | `altair db:seed` | Run the blocks registered in `db/seeds.cr`. |
 | `altair assets:precompile` | Fingerprint `assets/` into `public/assets/` and write the manifest the view helpers resolve through. |
 | `altair jobs:work` | Run the background-jobs worker until interrupted (graceful SIGINT/SIGTERM shutdown). |

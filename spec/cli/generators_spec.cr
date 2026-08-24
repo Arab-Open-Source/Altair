@@ -76,6 +76,41 @@ module Altair::CLI
       end
     end
 
+    describe "new -d postgresql" do
+      it "wires the pg shard, postgres URLs and the adapter require" do
+        in_tempdir do
+          app = Generators::New.new("pg_blog", nil, false, :postgresql)
+          app.generate
+          shard = File.read("pg_blog/shard.yml")
+          shard.should contain "pg:"
+          shard.should contain "will/crystal-pg"
+          database = File.read("pg_blog/config/database.yml")
+          database.should contain "postgres://postgres:postgres@localhost/pg_blog_development"
+          database.should contain "postgres://postgres:postgres@localhost/pg_blog_test"
+          source = File.read("pg_blog/src/pg_blog.cr")
+          source.should contain "require \"altair/record/adapters/postgresql\""
+          wrapper = File.read("pg_blog/bin/altair.cr")
+          wrapper.should contain "require \"altair/record/adapters/postgresql\""
+        end
+      end
+
+      it "keeps sqlite defaults untouched" do
+        in_tempdir do
+          app = Generators::New.new("lite_blog", nil, false)
+          app.generate
+          File.read("lite_blog/shard.yml").should_not contain "crystal-pg"
+          File.read("lite_blog/config/database.yml").should contain "sqlite3://./db/lite_blog.db"
+          File.read("lite_blog/src/lite_blog.cr").should_not contain "adapters/postgresql"
+        end
+      end
+
+      it "rejects an unknown adapter" do
+        expect_raises(Altair::Error, /database/) do
+          Generators::New.new("weird", nil, false, :oracle)
+        end
+      end
+    end
+
     describe "model" do
       it "writes a classified model file into src/app/models" do
         in_tempdir do

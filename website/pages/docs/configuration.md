@@ -23,7 +23,10 @@ At boot the framework merges settings from low to high precedence:
    into the database settings.
 
 `altair new` generates both `.env` and `config/database.yml`, so a fresh
-project is file-driven from day one.
+project is file-driven from day one. `altair new -d postgresql` starts that
+file on `postgres://` URLs and wires the `pg` shard; `ENV["DATABASE_URL"]`
+overrides whatever the file says, and the same override drives
+`bin/altair db:create` / `db:drop`.
 
 ## `.env`
 
