@@ -77,6 +77,31 @@ Post.pluck(:title)                         # Array(Value)
 <pre><code class="language-crystal">Post.all.where(published: true)
 Post.all.where(:views, :&gt;=, 15).order(:created_at).to_a
 </code></pre>
+<h3>Querying relations</h3>
+<p>Negation, alternatives, pattern matching and membership — every value
+travels as a bind parameter:</p>
+<pre><code class="language-crystal">Post.all.where_not(published: true)         # NOT (published = ?)
+Post.all.where(:title, :like, &quot;%altair%&quot;)   # title LIKE ?
+Post.all.where(:views, :in, [3, 12])        # views IN (?, ?); empty matches nothing
+Post.all.where(:user_id, :null)             # IS NULL (also :not_null)
+Post.all.where(views: 30).or_where(views: 45)
+# WHERE (views = ? OR views = ?) — alternatives fold into the previous clause
+</code></pre>
+<p>Relation finders read without materializing the scope:</p>
+<pre><code class="language-crystal">Post.all.first / first?                     # pk ascending unless the scope orders
+Post.all.last / last?                       # reverses the scope&#39;s ordering
+Post.all.take(2)                            # first n rows, order untouched
+Post.all.ids                                # scoped primary keys
+Post.all.order(:views).pick(:title)         # one column from the leading scoped row
+Post.all.exists? / any? / none?             # LIMIT 1 probe, never a full load
+</code></pre>
+<p>Bulk writes run one statement for the whole scope. They bypass callbacks,
+validations and timestamps — this is the administrative path:</p>
+<pre><code class="language-crystal">Post.all.where(published: false).update_all(published: true)
+Post.all.where(views: 0).delete_all
+</code></pre>
+<p><code>.count</code> respects <code>limit</code>/<code>offset</code>: a bounded relation counts exactly the
+rows <code>to_a</code> would return.</p>
 <h3>Bulk inserts, dirty tracking and enum columns</h3>
 <pre><code class="language-crystal"># One multi-row INSERT; timestamps auto-fill like create. Bypasses
 # validations and callbacks — this is the bulk load path. Large sets
@@ -131,6 +156,9 @@ end
 exist. <code>db/schema.cr</code> is regenerated after every run and feeds the
 compile-time column metadata, so the model&#39;s accessors always match the
 database.</p>
+<p><code>change_column_null(:posts, :title, false)</code> toggles nullability on every
+adapter: engines that can alter a column in place issue one statement,
+SQLite rebuilds the table (rows and explicit indexes preserved).</p>
 <h2>Validations</h2>
 <p>Validations run before save; failures land in <code>errors</code> and <code>valid?</code> returns
 false:</p>
@@ -144,6 +172,13 @@ false:</p>
   validates_format_of :email, with: /\A[^@\s]+@[^@\s]+\z/
   validates_confirmation_of :password
 end
+</code></pre>
+<p>Every macro accepts <code>if:</code> / <code>unless:</code> predicate methods and <code>allow_nil:</code>;
+uniqueness takes <code>case_sensitive: false</code> to match through <code>LOWER</code>:</p>
+<pre><code class="language-crystal">validates_length_of :name, minimum: 5, if: :verified?
+validates_presence_of :handle, unless: :importing?
+validates_format_of :website, with: %r{https://}, allow_nil: true
+validates_uniqueness_of :email, case_sensitive: false
 </code></pre>
 <pre><code class="language-crystal">post = Post.new(title: &quot;&quot;)
 post.valid?            # false
@@ -163,6 +198,27 @@ takes method names to run around the lifecycle:</p>
   end
 end
 </code></pre>
+<p><code>after_commit</code> and <code>after_rollback</code> fire after the record&#39;s save or delete
+transaction lands — or on the way out of a rollback. Enqueue jobs and
+invalidate caches in <code>after_commit</code>, never <code>after_save</code>: inside the
+transaction the data is not yet visible to other connections, and a later
+rollback would leave the job chasing a row that never existed.</p>
+<pre><code class="language-crystal">class Post &lt; Altair::Record::Model
+  after_commit :reindex
+  after_rollback :clear_pending_flag
+
+  private def reindex : Nil
+    SearchJob.enqueue(id)
+  end
+end
+</code></pre>
+<p>Direct-write helpers bypass callbacks and validations — one statement,
+no ceremony:</p>
+<pre><code class="language-crystal">post.touch                       # updated_at = now
+audit.touch(:reviewed_at)        # listed timestamp columns bump too
+counter.increment!(:hits)        # hits = hits + 1 (atomic)
+counter.decrement!(:hits, 5)     # hits = hits - 5
+</code></pre>
 <h2>Associations</h2>
 <p><code>belongs_to</code>, <code>has_many</code> and <code>has_one</code> generate typed accessors and foreign
 keys. <code>dependent:</code> clears the child rows when the parent is destroyed, and
@@ -177,6 +233,17 @@ class Comment &lt; Altair::Record::Model
   belongs_to :post
 end
 </code></pre>
+<p><code>counter_cache: true</code> on a <code>belongs_to</code> maintains <code>&lt;assoc&gt;_count</code> (or the
+named column) on the owner atomically as children are created and deleted:</p>
+<pre><code class="language-crystal">class Comment &lt; Altair::Record::Model
+  belongs_to :post, counter_cache: true   # posts.comments_count
+end
+
+post.comments_count                       # no COUNT query at read time
+</code></pre>
+<p>When the child model declares no destroy callbacks, <code>dependent: :destroy</code>
+collapses into one <code>DELETE ... WHERE fk = ?</code>; children with their own
+lifecycle still run it row by row.</p>
 <pre><code class="language-crystal">post.comments.each { |c| puts c.body }
 Post.all.includes(:comments).to_a          # 2 queries total
 </code></pre>
@@ -230,6 +297,63 @@ N+1 signature — the same SQL firing more than <code>config.n_plus_one_threshol
 (3) times within one request — and logs a warning naming the statement.
 Production never pays the detector&#39;s cost; disable it with
 <code>config.detect_n_plus_one = false</code> if it is ever noisy.</p>
+<h2>Joins</h2>
+<p>Filter parents by their children in a single SQL query — no N+1, no manual SQL:</p>
+<pre><code class="language-crystal">Post.all.joins(:comments).where(&quot;comments.body&quot;, &quot;altair&quot;)
+Post.all.left_joins(:comments)                 # keep owners without children
+Post.all.joins(:comments).where(&quot;comments.body&quot;, &quot;hi&quot;).count   # COUNT(DISTINCT posts.id)
+</code></pre>
+<p><code>joins</code> on a <code>has_many</code> automatically deduplicates (<code>SELECT DISTINCT</code>) so a post
+with three matching comments appears once. Qualified columns (<code>&quot;comments.body&quot;</code>)
+are quoted per part; every value is still a bind parameter.</p>
+<h2>Ordering &amp; reloading</h2>
+<pre><code class="language-crystal">Post.all.order(:created_at).order(:title)       # ORDER BY created_at, title (accumulates)
+Post.all.order(:created_at).reorder(:title)     # ORDER BY title (replaces)
+Post.all.unscope_order                          # removes all ORDER BY
+
+post = Post.find!(1)
+post.reload                                     # re-reads from DB
+</code></pre>
+<h2>Custom primary keys</h2>
+<pre><code class="language-crystal">table :posts, primary_key: :uuid   # column must exist in the migration
+</code></pre>
+<p>String PKs auto-generate a <code>SecureRandom.uuid</code> before insert. All finders,
+loaders, updates and deletes respect the custom name.</p>
+<h2>has_many :through</h2>
+<h2>has_many :through</h2>
+<pre><code class="language-crystal">class Post &lt; Altair::Record::Model
+  has_many :post_tags
+  has_many :tags, through: :post_tags     # source inferred (:tag)
+end
+
+post.tags                                  # lazy: one JOIN query
+Post.all.includes(:tags)                   # eager: one batched JOIN for all posts
+Post.all.joins(:tags).where(&quot;tags.name&quot;, &quot;crystal&quot;)
+</code></pre>
+<p>Pass <code>source:</code> explicitly when the singular name is ambiguous — the framework
+raises at boot asking for it rather than guessing.</p>
+<h2>Polymorphic associations</h2>
+<pre><code class="language-crystal">class Comment &lt; Altair::Record::Model
+  belongs_to :commentable, polymorphic: true   # commentable_id + commentable_type
+end
+
+class Post &lt; Altair::Record::Model
+  has_many :comments, as: :commentable, dependent: :destroy
+end
+class Video &lt; Altair::Record::Model
+  has_many :comments, as: :commentable, dependent: :nullify
+end
+
+comment.commentable        # Post or Video, resolved from the type column
+post.comments              # filtered by notable_type = &#39;Post&#39;
+Post.all.includes(:comments)   # one batched query per distinct type
+</code></pre>
+<p>Migrations get a helper too:</p>
+<pre><code class="language-crystal">schema.create_table(:comments) do |t|
+  t.string :body
+  t.references :commentable, polymorphic: true   # id + type + composite index
+end
+</code></pre>
 <h2>Transactions</h2>
 <p><code>transaction</code> runs its block atomically; a raise rolls it back:</p>
 <pre><code class="language-crystal">Post.transaction do

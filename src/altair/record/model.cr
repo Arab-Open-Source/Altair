@@ -176,12 +176,29 @@ module Altair
         # A custom message replacing the default one.
         getter message : String?
 
+        # The predicate method an `if:` option names — the rule runs only
+        # while it returns true.
+        getter if_method : Symbol?
+
+        # The predicate method an `unless:` option names — the rule is
+        # skipped while it returns true.
+        getter unless_method : Symbol?
+
+        # Whether a nil attribute value skips this rule.
+        getter? allow_nil : Bool
+
+        # Whether uniqueness compares case-sensitively; `false` folds both
+        # sides through LOWER before matching.
+        getter? case_sensitive : Bool
+
         def initialize(@kind : Symbol, @attribute : Symbol? = nil, @method : Symbol? = nil,
                        @minimum : Int32? = nil, @maximum : Int32? = nil,
                        @greater_than : Float64? = nil, @integer : Bool? = nil,
                        @scope : Symbol? = nil, @message : String? = nil,
                        @possibilities : (Array(String) | Range(Int32, Int32))? = nil,
-                       @format : Regex? = nil)
+                       @format : Regex? = nil,
+                       @if_method : Symbol? = nil, @unless_method : Symbol? = nil,
+                       @allow_nil : Bool = false, @case_sensitive : Bool = true)
         end
       end
 
@@ -984,27 +1001,35 @@ module Altair
       end
 
       # Persists a record with save callbacks, wrapping them and the insert
-      # or update in a transaction so a raise rolls everything back.
+      # or update in a transaction so a raise rolls everything back. The
+      # commit hooks fire after the transaction lands; a rollback fires
+      # them on the way out and re-raises.
       private def save_transactional : Bool
         persisted = false
-        self.class.transaction do
-          _run_callbacks(:before_save)
-          if @id.nil?
-            _run_callbacks(:before_create)
-            apply_create_timestamps
-            insert
-            _run_callbacks(:after_create)
-          else
-            _run_callbacks(:before_update)
-            unless @dirty.empty?
-              apply_update_timestamps
-              update_row
+        begin
+          self.class.transaction do
+            _run_callbacks(:before_save)
+            if @id.nil?
+              _run_callbacks(:before_create)
+              apply_create_timestamps
+              insert
+              _run_callbacks(:after_create)
+            else
+              _run_callbacks(:before_update)
+              unless @dirty.empty?
+                apply_update_timestamps
+                update_row
+              end
+              _run_callbacks(:after_update)
             end
-            _run_callbacks(:after_update)
+            _run_callbacks(:after_save)
+            persisted = true
           end
-          _run_callbacks(:after_save)
-          persisted = true
+        rescue e
+          _run_callbacks(:after_rollback)
+          raise e
         end
+        _run_callbacks(:after_commit)
         clear_dirty if persisted
         persisted
       end
@@ -1015,22 +1040,109 @@ module Altair
         self
       end
 
-      # Deletes the row, running the destroy callbacks inside a transaction.
-      # Returns whether a row was deleted.
+      # Deletes the row, running the destroy callbacks inside a transaction
+      # and the commit hooks once it lands. Returns whether a row was
+      # deleted.
       def delete : Bool
         return false if @id.nil?
         deleted = false
-        self.class.transaction do
-          _run_callbacks(:before_destroy)
-          result = connection.exec(
-            "DELETE FROM #{connection.adapter.quote_identifier(self.class.table_name)} " \
-            "WHERE #{connection.adapter.quote_identifier(self.class.primary_key_name)} = #{connection.adapter.placeholder(0)}",
-            @id
-          )
-          deleted = result.rows_affected > 0
-          _run_callbacks(:after_destroy)
+        begin
+          self.class.transaction do
+            _run_callbacks(:before_destroy)
+            result = connection.exec(
+              "DELETE FROM #{connection.adapter.quote_identifier(self.class.table_name)} " \
+              "WHERE #{connection.adapter.quote_identifier(self.class.primary_key_name)} = #{connection.adapter.placeholder(0)}",
+              @id
+            )
+            deleted = result.rows_affected > 0
+            _run_callbacks(:after_destroy)
+          end
+        rescue e
+          _run_callbacks(:after_rollback)
+          raise e
         end
+        _run_callbacks(:after_commit)
         deleted
+      end
+
+      # Bumps `updated_at` — plus any explicitly listed columns — to now
+      # with one direct UPDATE. Callbacks, validations and dirty tracking
+      # are bypassed; the touched attributes are refreshed from the row.
+      #
+      # ```
+      # post.touch
+      # audit.touch(:reviewed_at)
+      # ```
+      def touch(*columns : Symbol) : self
+        touch_columns(columns.to_a)
+      end
+
+      # No-column form: bumps `updated_at` only.
+      def touch : self
+        touch_columns([] of Symbol)
+      end
+
+      private def touch_columns(columns : Array(Symbol)) : self
+        if @id.nil?
+          raise Altair::Error.new("cannot touch #{self.class.table_name} before it is saved")
+        end
+        names = [:updated_at] + columns.to_a
+        assignments = [] of String
+        binds = [] of Value
+        adapter = connection.adapter
+        names.each do |column|
+          unless self.class.column_names.includes?(column.to_s)
+            raise Altair::Error.new("unknown column :#{column} on #{self.class.table_name}")
+          end
+          assignments << "#{adapter.quote_identifier(column.to_s)} = #{adapter.placeholder(0)}"
+          binds << Time.utc
+        end
+        assignments << "#{adapter.quote_identifier(self.class.primary_key_name)} = #{adapter.placeholder(0)}"
+        binds << @id
+        connection.exec(
+          "UPDATE #{adapter.quote_identifier(self.class.table_name)} " \
+          "SET #{assignments.join(", ")}",
+          args: binds
+        )
+        reload
+      end
+
+      # Adds `by` to an integer column atomically (`col = col + ?`) and
+      # refreshes `updated_at`. Direct write — no callbacks.
+      def increment!(column : Symbol, by : Int32 | Int64 = 1) : self
+        bump_counter(column, by)
+      end
+
+      # Subtracts `by` from an integer column atomically.
+      def decrement!(column : Symbol, by : Int32 | Int64 = 1) : self
+        bump_counter(column, -by)
+      end
+
+      private def bump_counter(column : Symbol, delta : Int32 | Int64) : self
+        if @id.nil?
+          raise Altair::Error.new("cannot bump #{self.class.table_name} before it is saved")
+        end
+        unless self.class.column_names.includes?(column.to_s)
+          raise Altair::Error.new("unknown column :#{column} on #{self.class.table_name}")
+        end
+        adapter = connection.adapter
+        assignments = ["#{adapter.quote_identifier(column.to_s)} = " \
+                       "#{adapter.quote_identifier(column.to_s)} + #{adapter.placeholder(0)}"]
+        binds = [] of Value
+        binds << delta
+        if self.class.column_names.includes?("updated_at")
+          assignments << "#{adapter.quote_identifier("updated_at")} = #{adapter.placeholder(1)}"
+          binds << Time.utc
+          pk_placeholder = adapter.placeholder(2)
+        else
+          pk_placeholder = adapter.placeholder(1)
+        end
+        connection.exec(
+          "UPDATE #{adapter.quote_identifier(self.class.table_name)} SET #{assignments.join(", ")} " \
+          "WHERE #{adapter.quote_identifier(self.class.primary_key_name)} = #{pk_placeholder}",
+          args: binds + [@id]
+        )
+        reload
       end
 
       # The connection this record queries through.
@@ -1055,6 +1167,7 @@ module Altair
         @@callbacks = {} of Symbol => Array(Proc({{@type.id}}, Nil))
         @@validations = [] of Rule
         @@custom_validations = [] of Proc({{@type.id}}, Nil)
+        @@conditions = {} of Symbol => Proc(Altair::Record::Model, Bool)
         @@confirmations = {} of String => Proc({{@type.id}}, Value?)
         @@preloaders = {} of Symbol => Proc(Array(Altair::Record::Model), Array(Altair::Record::Model))
         @@association_metas = {} of Symbol => NamedTuple(kind: Symbol, target_class: String, foreign_key: String, through: String, source: String)
@@ -1063,6 +1176,13 @@ module Altair
         # model saves without the transaction wrapper.
         def self.__callbacks? : Bool
           @@callbacks.values.any?(&.any?)
+        end
+
+        # Whether the model declares destroy lifecycle callbacks — batched
+        # dependent deletes honor them instead of one DELETE statement.
+        def self.__destroy_callbacks? : Bool
+          @@callbacks.fetch(:before_destroy, [] of Proc({{@type.id}}, Nil)).any? ||
+            @@callbacks.fetch(:after_destroy, [] of Proc({{@type.id}}, Nil)).any?
         end
 
         # The eager loader for an association, or a clear error. The
@@ -1092,6 +1212,15 @@ module Altair
             callback.call(self)
           end
           @@validations.each do |rule|
+            if if_method = rule.if_method
+              next unless condition?(if_method)
+            end
+            if unless_method = rule.unless_method
+              next if condition?(unless_method)
+            end
+            if rule.allow_nil? && (attribute = rule.attribute) && attribute_value(attribute).nil?
+              next
+            end
             case rule.kind
             when :presence     then check_presence(rule)
             when :length       then check_length(rule)
@@ -1103,6 +1232,12 @@ module Altair
             when :confirmation then check_confirmation(rule)
             end
           end
+        end
+
+        private def condition?(name : Symbol) : Bool
+          predicate = @@conditions[name]?
+          raise Altair::Error.new("unknown validation condition :#{name} on #{self.class}") unless predicate
+          predicate.call(self)
         end
       end
 
@@ -1154,51 +1289,94 @@ module Altair
         {% end %}
       end
 
-      macro validates_presence_of(*attributes, message = nil)
-        {% for attribute in attributes %}
-          @@validations << Rule.new(:presence, attribute: {{ attribute }}, message: {{ message }})
+      # Runs after the record's save transaction has committed. Enqueue
+      # jobs and invalidate caches here — `after_save` fires inside the
+      # transaction, before the data is visible to other connections.
+      macro after_commit(*methods)
+        {% for method in methods %}
+          (@@callbacks[:after_commit] ||= [] of Proc({{@type.id}}, Nil)) << ->(record : {{@type.id}}) { record.{{method.id}} }
         {% end %}
       end
 
-      macro validates_length_of(*attributes, minimum = nil, maximum = nil, message = nil)
-        {% for attribute in attributes %}
-          @@validations << Rule.new(:length, attribute: {{ attribute }}, minimum: {{ minimum }}, maximum: {{ maximum }}, message: {{ message }})
+      # Runs when the record's save or delete transaction rolled back.
+      macro after_rollback(*methods)
+        {% for method in methods %}
+          (@@callbacks[:after_rollback] ||= [] of Proc({{@type.id}}, Nil)) << ->(record : {{@type.id}}) { record.{{method.id}} }
         {% end %}
       end
 
-      macro validates_numericality_of(*attributes, greater_than = nil, integer = nil, message = nil)
-        {% for attribute in attributes %}
-          @@validations << Rule.new(:numericality, attribute: {{ attribute }}, greater_than: {{ greater_than }}, integer: {{ integer }}, message: {{ message }})
+      # Every `validates_*` macro accepts `if:` / `unless:` predicate
+      # method names and `allow_nil:` — a nil attribute skips the rule.
+      # `validates_uniqueness_of` also takes `case_sensitive: false` to
+      # match through LOWER on both sides.
+
+      macro register_condition(name)
+        {% if name %}
+          @@conditions[{{ name.id.symbolize }}] ||= ->(record : Altair::Record::Model) { record.as({{@type.id}}).{{ name.id }} }
         {% end %}
       end
 
-      macro validates_uniqueness_of(*attributes, scope = nil, message = nil)
+      macro validates_presence_of(*attributes, message = nil, **opts)
+        register_condition({{ opts[:if] }})
+        register_condition({{ opts[:unless] }})
         {% for attribute in attributes %}
-          @@validations << Rule.new(:uniqueness, attribute: {{ attribute }}, scope: {{ scope }}, message: {{ message }})
+          @@validations << Rule.new(:presence, attribute: {{ attribute }}, message: {{ message }}, if_method: {{ opts[:if] }}, unless_method: {{ opts[:unless] }}, allow_nil: {{ opts[:allow_nil] || false }})
+        {% end %}
+      end
+
+      macro validates_length_of(*attributes, minimum = nil, maximum = nil, message = nil, **opts)
+        register_condition({{ opts[:if] }})
+        register_condition({{ opts[:unless] }})
+        {% for attribute in attributes %}
+          @@validations << Rule.new(:length, attribute: {{ attribute }}, minimum: {{ minimum }}, maximum: {{ maximum }}, message: {{ message }}, if_method: {{ opts[:if] }}, unless_method: {{ opts[:unless] }}, allow_nil: {{ opts[:allow_nil] || false }})
+        {% end %}
+      end
+
+      macro validates_numericality_of(*attributes, greater_than = nil, integer = nil, message = nil, **opts)
+        register_condition({{ opts[:if] }})
+        register_condition({{ opts[:unless] }})
+        {% for attribute in attributes %}
+          @@validations << Rule.new(:numericality, attribute: {{ attribute }}, greater_than: {{ greater_than }}, integer: {{ integer }}, message: {{ message }}, if_method: {{ opts[:if] }}, unless_method: {{ opts[:unless] }}, allow_nil: {{ opts[:allow_nil] || false }})
+        {% end %}
+      end
+
+      macro validates_uniqueness_of(*attributes, scope = nil, message = nil, case_sensitive = true, **opts)
+        register_condition({{ opts[:if] }})
+        register_condition({{ opts[:unless] }})
+        {% for attribute in attributes %}
+          @@validations << Rule.new(:uniqueness, attribute: {{ attribute }}, scope: {{ scope }}, message: {{ message }}, case_sensitive: {{ case_sensitive }}, if_method: {{ opts[:if] }}, unless_method: {{ opts[:unless] }}, allow_nil: {{ opts[:allow_nil] || false }})
         {% end %}
       end
 
       macro validates_inclusion_of(*attributes, message = nil, **options)
+        register_condition({{ options[:if] }})
+        register_condition({{ options[:unless] }})
         {% for attribute in attributes %}
-          @@validations << Rule.new(:inclusion, attribute: {{ attribute }}, possibilities: {{ options[:in] }}, message: {{ message }})
+          @@validations << Rule.new(:inclusion, attribute: {{ attribute }}, possibilities: {{ options[:in] }}, message: {{ message }}, if_method: {{ options[:if] }}, unless_method: {{ options[:unless] }}, allow_nil: {{ options[:allow_nil] || false }})
         {% end %}
       end
 
       macro validates_exclusion_of(*attributes, message = nil, **options)
+        register_condition({{ options[:if] }})
+        register_condition({{ options[:unless] }})
         {% for attribute in attributes %}
-          @@validations << Rule.new(:exclusion, attribute: {{ attribute }}, possibilities: {{ options[:in] }}, message: {{ message }})
+          @@validations << Rule.new(:exclusion, attribute: {{ attribute }}, possibilities: {{ options[:in] }}, message: {{ message }}, if_method: {{ options[:if] }}, unless_method: {{ options[:unless] }}, allow_nil: {{ options[:allow_nil] || false }})
         {% end %}
       end
 
       macro validates_format_of(*attributes, message = nil, **options)
+        register_condition({{ options[:if] }})
+        register_condition({{ options[:unless] }})
         {% for attribute in attributes %}
-          @@validations << Rule.new(:format, attribute: {{ attribute }}, format: {{ options[:with] }}, message: {{ message }})
+          @@validations << Rule.new(:format, attribute: {{ attribute }}, format: {{ options[:with] }}, message: {{ message }}, if_method: {{ options[:if] }}, unless_method: {{ options[:unless] }}, allow_nil: {{ options[:allow_nil] || false }})
         {% end %}
       end
 
-      macro validates_confirmation_of(*attributes, message = nil)
+      macro validates_confirmation_of(*attributes, message = nil, **opts)
+        register_condition({{ opts[:if] }})
+        register_condition({{ opts[:unless] }})
         {% for attribute in attributes %}
-          @@validations << Rule.new(:confirmation, attribute: {{ attribute }}, message: {{ message }})
+          @@validations << Rule.new(:confirmation, attribute: {{ attribute }}, message: {{ message }}, if_method: {{ opts[:if] }}, unless_method: {{ opts[:unless] }}, allow_nil: {{ opts[:allow_nil] || false }})
           @@confirmations[{{ attribute.id.stringify }}] = ->(record : {{ @type.id }}) : Value? { record.{{ attribute.id }}_confirmation }
         {% end %}
       end
@@ -1261,8 +1439,13 @@ module Altair
         adapter = connection.adapter
         where = [] of String
         args = [] of Value
-        where << "#{adapter.quote_identifier(attribute.to_s)} = #{adapter.placeholder(args.size)}"
-        args << value
+        if rule.case_sensitive?
+          where << "#{adapter.quote_identifier(attribute.to_s)} = #{adapter.placeholder(args.size)}"
+          args << value
+        else
+          where << "LOWER(#{adapter.quote_identifier(attribute.to_s)}) = LOWER(#{adapter.placeholder(args.size)})"
+          args << value
+        end
         if id = @id
           where << "#{adapter.quote_identifier("id")} != #{adapter.placeholder(args.size)}"
           args << id

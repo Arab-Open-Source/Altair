@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`counter_cache` on `belongs_to`**: `belongs_to :post, counter_cache: true`
+  (or a custom column name) maintains `posts.<assoc>_count` atomically as
+  children are created and destroyed — listing pages read the count column
+  instead of paying a `COUNT` per row. Bulk paths (`insert_all`,
+  `update_all`, `delete_all`) bypass the hooks and must maintain counts
+  themselves.
+- **Batched `dependent: :destroy`**: when the child model declares no
+  destroy callbacks of its own, destroying a parent removes all children
+  with a single `DELETE ... WHERE fk = ?`; children carrying their own
+  lifecycle still run it row by row.
+- **Conditional validations**: every `validates_*` macro accepts `if:` /
+  `unless:` predicate methods and `allow_nil:`; `validates_uniqueness_of`
+  gains `case_sensitive: false` (LOWER-folded comparison on both sides).
+- **`after_commit` / `after_rollback` lifecycle hooks**: fire once the
+  record's save or delete transaction lands (or on rollback, before the
+  exception re-raises). The safe place to enqueue background jobs and
+  invalidate caches — `after_save` runs inside the transaction where the
+  data is not yet visible and a rollback would orphan the side effects.
+- **Direct-write helpers**: `Model#touch(*columns)` bumps `updated_at`
+  (plus listed timestamp columns) with one UPDATE; `increment!` /
+  `decrement!` apply atomic `col = col ± n` writes. All three bypass
+  callbacks, validations and dirty tracking by design.
+- **Query DSL completion** (`Relation`): `where_not` (keyword pairs or a
+  single column/value), `or_where` — whose alternatives fold into the
+  preceding condition as one parenthesized OR group instead of ANDing with
+  the whole scope — and new operators on `where`: `:like`, `:in` (an empty
+  list matches nothing without hitting bind limits), and the bind-free
+  `:null` / `:not_null`.
+- **Relation finders**: `first` / `first?` (primary key ascending unless
+  the scope orders), `last` / `last?` (reverses the scope's explicit
+  ordering), `take(n)`, `ids`, `pick(:column)` and the LIMIT-1 existence
+  probes `exists?` / `any?` / `none?`.
+- **Bulk writes**: `Relation#update_all(**fields)` and `Relation#delete_all`
+  run one statement per scope and return affected-row counts. They bypass
+  callbacks, validations and timestamps by design, refuse joined relations,
+  and ignore order/limit/offset (no portable meaning across engines).
+- `change_column_null` now works on SQLite via table rebuild; adapters
+  declare in-place capability through `Adapter#supports_alter_column_null?`.
+
 ### Fixed
 
 - **`change_column_null` was broken on SQLite** (the default adapter): it

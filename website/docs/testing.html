@@ -68,6 +68,34 @@ Altair::Test.patch(port, &quot;/posts/1&quot;, form: &quot;title=Patched&quot;)
 Altair::Test.delete(port, &quot;/posts/1&quot;)
 </code></pre>
 <p>All helpers accept an optional <code>headers</code> argument (<code>HTTP::Headers</code>) and return <code>HTTP::Client::Response</code>.</p>
+<h2>The cookie-jar client</h2>
+<p><code>Altair::Test::Client</code> keeps the server&#39;s cookies between requests, so a sign-in carries into every later request without manual header plumbing, and follows redirects the way a browser does when asked:</p>
+<pre><code class="language-crystal">client = Altair::Test::Client.new(port)                     # or: follow_redirects: true
+client.post(&quot;/login&quot;, form: &quot;email=a@b.com&amp;password=secret&quot;)
+client.get(&quot;/me&quot;).body.should contain(&quot;a@b.com&quot;)            # session carried
+
+destroyed = client.get(&quot;/logout&quot;)                           # expired cookies leave the jar
+client.get(&quot;/me&quot;).status_code.should eq(302)
+</code></pre>
+<p>Redirects follow only when <code>follow_redirects: true</code>; 301/302/303 downgrade to GET (so POST-then-redirect lands on the page), 307/308 keep the method, and the jar rides along every hop.</p>
+<h2>Configuring the booted app</h2>
+<p>The <code>configure:</code> proc runs on the fresh instance before the server is built — where per-spec settings belong:</p>
+<pre><code class="language-crystal">Altair::Test.boot(SessionApp, configure: -&gt;(app : SessionApp) {
+  app.config.secret_key_base = &quot;test-secret&quot;
+}) do |port|
+  # sessions work here
+end
+</code></pre>
+<h2>Database helpers</h2>
+<p><code>Altair::Test.migrate!</code> applies pending migrations against the application&#39;s configured database — the same engine <code>db:migrate</code> runs:</p>
+<pre><code class="language-crystal">Altair::Test.migrate!(MyApp)
+</code></pre>
+<p><code>Altair::Test.transactional { }</code> wraps a block in a transaction that is always rolled back, so every example starts from the same data; nested calls join the outer transaction through savepoints:</p>
+<pre><code class="language-crystal">Altair::Test.transactional do
+  Post.create(title: &quot;only this example sees me&quot;)
+end
+</code></pre>
+<p>Background jobs have their own test seam: set <code>Altair::Jobs::Queue.test_mode = true</code> and enqueues collect in memory (<code>Queue.enqueued</code>, <code>Queue.clear_enqueued!</code>) instead of hitting the table; drain them synchronously with a <code>Worker#execute</code> loop over sorted calls.</p>
 <h2>Isolation</h2>
 <p>Each <code>boot</code> saves the current <code>Altair.application_instance</code>, sets it to <code>nil</code> so the application builds a fresh instance, and restores the original in an <code>ensure</code> block. Nested boots are not supported — finish one before starting the next.</p>
 <p>For specs that need to reset state between examples without a server, use the same pattern the framework uses internally:</p>

@@ -882,6 +882,24 @@ module Altair
           Post.insert_all([{title: "a"}, {title: "b"}])
           Post.transaction { post.save!; Comment.create!(post_id: post.id) }
 
+          # Query DSL — negation, alternatives, patterns, membership:
+          Post.all.where_not(published: true)         # NOT (published = ?)
+          Post.all.where(:title, :like, "%altair%")   # LIKE
+          Post.all.where(:views, :in, [3, 12])        # IN (?, ?); empty matches nothing
+          Post.all.where(:user_id, :null)             # IS NULL (also :not_null)
+          Post.all.where(views: 30).or_where(views: 45)  # (a = ? OR a = ?), folds into previous clause
+
+          # Relation finders:
+          Post.all.first / first?                     # pk asc unless ordered
+          Post.all.last / last?                       # reverses the scope's ordering
+          Post.all.take(2); Post.all.ids; Post.all.order(:views).pick(:title)
+          Post.all.exists? / any? / none?             # LIMIT-1 probe
+
+          # Bulk writes — one statement, bypasses callbacks/timestamps/validations:
+          Post.all.where(published: false).update_all(published: true)
+          Post.all.where(views: 0).delete_all
+          # .count respects limit/offset — bounded relation counts like to_a
+
           # Joins — filter parents by children in one SQL query:
           Post.all.joins(:comments).where("comments.body", "altair")   # INNER JOIN + DISTINCT
           Post.all.left_joins(:comments)                                # keep childless owners
@@ -901,6 +919,18 @@ module Altair
           Post.all.order(:created_at).order(:title)    # ORDER BY created_at, title
           Post.all.reorder(:title)                     # replaces existing orders
           post.reload                                  # re-reads from database
+
+          # Lifecycle — enqueue jobs in after_commit, NEVER after_save:
+          after_commit :reindex      # fires once the save/delete transaction lands
+          after_rollback :cleanup    # fires when the transaction rolls back
+          post.touch                 # updated_at = now, bypasses callbacks
+          post.touch(:reviewed_at)   # listed timestamp columns bump too
+          post.increment!(:views)    # atomic views = views + 1 (decrement! too)
+
+          # Counter cache + conditional validations:
+          belongs_to :post, counter_cache: true        # maintains posts.comments_count
+          validates_length_of :name, minimum: 5, if: :verified?
+          validates_uniqueness_of :email, case_sensitive: false
           ```
 
           Custom primary keys: `table :posts, primary_key: :uuid` — string PKs auto-generate UUID.
@@ -913,6 +943,7 @@ module Altair
           API mode: `altair new app --api` generates JSON-only project with CORS.
 
           Migrations: `t.references :commentable, polymorphic: true` generates the id/type pair + composite index; `bin/altair db:migrate` regenerates `db/schema.cr`. Never hand-edit schema.
+          `schema.change_column_null(:posts, :title, false)` works on every adapter (SQLite rebuilds the table).
 
           Validations: presence/length/numericality/uniqueness/inclusion/exclusion/format/confirmation + `validate :custom`.
           Callbacks: `before_save/after_save/before_create/.../after_destroy` — `save` wraps in TX when callbacks exist.

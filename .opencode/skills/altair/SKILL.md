@@ -54,12 +54,26 @@ table, atomic claiming, backoff retries, `jobs:work` / `jobs:stats`).
 (6 pending: the PostgreSQL contract suite on `ALTAIR_TEST_PG_URL`).
 The record layer shipped a post-Phase-4 performance wave: `find_each`
 keeps scoped `where` filters + `includes` preloaders across batches,
-`Relation#count`/`size` run `COUNT(*)` without materializing rows, the
+`Relation#count`/`size` run `COUNT(*)` without materializing rows (and
+respect `limit`/`offset`), the
 server resizes the execution context to the available workers on boot
 (`CRYSTAL_WORKERS` honored, `config.parallel_execution` opt-out), pool
 defaults are warm (`initial 2 / idle 2 / max 10`), and a development-mode
 N+1 detector warns on identical SQL past `config.n_plus_one_threshold`
 (3) — see `docs/architecture/performance-audit.md`.
+The query DSL covers negation and alternatives (`where_not`, `or_where`
+folding into the previous clause) with `:like`/`:in`/`:null`/`:not_null`
+operators; finders `first`/`last` (+ bang-less nil forms), `take`,
+`ids`, `pick`, `exists?`/`any?`/`none?`; bulk writes `update_all` /
+`delete_all` bypass callbacks, validations and timestamps.
+Lifecycle hooks: enqueue jobs in `after_commit`, never `after_save`;
+`touch` / `increment!` / `decrement!` are direct writes.
+Associations: `belongs_to ..., counter_cache: true` maintains an
+atomic `<assoc>_count`; `dependent: :destroy` collapses to one DELETE
+when children declare no destroy callbacks. Validations take
+`if:`/`unless:`/`allow_nil:` everywhere; uniqueness takes
+`case_sensitive: false`.
+`change_column_null` works on every adapter — SQLite rebuilds the table.
 
 | Phase | Focus | Status |
 |---|---|---|

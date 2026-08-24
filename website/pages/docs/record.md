@@ -64,6 +64,42 @@ Post.all.where(published: true)
 Post.all.where(:views, :>=, 15).order(:created_at).to_a
 ```
 
+### Querying relations
+
+Negation, alternatives, pattern matching and membership — every value
+travels as a bind parameter:
+
+```crystal
+Post.all.where_not(published: true)         # NOT (published = ?)
+Post.all.where(:title, :like, "%altair%")   # title LIKE ?
+Post.all.where(:views, :in, [3, 12])        # views IN (?, ?); empty matches nothing
+Post.all.where(:user_id, :null)             # IS NULL (also :not_null)
+Post.all.where(views: 30).or_where(views: 45)
+# WHERE (views = ? OR views = ?) — alternatives fold into the previous clause
+```
+
+Relation finders read without materializing the scope:
+
+```crystal
+Post.all.first / first?                     # pk ascending unless the scope orders
+Post.all.last / last?                       # reverses the scope's ordering
+Post.all.take(2)                            # first n rows, order untouched
+Post.all.ids                                # scoped primary keys
+Post.all.order(:views).pick(:title)         # one column from the leading scoped row
+Post.all.exists? / any? / none?             # LIMIT 1 probe, never a full load
+```
+
+Bulk writes run one statement for the whole scope. They bypass callbacks,
+validations and timestamps — this is the administrative path:
+
+```crystal
+Post.all.where(published: false).update_all(published: true)
+Post.all.where(views: 0).delete_all
+```
+
+`.count` respects `limit`/`offset`: a bounded relation counts exactly the
+rows `to_a` would return.
+
 ### Bulk inserts, dirty tracking and enum columns
 
 ```crystal
@@ -128,6 +164,10 @@ exist. `db/schema.cr` is regenerated after every run and feeds the
 compile-time column metadata, so the model's accessors always match the
 database.
 
+`change_column_null(:posts, :title, false)` toggles nullability on every
+adapter: engines that can alter a column in place issue one statement,
+SQLite rebuilds the table (rows and explicit indexes preserved).
+
 ## Validations
 
 Validations run before save; failures land in `errors` and `valid?` returns
@@ -144,6 +184,16 @@ class Post < Altair::Record::Model
   validates_format_of :email, with: /\A[^@\s]+@[^@\s]+\z/
   validates_confirmation_of :password
 end
+```
+
+Every macro accepts `if:` / `unless:` predicate methods and `allow_nil:`;
+uniqueness takes `case_sensitive: false` to match through `LOWER`:
+
+```crystal
+validates_length_of :name, minimum: 5, if: :verified?
+validates_presence_of :handle, unless: :importing?
+validates_format_of :website, with: %r{https://}, allow_nil: true
+validates_uniqueness_of :email, case_sensitive: false
 ```
 
 ```crystal
@@ -170,6 +220,33 @@ class Post < Altair::Record::Model
 end
 ```
 
+`after_commit` and `after_rollback` fire after the record's save or delete
+transaction lands — or on the way out of a rollback. Enqueue jobs and
+invalidate caches in `after_commit`, never `after_save`: inside the
+transaction the data is not yet visible to other connections, and a later
+rollback would leave the job chasing a row that never existed.
+
+```crystal
+class Post < Altair::Record::Model
+  after_commit :reindex
+  after_rollback :clear_pending_flag
+
+  private def reindex : Nil
+    SearchJob.enqueue(id)
+  end
+end
+```
+
+Direct-write helpers bypass callbacks and validations — one statement,
+no ceremony:
+
+```crystal
+post.touch                       # updated_at = now
+audit.touch(:reviewed_at)        # listed timestamp columns bump too
+counter.increment!(:hits)        # hits = hits + 1 (atomic)
+counter.decrement!(:hits, 5)     # hits = hits - 5
+```
+
 ## Associations
 
 `belongs_to`, `has_many` and `has_one` generate typed accessors and foreign
@@ -187,6 +264,21 @@ class Comment < Altair::Record::Model
   belongs_to :post
 end
 ```
+
+`counter_cache: true` on a `belongs_to` maintains `<assoc>_count` (or the
+named column) on the owner atomically as children are created and deleted:
+
+```crystal
+class Comment < Altair::Record::Model
+  belongs_to :post, counter_cache: true   # posts.comments_count
+end
+
+post.comments_count                       # no COUNT query at read time
+```
+
+When the child model declares no destroy callbacks, `dependent: :destroy`
+collapses into one `DELETE ... WHERE fk = ?`; children with their own
+lifecycle still run it row by row.
 
 ```crystal
 post.comments.each { |c| puts c.body }

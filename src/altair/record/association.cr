@@ -23,7 +23,7 @@ module Altair
       # comment.post        # lazy query, cached
       # comment.post = post # assigns the owner and the foreign key
       # ```
-      macro belongs_to(name, class_name = nil, foreign_key = nil, polymorphic = false)
+      macro belongs_to(name, class_name = nil, foreign_key = nil, polymorphic = false, counter_cache = nil)
         {% assoc = name.id %}
         {% if polymorphic %}
           {% id_col = "#{name.id}_id" %}
@@ -177,6 +177,31 @@ module Altair
         end
 
         @@association_metas[:{{ assoc.id }}] = {kind: :belongs_to, target_class: "{{ model.id }}", foreign_key: {{ fk.stringify }}, through: "", source: ""}
+
+        {% if counter_cache %}
+          {% count_col = counter_cache == true ? "#{assoc.id}_count" : (counter_cache.is_a?(SymbolLiteral) || counter_cache.is_a?(StringLiteral) ? counter_cache.id.stringify : counter_cache.stringify) %}
+
+          # Maintains `{{ count_col }}` on the owner atomically as children
+          # come and go. Direct write — the owner's callbacks do not run.
+          # Bulk paths (`insert_all`, `update_all`, `delete_all`) bypass
+          # these hooks and must maintain the count themselves.
+          def __bump_{{ assoc.id }}_counter(delta : Int32) : Nil
+            return unless owner_id = @{{ fk.id }}
+            adapter = connection.adapter
+            column = adapter.quote_identifier({{ count_col }})
+            connection.exec(
+              "UPDATE #{adapter.quote_identifier({{ model.id }}.table_name)} " \
+              "SET #{column} = COALESCE(#{column}, 0) + #{adapter.placeholder(0)} " \
+              "WHERE #{adapter.quote_identifier({{ model.id }}.primary_key_name)} = #{adapter.placeholder(1)}",
+              delta, owner_id
+            )
+          end
+
+          @@callbacks[:after_create] ||= [] of Proc({{ @type.id }}, Nil)
+          @@callbacks[:after_create] << ->(record : {{ @type.id }}) { record.__bump_{{ assoc.id }}_counter(1) }
+          @@callbacks[:after_destroy] ||= [] of Proc({{ @type.id }}, Nil)
+          @@callbacks[:after_destroy] << ->(record : {{ @type.id }}) { record.__bump_{{ assoc.id }}_counter(-1) }
+        {% end %}
         {% end %}
       end
 
@@ -420,12 +445,22 @@ module Altair
             @@callbacks[:before_destroy] << ->(record : {{ @type.id }}) { record.__destroy_{{ assoc.id }} }
 
             def __destroy_{{ assoc.id }} : Nil
-              children = {{ assoc.id }}
-              children.each(&.delete)
+              if {{ model.id }}.__destroy_callbacks?
+                # Children carry their own destroy lifecycle — honor it.
+                {{ assoc.id }}.each(&.delete)
+              else
+                return unless id = @id
+                adapter = connection.adapter
+                type_col_name = {{ "#{polymorphic_type}_type".id.stringify }}.gsub('"', "")
+                {% fk_name = fk.stringify.gsub(/"/, "") %}
+                connection.exec(
+                  "DELETE FROM #{adapter.quote_identifier({{ model.id }}.table_name)} " \
+                  "WHERE #{adapter.quote_identifier({{ fk_name }})} = #{adapter.placeholder(0)} " \
+                  "AND #{adapter.quote_identifier(type_col_name)} = #{adapter.placeholder(1)}",
+                  id, "{{ @type.name }}"
+                )
+              end
             end
-
-            # Batched load keeps this one query per call — deletes then run
-            # per child so their own callbacks still fire.
           {% elsif dependent && dependent.id.stringify == "nullify" && polymorphic_type != "" %}
             @@callbacks[:before_destroy] ||= [] of Proc({{ @type.id }}, Nil)
             @@callbacks[:before_destroy] << ->(record : {{ @type.id }}) { record.__nullify_{{ assoc.id }} }
@@ -446,7 +481,17 @@ module Altair
             @@callbacks[:before_destroy] << ->(record : {{ @type.id }}) { record.__destroy_{{ assoc.id }} }
 
             def __destroy_{{ assoc.id }} : Nil
-              {{ assoc.id }}.each(&.delete)
+              if {{ model.id }}.__destroy_callbacks?
+                # Children carry their own destroy lifecycle — honor it.
+                {{ assoc.id }}.each(&.delete)
+              else
+                return unless id = @id
+                connection.exec(
+                  "DELETE FROM #{connection.adapter.quote_identifier({{ model.id }}.table_name)} " \
+                  "WHERE #{connection.adapter.quote_identifier({{ fk.stringify }})} = #{connection.adapter.placeholder(0)}",
+                  id
+                )
+              end
             end
           {% elsif dependent && dependent.id.stringify == "delete_all" %}
             @@callbacks[:before_destroy] ||= [] of Proc({{ @type.id }}, Nil)

@@ -9,15 +9,16 @@ require "../spec_helper"
 class Altair::Record::Schema
   META = {
     posts: {
-      id:         {type: :integer, null: false, primary: true},
-      title:      {type: :string, null: true, primary: false},
-      body:       {type: :text, null: true, primary: false},
-      views:      {type: :integer, null: false, primary: false},
-      published:  {type: :boolean, null: false, primary: false},
-      rating:     {type: :float, null: true, primary: false},
-      user_id:    {type: :integer, null: true, primary: false},
-      created_at: {type: :datetime, null: true, primary: false},
-      updated_at: {type: :datetime, null: true, primary: false},
+      id:             {type: :integer, null: false, primary: true},
+      title:          {type: :string, null: true, primary: false},
+      body:           {type: :text, null: true, primary: false},
+      views:          {type: :integer, null: false, primary: false},
+      published:      {type: :boolean, null: false, primary: false},
+      rating:         {type: :float, null: true, primary: false},
+      user_id:        {type: :integer, null: true, primary: false},
+      comments_count: {type: :integer, null: false, primary: false},
+      created_at:     {type: :datetime, null: true, primary: false},
+      updated_at:     {type: :datetime, null: true, primary: false},
     },
     comments: {
       id:           {type: :integer, null: false, primary: true},
@@ -71,6 +72,13 @@ class Altair::Record::Schema
     workflows: {
       id:    {type: :integer, null: false, primary: true},
       state: {type: :string, null: true, primary: false},
+    },
+    audit_widgets: {
+      id:         {type: :integer, null: false, primary: true},
+      name:       {type: :string, null: false, primary: false},
+      counter:    {type: :integer, null: false, primary: false},
+      created_at: {type: :datetime, null: true, primary: false},
+      updated_at: {type: :datetime, null: true, primary: false},
     },
     events: {
       id:   {type: :bigint, null: false, primary: true},
@@ -330,6 +338,7 @@ module RecordSpec
     connection.exec("DROP TABLE IF EXISTS labels")
     connection.exec("DROP TABLE IF EXISTS payloads")
     connection.exec("DROP TABLE IF EXISTS workflows")
+    connection.exec("DROP TABLE IF EXISTS audit_widgets")
     connection.exec("DROP TABLE IF EXISTS events")
     connection.exec("DROP TABLE IF EXISTS accounts")
     connection.exec("DROP TABLE IF EXISTS members")
@@ -351,6 +360,7 @@ module RecordSpec
       "id INTEGER PRIMARY KEY AUTOINCREMENT, " \
       "title TEXT, body TEXT, views INTEGER NOT NULL DEFAULT 0, " \
       "published BOOLEAN NOT NULL DEFAULT 0, rating FLOAT, user_id INTEGER, " \
+      "comments_count INTEGER NOT NULL DEFAULT 0, " \
       "created_at DATETIME, updated_at DATETIME)"
     )
     connection.exec(
@@ -397,6 +407,11 @@ module RecordSpec
     connection.exec(
       "CREATE TABLE workflows (" \
       "id INTEGER PRIMARY KEY AUTOINCREMENT, state TEXT)"
+    )
+    connection.exec(
+      "CREATE TABLE audit_widgets (" \
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, " \
+      "counter INTEGER NOT NULL DEFAULT 0, created_at DATETIME, updated_at DATETIME)"
     )
     connection.exec(
       "CREATE TABLE events (" \

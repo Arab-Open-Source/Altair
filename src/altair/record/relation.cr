@@ -142,16 +142,17 @@ module Altair
         self
       end
 
-      # Scopes the query with a comparison operator (`:>`, `:>=`, `:<`,
-      # `:<=`, `:!=`):
+      # Scopes the query with a comparison or pattern operator (`:>`,
+      # `:>=`, `:<`, `:<=`, `:!=`, `:like`):
       #
       # ```
       # Post.all.where(:views, :>=, 10)
+      # Post.all.where(:title, :like, "%altair%")
       # ```
       def where(column : Symbol, operator : Symbol, value : Model::Value) : self
-        raise ArgumentError.new("unsupported operator :#{operator}") unless {:<, :<=, :>, :>=, :!=}.includes?(operator)
-        @where << "#{quoted_qualified(column.to_s)} #{operator} #{placeholder}"
-        @binds << value
+        clause, bind = operator_condition(quoted_qualified(column.to_s), operator, value)
+        @where << clause
+        @binds << bind
         self
       end
 
@@ -162,9 +163,90 @@ module Altair
       # Post.all.where("views", :>=, 10)
       # ```
       def where(column : String, operator : Symbol, value : Model::Value) : self
-        raise ArgumentError.new("unsupported operator :#{operator}") unless {:<, :<=, :>, :>=, :!=}.includes?(operator)
-        @where << "#{quoted_qualified(column)} #{operator} #{placeholder}"
+        clause, bind = operator_condition(quoted_qualified(column), operator, value)
+        @where << clause
+        @binds << bind
+        self
+      end
+
+      # Excludes rows matching every keyword pair:
+      #
+      # ```
+      # Post.all.where_not(published: true)
+      # ```
+      def where_not(**pairs) : self
+        pairs.each do |column, value|
+          @where << "NOT (#{quoted_qualified(column.to_s)} = #{placeholder})"
+          @binds << value
+        end
+        self
+      end
+
+      # Excludes the rows where a column equals the value.
+      def where_not(column : Symbol | String, value : Model::Value) : self
+        @where << "NOT (#{quoted_qualified(column.to_s)} = #{placeholder})"
         @binds << value
+        self
+      end
+
+      # Adds alternatives to the most recent condition instead of
+      # ANDing with the whole scope — every keyword pair becomes an OR
+      # branch folded into the preceding clause:
+      #
+      # ```
+      # Post.all.where(views: 30).or_where(views: 45)
+      # # WHERE (views = ? OR views = ?)
+      # ```
+      def or_where(**pairs) : self
+        clauses = [] of String
+        pairs.each do |column, value|
+          clauses << "#{quoted_qualified(column.to_s)} = #{placeholder}"
+          @binds << value
+        end
+        fold_alternatives(clauses.join(" OR "))
+        self
+      end
+
+      # Adds an alternative to the most recent condition.
+      def or_where(column : Symbol | String, value : Model::Value) : self
+        group = "#{quoted_qualified(column.to_s)} = #{placeholder}"
+        @binds << value
+        fold_alternatives(group)
+        self
+      end
+
+      # Adds an alternative comparison (`:>`, `:>=`, `:<`, `:<=`, `:!=`,
+      # `:like`) to the most recent condition.
+      def or_where(column : Symbol | String, operator : Symbol, value : Model::Value) : self
+        clause, bind = operator_condition(quoted_qualified(column.to_s), operator, value)
+        @binds << bind
+        fold_alternatives(clause)
+        self
+      end
+
+      # Scopes the query with an operator that needs no bound value:
+      # `:null` / `:not_null`.
+      #
+      # ```
+      # Post.all.where(:user_id, :null)
+      # ```
+      def where(column : Symbol | String, operator : Symbol) : self
+        @where << null_condition(quoted_qualified(column.to_s), operator)
+        self
+      end
+
+      # Filters membership in a bound list:
+      #
+      # ```
+      # Post.all.where(:views, :in, [3, 12])
+      # ```
+      # An empty list matches nothing without touching the database's
+      # variable limit.
+      def where(column : Symbol | String, operator : Symbol, values : Array(Model::Value)) : self
+        raise ArgumentError.new(":in is the only list operator") unless operator == :in
+        clause, binds = membership_condition(quoted_qualified(column.to_s), values)
+        @where << clause
+        @binds.concat(binds)
         self
       end
 
@@ -277,6 +359,128 @@ module Altair
         end
       end
 
+      # The first scoped row, primary key ascending unless the scope
+      # already orders. Raises `RecordNotFound` when the scope is empty:
+      #
+      # ```
+      # Post.all.where(published: true).first
+      # ```
+      def first : T
+        first? || raise RecordNotFound.new("Couldn't find #{T.table_name} with that scope")
+      end
+
+      # The first scoped row, or `nil` when the scope is empty.
+      def first? : T?
+        scoped_state.order(qualified_pk, :asc).limit(1).to_a.first?
+      end
+
+      # The last scoped row: the scope's explicit ordering reversed, or
+      # primary key descending when unordered. Raises `RecordNotFound`
+      # when the scope is empty.
+      def last : T
+        last? || raise RecordNotFound.new("Couldn't find #{T.table_name} with that scope")
+      end
+
+      # The last scoped row, or `nil` when the scope is empty.
+      def last? : T?
+        flipped = flip_orders
+        scoped_state
+          .assign_orders(flipped.empty? ? ["#{qualified_pk} DESC"] : flipped)
+          .limit(1).to_a.first?
+      end
+
+      # The first `count` scoped rows without changing their order.
+      def take(count : Int32) : Array(T)
+        scoped_state.limit(count).to_a
+      end
+
+      # The scoped primary keys, honoring order and bounds.
+      #
+      # ```
+      # Post.all.where(published: true).ids
+      # ```
+      def ids : Array(Model::Value)
+        adapter = T.connection.adapter
+        scalar_values(
+          "#{adapter.quote_identifier(T.table_name)}.#{adapter.quote_identifier(T.primary_key_name)}",
+          limit_to_one: false
+        )
+      end
+
+      # A single column value from the leading scoped row, honoring
+      # order — `nil` when the scope matches nothing.
+      #
+      # ```
+      # Post.all.order(:views).pick(:title)
+      # ```
+      def pick(column : Symbol | String) : Model::Value?
+        scalar_values(quoted_qualified(column.to_s), limit_to_one: true).first?
+      end
+
+      # Whether the scope matches at least one row — a `SELECT 1 ... LIMIT 1`
+      # probe, never a materialization.
+      def exists? : Bool
+        sql = "SELECT 1 FROM #{T.connection.adapter.quote_identifier(T.table_name)}"
+        sql += " WHERE #{@where.join(" AND ")}" unless @where.empty?
+        sql += " LIMIT 1"
+        found = false
+        T.connection.query(sql, values: @binds) do |rs|
+          found = rs.move_next
+        end
+        found
+      end
+
+      # Whether the scope matches at least one row.
+      def any? : Bool
+        exists?
+      end
+
+      # Whether the scope matches no rows.
+      def none? : Bool
+        !exists?
+      end
+
+      # Updates every scoped row in one `UPDATE` statement and returns
+      # the number of rows changed. Callbacks, validations and timestamps
+      # are bypassed — this writes columns directly. Joins cannot carry
+      # into an `UPDATE` and raise; `order`, `limit` and `offset` have no
+      # portable meaning across engines and are ignored.
+      #
+      # ```
+      # Post.all.where(published: false).update_all(published: true)
+      # ```
+      def update_all(**fields) : Int64
+        raise ArgumentError.new("update_all does not support joined relations") unless @joins.empty?
+        raise ArgumentError.new("update_all requires at least one field") if fields.empty?
+        assignments = [] of String
+        binds = [] of Model::Value
+        fields.each do |column, value|
+          assignments << "#{T.connection.adapter.quote_identifier(column.to_s)} = #{placeholder_for(binds)}"
+          binds << value
+        end
+        sql = String.build do |part|
+          part << "UPDATE #{T.connection.adapter.quote_identifier(T.table_name)} SET #{assignments.join(", ")}"
+          part << " WHERE #{@where.join(" AND ")}" unless @where.empty?
+        end
+        T.connection.exec(sql, args: binds + @binds).rows_affected
+      end
+
+      # Deletes every scoped row in one `DELETE` statement and returns
+      # the number of rows removed. Destroy callbacks and dependent
+      # associations are bypassed — rows go without ceremony. Joins,
+      # `order`, `limit` and `offset` raise or are ignored exactly as in
+      # `update_all`.
+      #
+      # ```
+      # Post.all.where(published: false).delete_all
+      # ```
+      def delete_all : Int64
+        raise ArgumentError.new("delete_all does not support joined relations") unless @joins.empty?
+        sql = "DELETE FROM #{T.connection.adapter.quote_identifier(T.table_name)}"
+        sql += " WHERE #{@where.join(" AND ")}" unless @where.empty?
+        T.connection.exec(sql, args: @binds).rows_affected
+      end
+
       # A fresh relation carrying this relation's scoped filters, bound
       # values and scheduled preloaders, used by `find_each` batches.
       private def scoped_state : Relation(T)
@@ -294,6 +498,26 @@ module Altair
         @orders = orders
         @preloaders = preloaders
         self
+      end
+
+      # Replaces this relation's order clauses (used by `last?` to run
+      # the scope reversed).
+      protected def assign_orders(orders : Array(String)) : self
+        @orders = orders
+        self
+      end
+
+      # Every order clause with its direction flipped.
+      private def flip_orders : Array(String)
+        @orders.map do |clause|
+          if clause.upcase.ends_with?(" DESC")
+            "#{clause[0...-5]} ASC"
+          elsif clause.upcase.ends_with?(" ASC")
+            "#{clause[0...-4]} DESC"
+          else
+            "#{clause} DESC"
+          end
+        end
       end
 
       # Schedules eager loading of the given associations — one batched
@@ -367,6 +591,76 @@ module Altair
 
       private def placeholder : String
         T.connection.adapter.placeholder(@binds.size)
+      end
+
+      private def placeholder_for(binds : Array(Model::Value)) : String
+        T.connection.adapter.placeholder(binds.size)
+      end
+
+      private def operator_condition(qualified : String, operator : Symbol, value : Model::Value) : Tuple(String, Model::Value)
+        case operator
+        when :like
+          {"#{qualified} LIKE #{placeholder}", value}
+        when :<, :<=, :>, :>=, :!=
+          {"#{qualified} #{operator} #{placeholder}", value}
+        else
+          raise ArgumentError.new("unsupported operator :#{operator}")
+        end
+      end
+
+      private def null_condition(qualified : String, operator : Symbol) : String
+        case operator
+        when :null     then "#{qualified} IS NULL"
+        when :not_null then "#{qualified} IS NOT NULL"
+        else
+          raise ArgumentError.new("unsupported operator :#{operator}")
+        end
+      end
+
+      private def membership_condition(qualified : String, values : Array(Model::Value)) : Tuple(String, Array(Model::Value))
+        # A fresh, explicitly-typed list: the incoming array arrives
+        # narrowed to the caller's literal element type, which would
+        # violate the declared return type.
+        binds = [] of Model::Value
+        values.each { |value| binds << value }
+        marks = binds.map { placeholder }.join(", ")
+        {"#{qualified} IN (#{marks})", binds}
+      end
+
+      # Folds an OR group into the most recent condition — `(last OR
+      # group)` — so alternatives extend one clause instead of ANDing
+      # against the entire scope. Bind order is preserved: existing
+      # placeholders keep their indices, the new ones append.
+      private def fold_alternatives(group : String) : Nil
+        if @where.empty?
+          @where << "(#{group})"
+        else
+          last = @where.pop
+          @where << "(#{last} OR #{group})"
+        end
+      end
+
+      private def qualified_pk : String
+        "#{T.table_name}.#{T.primary_key_name}"
+      end
+
+      private def scalar_values(select_expr : String, limit_to_one : Bool) : Array(Model::Value)
+        adapter = T.connection.adapter
+        sql = String.build do |part|
+          part << "SELECT #{select_expr} FROM #{adapter.quote_identifier(T.table_name)}"
+          part << " WHERE #{@where.join(" AND ")}" unless @where.empty?
+          part << " ORDER BY #{@orders.join(", ")}" unless @orders.empty?
+          if limit_to_one
+            part << " LIMIT 1"
+          elsif @limit || @offset
+            part << " #{adapter.limit_offset_clause(@limit, @offset)}"
+          end
+        end
+        values = [] of Model::Value
+        T.connection.query(sql, values: @binds) do |rs|
+          rs.each { values << rs.read(Model::Value) }
+        end
+        values
       end
 
       private def build_join(association : Symbol, join_type : String) : String
