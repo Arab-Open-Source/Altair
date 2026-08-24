@@ -5,7 +5,23 @@ All notable changes to Altair will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.3] — 2026-08-24
+
+### Fixed
+
+- **`Altair::Cable.broadcast(channel, message)` recursed into itself until
+  the process died**: the two-argument raw-message call also matched the
+  three-argument envelope overload (`data : JSON::Any? = nil`), and Crystal
+  resolves such ties in favor of the last-defined overload — which then
+  called `broadcast(channel, envelope)`, matching itself again. Each level
+  re-wrapped and re-escaped the payload, doubling its size, until
+  serialization blew up as a confusing `IO::EOFError`. Any two-argument
+  broadcast crashed this way, including the WebSocket handler's own
+  client-message rebroadcast, so every real-world Cable deployment was
+  one POST away from a 500. The overloads are now disjoint (the envelope
+  form requires all three arguments), delivery goes through a private
+  `deliver`, and new specs cover raw delivery, envelope delivery and the
+  zero-subscriber no-op end to end.
 
 ### Added
 
@@ -18,33 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **WebSocket (`Altair::Cable`)**: channel-based broadcaster at `/cable` with automatic subscriber cleanup.
 - **Admin generator**: `altair g admin Post` writes a namespaced controller with `require_login` and registers `/admin/posts` routes.
 - **Structured logs**: `config.structured_logs = true` emits one JSON object per request (method/path/status/duration/request_id).
-
-
-### Fixed
-
-- **`IN (...)` chunking in preload loaders**: eager loading (`includes`,
-  polymorphic batched-per-type, `has_many :through`) now splits oversized id
-  lists into consecutive queries at a 500-bind ceiling, so large collections
-  no longer trip SQLite's variable limit.
-- **Custom primary keys**: `table :posts, primary_key: :uuid` generates typed
-  accessors, finders and CRUD against the named column; string PKs
-  auto-generate `SecureRandom.uuid` before insert. All SQL paths (update,
-  delete, finders, loaders) respect the custom name.
-
-### Changed
-
-- **`Relation#order` accumulates** instead of overwriting — `order(:a).order(:b)`
-  produces `ORDER BY a, b`. Use `reorder` to replace or `unscope_order` to clear.
-
-### Added
-
-- **`Relation#reload`** clears the cached records so the next access re-runs the query.
-- **`Model#reload`** re-reads all attributes from the database on a persisted record.
-- **`Record.clear_handlers!`** clears instrumentation hooks between test examples.
-
-
-### Added
-
 - **`Relation#joins` / `left_joins`**: `Post.all.joins(:comments).where("comments.body", "hi")`
   emits a real INNER JOIN with table-qualified `where`/`order` columns. Joins on
   `has_many` automatically enable `SELECT DISTINCT` and `COUNT(DISTINCT pk)` so
@@ -64,7 +53,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`t.references :name, polymorphic: true`** migration helper generates the
   id/type column pair plus composite index; plain `references` adds the FK
   column + index.
+- **`Relation#reload`** clears the cached records so the next access re-runs the query.
+- **`Model#reload`** re-reads all attributes from the database on a persisted record.
+- **`Record.clear_handlers!`** clears instrumentation hooks between test examples.
 
+### Changed
+
+- **`Relation#order` accumulates** instead of overwriting — `order(:a).order(:b)`
+  produces `ORDER BY a, b`. Use `reorder` to replace or `unscope_order` to clear.
+
+### Fixed
+
+- **`IN (...)` chunking in preload loaders**: eager loading (`includes`,
+  polymorphic batched-per-type, `has_many :through`) now splits oversized id
+  lists into consecutive queries at a 500-bind ceiling, so large collections
+  no longer trip SQLite's variable limit.
+- **Custom primary keys**: `table :posts, primary_key: :uuid` generates typed
+  accessors, finders and CRUD against the named column; string PKs
+  auto-generate `SecureRandom.uuid` before insert. All SQL paths (update,
+  delete, finders, loaders) respect the custom name.
 
 ## [0.3.2] — 2026-08-23
 

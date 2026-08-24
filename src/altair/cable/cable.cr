@@ -12,7 +12,8 @@
 #    `config.cable_heartbeat_interval`; if no pong arrives within
 #    `config.cable_pong_budget`, the socket is closed and unsubscribed.
 # 4. Messages are JSON envelopes: `{channel, event, data}` — broadcast
-#    via `Cable.broadcast(channel, event, data)`.
+#    via `Cable.broadcast(channel, event, data)`, or verbatim via
+#    `Cable.broadcast(channel, message)` (two arguments = raw payload).
 # 5. On disconnect, the subscriber is removed; empty channels are cleaned up.
 require "json"
 
@@ -54,28 +55,31 @@ module Altair
       LOCK.synchronize { CHANNELS[channel]?.try(&.size) || 0 }
     end
 
-    # Broadcasts an envelope to all subscribers on the channel. Dead
+    # Broadcasts a raw message to all subscribers on the channel. Dead
     # sockets are pruned inline without breaking delivery to others.
     def self.broadcast(channel : String, message : String) : Nil
+      deliver(channel, message)
+    end
+
+    # Broadcasts a structured envelope:
+    # ```
+    # Cable.broadcast("tweets", "created", {"id" => JSON::Any.new(42)})
+    # # → {"channel":"tweets","event":"created","data":{"id":42}}
+    # ```
+    def self.broadcast(channel : String, event : String, data : JSON::Any?) : Nil
+      deliver(channel, Envelope.new(channel, event, data).to_json_string)
+    end
+
+    private def self.deliver(channel : String, payload : String) : Nil
       sockets = LOCK.synchronize { (CHANNELS[channel]? || [] of ::HTTP::WebSocket).dup }
       sockets.each do |socket|
         next if socket.closed?
         begin
-          socket.send(message)
+          socket.send(payload)
         rescue ::IO::Error
           unsubscribe(channel, socket)
         end
       end
-    end
-
-    # Broadcasts with a structured envelope:
-    # ```
-    # Cable.broadcast("tweets", "created", {"id" => 42})
-    # # → {"channel":"tweets","event":"created","data":{"id":42}}
-    # ```
-    def self.broadcast(channel : String, event : String, data : JSON::Any? = nil) : Nil
-      envelope = Envelope.new(channel, event, data).to_json_string
-      broadcast(channel, envelope)
     end
 
     class Handler

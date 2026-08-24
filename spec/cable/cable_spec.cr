@@ -36,6 +36,45 @@ describe Altair::Cable do
     parsed["event"].as_s.should eq("message")
     parsed["data"]["text"].as_s.should eq("hi")
   end
+
+  it "delivers raw messages to subscribers without wrapping them" do
+    mem = IO::Memory.new
+    socket = ::HTTP::WebSocket.new(mem)
+    begin
+      Altair::Cable.subscribe("raw-ch", socket)
+      Altair::Cable.broadcast("raw-ch", "live-update")
+    ensure
+      Altair::Cable.unsubscribe("raw-ch", socket)
+    end
+    read_text_frame(mem).should eq("live-update")
+  end
+
+  it "delivers JSON envelopes when broadcast carries an event and data" do
+    mem = IO::Memory.new
+    socket = ::HTTP::WebSocket.new(mem)
+    begin
+      Altair::Cable.subscribe("envelope-ch", socket)
+      Altair::Cable.broadcast("envelope-ch", "created", JSON.parse(%({"id": 42})))
+    ensure
+      Altair::Cable.unsubscribe("envelope-ch", socket)
+    end
+    parsed = JSON.parse(read_text_frame(mem))
+    parsed["channel"].as_s.should eq("envelope-ch")
+    parsed["event"].as_s.should eq("created")
+    parsed["data"]["id"].as_i.should eq(42)
+  end
+
+  it "treats a broadcast with no subscribers as a no-op" do
+    Altair::Cable.broadcast("empty-ch", "nobody-listens")
+    Altair::Cable.subscriber_count("empty-ch").should eq(0)
+  end
+end
+
+private def read_text_frame(io : IO::Memory) : String
+  io.rewind
+  head = io.read_bytes(UInt16, ::IO::ByteFormat::NetworkEndian)
+  ((head >> 8) & 0xf).should eq(1)
+  io.read_string(head & 0x7f)
 end
 
 describe Altair::Cable::ConnectionContext do
