@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`after_commit` / `after_rollback` lifecycle hooks**: fire once the
+  record's save or delete transaction lands (or on rollback, before the
+  exception re-raises). The safe place to enqueue background jobs and
+  invalidate caches — `after_save` runs inside the transaction where the
+  data is not yet visible and a rollback would orphan the side effects.
+- **Direct-write helpers**: `Model#touch(*columns)` bumps `updated_at`
+  (plus listed timestamp columns) with one UPDATE; `increment!` /
+  `decrement!` apply atomic `col = col ± n` writes. All three bypass
+  callbacks, validations and dirty tracking by design.
 - **Query DSL completion** (`Relation`): `where_not` (keyword pairs or a
   single column/value), `or_where` — whose alternatives fold into the
   preceding condition as one parenthesized OR group instead of ANDing with

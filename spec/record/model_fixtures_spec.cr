@@ -72,6 +72,13 @@ class Altair::Record::Schema
       id:    {type: :integer, null: false, primary: true},
       state: {type: :string, null: true, primary: false},
     },
+    audit_widgets: {
+      id:         {type: :integer, null: false, primary: true},
+      name:       {type: :string, null: false, primary: false},
+      counter:    {type: :integer, null: false, primary: false},
+      created_at: {type: :datetime, null: true, primary: false},
+      updated_at: {type: :datetime, null: true, primary: false},
+    },
     events: {
       id:   {type: :bigint, null: false, primary: true},
       name: {type: :string, null: true, primary: false},
@@ -330,6 +337,7 @@ module RecordSpec
     connection.exec("DROP TABLE IF EXISTS labels")
     connection.exec("DROP TABLE IF EXISTS payloads")
     connection.exec("DROP TABLE IF EXISTS workflows")
+    connection.exec("DROP TABLE IF EXISTS audit_widgets")
     connection.exec("DROP TABLE IF EXISTS events")
     connection.exec("DROP TABLE IF EXISTS accounts")
     connection.exec("DROP TABLE IF EXISTS members")
@@ -397,6 +405,11 @@ module RecordSpec
     connection.exec(
       "CREATE TABLE workflows (" \
       "id INTEGER PRIMARY KEY AUTOINCREMENT, state TEXT)"
+    )
+    connection.exec(
+      "CREATE TABLE audit_widgets (" \
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, " \
+      "counter INTEGER NOT NULL DEFAULT 0, created_at DATETIME, updated_at DATETIME)"
     )
     connection.exec(
       "CREATE TABLE events (" \

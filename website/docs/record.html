@@ -191,6 +191,27 @@ takes method names to run around the lifecycle:</p>
   end
 end
 </code></pre>
+<p><code>after_commit</code> and <code>after_rollback</code> fire after the record&#39;s save or delete
+transaction lands — or on the way out of a rollback. Enqueue jobs and
+invalidate caches in <code>after_commit</code>, never <code>after_save</code>: inside the
+transaction the data is not yet visible to other connections, and a later
+rollback would leave the job chasing a row that never existed.</p>
+<pre><code class="language-crystal">class Post &lt; Altair::Record::Model
+  after_commit :reindex
+  after_rollback :clear_pending_flag
+
+  private def reindex : Nil
+    SearchJob.enqueue(id)
+  end
+end
+</code></pre>
+<p>Direct-write helpers bypass callbacks and validations — one statement,
+no ceremony:</p>
+<pre><code class="language-crystal">post.touch                       # updated_at = now
+audit.touch(:reviewed_at)        # listed timestamp columns bump too
+counter.increment!(:hits)        # hits = hits + 1 (atomic)
+counter.decrement!(:hits, 5)     # hits = hits - 5
+</code></pre>
 <h2>Associations</h2>
 <p><code>belongs_to</code>, <code>has_many</code> and <code>has_one</code> generate typed accessors and foreign
 keys. <code>dependent:</code> clears the child rows when the parent is destroyed, and

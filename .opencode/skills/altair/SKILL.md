@@ -66,6 +66,8 @@ folding into the previous clause) with `:like`/`:in`/`:null`/`:not_null`
 operators; finders `first`/`last` (+ bang-less nil forms), `take`,
 `ids`, `pick`, `exists?`/`any?`/`none?`; bulk writes `update_all` /
 `delete_all` bypass callbacks, validations and timestamps.
+Lifecycle hooks: enqueue jobs in `after_commit`, never `after_save`;
+`touch` / `increment!` / `decrement!` are direct writes.
 `change_column_null` works on every adapter — SQLite rebuilds the table.
 
 | Phase | Focus | Status |

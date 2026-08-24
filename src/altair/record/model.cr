@@ -984,27 +984,35 @@ module Altair
       end
 
       # Persists a record with save callbacks, wrapping them and the insert
-      # or update in a transaction so a raise rolls everything back.
+      # or update in a transaction so a raise rolls everything back. The
+      # commit hooks fire after the transaction lands; a rollback fires
+      # them on the way out and re-raises.
       private def save_transactional : Bool
         persisted = false
-        self.class.transaction do
-          _run_callbacks(:before_save)
-          if @id.nil?
-            _run_callbacks(:before_create)
-            apply_create_timestamps
-            insert
-            _run_callbacks(:after_create)
-          else
-            _run_callbacks(:before_update)
-            unless @dirty.empty?
-              apply_update_timestamps
-              update_row
+        begin
+          self.class.transaction do
+            _run_callbacks(:before_save)
+            if @id.nil?
+              _run_callbacks(:before_create)
+              apply_create_timestamps
+              insert
+              _run_callbacks(:after_create)
+            else
+              _run_callbacks(:before_update)
+              unless @dirty.empty?
+                apply_update_timestamps
+                update_row
+              end
+              _run_callbacks(:after_update)
             end
-            _run_callbacks(:after_update)
+            _run_callbacks(:after_save)
+            persisted = true
           end
-          _run_callbacks(:after_save)
-          persisted = true
+        rescue e
+          _run_callbacks(:after_rollback)
+          raise e
         end
+        _run_callbacks(:after_commit)
         clear_dirty if persisted
         persisted
       end
@@ -1015,22 +1023,109 @@ module Altair
         self
       end
 
-      # Deletes the row, running the destroy callbacks inside a transaction.
-      # Returns whether a row was deleted.
+      # Deletes the row, running the destroy callbacks inside a transaction
+      # and the commit hooks once it lands. Returns whether a row was
+      # deleted.
       def delete : Bool
         return false if @id.nil?
         deleted = false
-        self.class.transaction do
-          _run_callbacks(:before_destroy)
-          result = connection.exec(
-            "DELETE FROM #{connection.adapter.quote_identifier(self.class.table_name)} " \
-            "WHERE #{connection.adapter.quote_identifier(self.class.primary_key_name)} = #{connection.adapter.placeholder(0)}",
-            @id
-          )
-          deleted = result.rows_affected > 0
-          _run_callbacks(:after_destroy)
+        begin
+          self.class.transaction do
+            _run_callbacks(:before_destroy)
+            result = connection.exec(
+              "DELETE FROM #{connection.adapter.quote_identifier(self.class.table_name)} " \
+              "WHERE #{connection.adapter.quote_identifier(self.class.primary_key_name)} = #{connection.adapter.placeholder(0)}",
+              @id
+            )
+            deleted = result.rows_affected > 0
+            _run_callbacks(:after_destroy)
+          end
+        rescue e
+          _run_callbacks(:after_rollback)
+          raise e
         end
+        _run_callbacks(:after_commit)
         deleted
+      end
+
+      # Bumps `updated_at` — plus any explicitly listed columns — to now
+      # with one direct UPDATE. Callbacks, validations and dirty tracking
+      # are bypassed; the touched attributes are refreshed from the row.
+      #
+      # ```
+      # post.touch
+      # audit.touch(:reviewed_at)
+      # ```
+      def touch(*columns : Symbol) : self
+        touch_columns(columns.to_a)
+      end
+
+      # No-column form: bumps `updated_at` only.
+      def touch : self
+        touch_columns([] of Symbol)
+      end
+
+      private def touch_columns(columns : Array(Symbol)) : self
+        if @id.nil?
+          raise Altair::Error.new("cannot touch #{self.class.table_name} before it is saved")
+        end
+        names = [:updated_at] + columns.to_a
+        assignments = [] of String
+        binds = [] of Value
+        adapter = connection.adapter
+        names.each do |column|
+          unless self.class.column_names.includes?(column.to_s)
+            raise Altair::Error.new("unknown column :#{column} on #{self.class.table_name}")
+          end
+          assignments << "#{adapter.quote_identifier(column.to_s)} = #{adapter.placeholder(0)}"
+          binds << Time.utc
+        end
+        assignments << "#{adapter.quote_identifier(self.class.primary_key_name)} = #{adapter.placeholder(0)}"
+        binds << @id
+        connection.exec(
+          "UPDATE #{adapter.quote_identifier(self.class.table_name)} " \
+          "SET #{assignments.join(", ")}",
+          args: binds
+        )
+        reload
+      end
+
+      # Adds `by` to an integer column atomically (`col = col + ?`) and
+      # refreshes `updated_at`. Direct write — no callbacks.
+      def increment!(column : Symbol, by : Int32 | Int64 = 1) : self
+        bump_counter(column, by)
+      end
+
+      # Subtracts `by` from an integer column atomically.
+      def decrement!(column : Symbol, by : Int32 | Int64 = 1) : self
+        bump_counter(column, -by)
+      end
+
+      private def bump_counter(column : Symbol, delta : Int32 | Int64) : self
+        if @id.nil?
+          raise Altair::Error.new("cannot bump #{self.class.table_name} before it is saved")
+        end
+        unless self.class.column_names.includes?(column.to_s)
+          raise Altair::Error.new("unknown column :#{column} on #{self.class.table_name}")
+        end
+        adapter = connection.adapter
+        assignments = ["#{adapter.quote_identifier(column.to_s)} = " \
+                       "#{adapter.quote_identifier(column.to_s)} + #{adapter.placeholder(0)}"]
+        binds = [] of Value
+        binds << delta
+        if self.class.column_names.includes?("updated_at")
+          assignments << "#{adapter.quote_identifier("updated_at")} = #{adapter.placeholder(1)}"
+          binds << Time.utc
+          pk_placeholder = adapter.placeholder(2)
+        else
+          pk_placeholder = adapter.placeholder(1)
+        end
+        connection.exec(
+          "UPDATE #{adapter.quote_identifier(self.class.table_name)} SET #{assignments.join(", ")} " \
+          "WHERE #{adapter.quote_identifier(self.class.primary_key_name)} = #{pk_placeholder}",
+          args: binds + [@id]
+        )
+        reload
       end
 
       # The connection this record queries through.
@@ -1151,6 +1246,22 @@ module Altair
       macro after_destroy(*methods)
         {% for method in methods %}
           (@@callbacks[:after_destroy] ||= [] of Proc({{@type.id}}, Nil)) << ->(record : {{@type.id}}) { record.{{method.id}} }
+        {% end %}
+      end
+
+      # Runs after the record's save transaction has committed. Enqueue
+      # jobs and invalidate caches here — `after_save` fires inside the
+      # transaction, before the data is visible to other connections.
+      macro after_commit(*methods)
+        {% for method in methods %}
+          (@@callbacks[:after_commit] ||= [] of Proc({{@type.id}}, Nil)) << ->(record : {{@type.id}}) { record.{{method.id}} }
+        {% end %}
+      end
+
+      # Runs when the record's save or delete transaction rolled back.
+      macro after_rollback(*methods)
+        {% for method in methods %}
+          (@@callbacks[:after_rollback] ||= [] of Proc({{@type.id}}, Nil)) << ->(record : {{@type.id}}) { record.{{method.id}} }
         {% end %}
       end
 

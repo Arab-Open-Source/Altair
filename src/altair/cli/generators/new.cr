@@ -919,6 +919,13 @@ module Altair
           Post.all.order(:created_at).order(:title)    # ORDER BY created_at, title
           Post.all.reorder(:title)                     # replaces existing orders
           post.reload                                  # re-reads from database
+
+          # Lifecycle — enqueue jobs in after_commit, NEVER after_save:
+          after_commit :reindex      # fires once the save/delete transaction lands
+          after_rollback :cleanup    # fires when the transaction rolls back
+          post.touch                 # updated_at = now, bypasses callbacks
+          post.touch(:reviewed_at)   # listed timestamp columns bump too
+          post.increment!(:views)    # atomic views = views + 1 (decrement! too)
           ```
 
           Custom primary keys: `table :posts, primary_key: :uuid` — string PKs auto-generate UUID.

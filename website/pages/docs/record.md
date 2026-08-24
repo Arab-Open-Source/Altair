@@ -210,6 +210,33 @@ class Post < Altair::Record::Model
 end
 ```
 
+`after_commit` and `after_rollback` fire after the record's save or delete
+transaction lands — or on the way out of a rollback. Enqueue jobs and
+invalidate caches in `after_commit`, never `after_save`: inside the
+transaction the data is not yet visible to other connections, and a later
+rollback would leave the job chasing a row that never existed.
+
+```crystal
+class Post < Altair::Record::Model
+  after_commit :reindex
+  after_rollback :clear_pending_flag
+
+  private def reindex : Nil
+    SearchJob.enqueue(id)
+  end
+end
+```
+
+Direct-write helpers bypass callbacks and validations — one statement,
+no ceremony:
+
+```crystal
+post.touch                       # updated_at = now
+audit.touch(:reviewed_at)        # listed timestamp columns bump too
+counter.increment!(:hits)        # hits = hits + 1 (atomic)
+counter.decrement!(:hits, 5)     # hits = hits - 5
+```
+
 ## Associations
 
 `belongs_to`, `has_many` and `has_one` generate typed accessors and foreign
