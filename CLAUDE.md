@@ -6,8 +6,13 @@ before touching the codebase.
 
 ## The short version
 
-- **Status:** Phases 0–6 done (Foundation, Router, Controllers, Views, ORM,
-  CLI, Hardening). **Phase 7 (post-release)** is next. 752 specs passing.
+- **Status:** Phases 0–7 done (Foundation, Router, Controllers, Views, ORM,
+  CLI, Hardening, post-release features). **v0.4.0 shipped** the ORM
+  completion wave: query DSL (where_not/or_where/:like/:in, finders,
+  update_all/delete_all), after_commit/after_rollback hooks, touch and
+  atomic counters, counter caches, batched dependent destroy and
+  conditional validations. 957 specs passing (6 pending: the PostgreSQL
+  contract suite on `ALTAIR_TEST_PG_URL`).
 - **Contract:** specs from day one, never skip a phase's exit criterion,
   never mention "Rails" in the repo, no emojis, no obvious comments.
 - **Plan:** `ROADMAP.md` holds the phase table + exit criteria; detailed

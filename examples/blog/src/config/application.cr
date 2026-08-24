@@ -36,6 +36,7 @@ class Blog < Altair::Application
     get "/login", to: SessionsController.login_page
     post "/login", to: SessionsController.login
     delete "/logout", to: SessionsController.logout
+    get "/search", to: PostsController.search
   end
 end
 

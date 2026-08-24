@@ -26,12 +26,37 @@ class PostsController < ApplicationController
     render html: page_html(<<-HTML)
       <h1>Posts</h1>
       <ul>#{rows}</ul>
-      <p><a href="#{new_post_path}">New post</a> · <a href="/">Home</a></p>
+      <p><a href="#{new_post_path}">New post</a> · <a href="/search">Search</a> · <a href="/">Home</a></p>
       HTML
   end
 
   def new : Nil
     render html: page_html("<h1>New post</h1>#{form_html("/posts")}")
+  end
+
+  # The v0.4.0 query DSL end to end: a LIKE over titles with an OR branch
+  # folding into it, a negated clause, ordering and a bound — every value
+  # below travels as a bind parameter.
+  def search : Nil
+    query = (params["q"]? || "").strip
+    pattern = "%#{query}%"
+    posts = Post.all
+      .where(:title, :like, pattern)
+      .or_where(:body, :like, pattern)
+      .where_not(title: "")
+      .order(:id, :desc)
+      .limit(20).to_a
+    rows = posts.map do |post|
+      "<li><a href=\"#{post_path(post.id.not_nil!)}\">#{post.title}</a></li>"
+    end.join
+    empty_state = query.empty? ? "<p>Type something to search.</p>" : "<p>No posts matched \"#{query}\".</p>"
+    render html: page_html(<<-HTML)
+      <h1>Search</h1>
+      <form action="/search" method="get">
+        <input name="q" value="#{query}"> <button>Search</button>
+      </form>
+      #{rows.empty? ? empty_state : "<ul>#{rows}</ul>"}
+      HTML
   end
 
   def create : Nil

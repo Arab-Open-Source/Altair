@@ -26,6 +26,7 @@ generators on top of that stack.
 | 8 | Database ergonomics | Planned — `altair new -d postgresql` and `bin/altair db:create` |
 | 9 | CLI ergonomics | Planned — destroy, job generator, db:status, server flags, assets/jobs helpers |
 | 10 | Router & future features | Completed — dynamic redirect, Cable, cache, storage, API mode, admin generator, observability |
+| v0.4.0 | ORM completion wave | Completed — query DSL (negation, alternatives, finders, bulk writes), after_commit hooks, touch/increment!, counter caches, batched dependent destroy, conditional validations |
 
 > **Note on the CLI:** the original Phase 4 plan listed `altair new` /
 > `altair server` / `altair routes`. That CLI landed in Phase 5, together
@@ -195,6 +196,20 @@ Deferred by request — no code changes in this commit. Waves: A (job + destroy)
 Collected from review — each row shipped as its own wave. Multi-tenancy
 remains the next big candidate (Phase 12): see
 `docs/architecture/orm-audit-and-tenancy-plan.md`.
+
+## v0.4.0 — ORM completion wave (completed)
+
+The ORM audit's outstanding gaps, closed in four spec-first waves:
+
+| Wave | Delivered |
+|------|-----------|
+| 0 — hotfixes | `change_column_null` on SQLite (table rebuild from `PRAGMA table_info`, indexes preserved), `Relation#count` respecting `limit`/`offset`, bare `OFFSET` no longer crashing SQLite |
+| A — query DSL | `where_not` / `or_where` (alternatives fold into the previous clause), `:like` / `:in` / `:null` / `:not_null` operators, finders `first`/`last`/`take`/`ids`/`pick`/`exists?`/`any?`/`none?`, bulk `update_all` / `delete_all` |
+| B — lifecycle | `after_commit` / `after_rollback` (the safe enqueue point), direct-write `touch` / `increment!` / `decrement!` |
+| C — associations & validations | `belongs_to ..., counter_cache:` maintaining an atomic owner count, `dependent: :destroy` collapsing to one DELETE for callback-free children, `if:` / `unless:` / `allow_nil:` on every validation, `case_sensitive: false` uniqueness |
+
+Exit criterion met: the blog demo's `/search` page runs the new DSL over
+real HTTP.
 
 | Priority | Idea | Exit criterion | Effort |
 |----------|------|-----------------|--------|
