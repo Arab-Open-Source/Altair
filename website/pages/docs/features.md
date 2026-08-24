@@ -131,7 +131,7 @@ Four features shipped, demonstrated end to end in `examples/blog`:
 
 ## Testing and quality
 
-- 817 specs passing (6 pending: the PostgreSQL concurrency contract tests; the full PostgreSQL contract suite runs when `ALTAIR_TEST_PG_URL` is set)
+- 992 specs passing (15 pending: 7 Redis rate-limit + 1 Redis middleware + 6 PostgreSQL concurrency contract; the full PostgreSQL contract suite runs when `ALTAIR_TEST_PG_URL` is set)
 - Formatter clean, linter silent on framework sources
 - Smart error pages: 404 with route suggestions, 405 with `_method` explanation, detailed 500 diagnostics in debug mode only
 
@@ -164,6 +164,16 @@ Four features shipped, demonstrated end to end in `examples/blog`:
 - **Atomic writes** — `db/schema.cr` written via tmp+rename;
   `db:migrate` acquires PG advisory lock against concurrent races
 
+### Phase 8 — Database ergonomics
+
+Completed — `altair new -d postgresql` wires the `pg` shard, `postgres://` URLs and the adapter require; `bin/altair db:create` / `db:drop` manage every env in `config/database.yml`; `ENV["DATABASE_URL"]` overrides at boot and in those commands.
+
+### v0.4.0 — ORM completion wave
+
+- **Query DSL**: `where_not`, `or_where`, `:like` / `:in` / `:null` / `:not_null` operators; finders `first` / `last` / `take` / `ids` / `pick` / `exists?` / `any?` / `none?`; bulk `update_all` / `delete_all`
+- **Lifecycle**: `after_commit` / `after_rollback` hooks; direct-write `touch` / `increment!` / `decrement!`
+- **Associations & validations**: `counter_cache`, batched `dependent: :destroy`, conditional validations (`if:` / `unless:` / `allow_nil:`) and `case_sensitive: false` uniqueness
+
 ### Phase 10 — Router & future features
 
 - **Dynamic redirect**: `redirect "/t/:id", to: "/tweets/:id"` interpolates route params into Location headers
@@ -175,6 +185,10 @@ Four features shipped, demonstrated end to end in `examples/blog`:
 - **Observability**: `/health` and `/metrics` (Prometheus format) behind `config.observability = true`
 - **Structured logs**: `config.structured_logs = true` emits one JSON object per request
 - **Redis client**: Pure-Crystal `Altair::Redis::Client` built from scratch — RESP2, connection pool, pub/sub, pipeline, transactions. No external Redis shard needed.
+
+### Phase 9 — CLI ergonomics
+
+Planned — `altair g job` and `destroy` generators, per-environment database helpers, server flags, and project diagnostics.
 
 ## What is planned next
 

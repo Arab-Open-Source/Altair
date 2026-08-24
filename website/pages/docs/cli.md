@@ -55,9 +55,10 @@ It prints the installed binary's SHA-256 digest so you can verify the copy match
 
 | Command | Purpose |
 |---------|---------|
-| `altair new <name> [--framework-path DIR] [-d sqlite\|postgresql]` | Scaffold a runnable project. `<name>` may include a path (`a/b`, `/tmp/my_app`); only its basename becomes the application name. Names must be lowercase letters, digits and underscores starting with a letter — `my-app` is rejected with a suggestion `my_app`. By default it depends on the published shard; pass `--framework-path` (or set `ALTAIR_PATH`) to use a local checkout. `-d postgresql` wires the `pg` shard, postgres URLs in `config/database.yml` and the adapter require; `-d sqlite` is the default (`ALTAIR_DATABASE` env fallback). |
+| `altair new <name> [--framework-path DIR] [-d sqlite\|postgresql] [--api]` | Scaffold a runnable project. `<name>` may include a path (`a/b`, `/tmp/my_app`); only its basename becomes the application name. Names must be lowercase letters, digits and underscores starting with a letter — `my-app` is rejected with a suggestion `my_app`. By default it depends on the published shard; pass `--framework-path` (or set `ALTAIR_PATH`) to use a local checkout. `-d postgresql` wires the `pg` shard, postgres URLs in `config/database.yml` and the adapter require; `-d sqlite` is the default (`ALTAIR_DATABASE` env fallback). `--api` generates a JSON-only project (no views/assets) with CORS enabled. |
 | `altair g scaffold <Name> [column:type ...]` | Model + migration + RESTful controller + ECR views + `resources` route + seeded `db/schema.cr`. |
 | `altair g model <Name> [column:type ...]` | A model file and its table. |
+| `altair g admin <Name>` | Namespaced admin controller with `require_login` + `namespace :admin` routes. |
 | `altair g auth [User]` | Full registration/login stack: User model (`password_auth`, unique email), migration with the unique index, sessions + registrations controllers, login/register views, and the `/login`, `/register`, `/logout` routes. |
 
 | `altair g migration Create<Table> [column:type ...]` | A timestamped migration. |

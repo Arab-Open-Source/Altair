@@ -58,8 +58,14 @@ altair routes
 ## Database commands
 
 ```sh
+altair db:create     # create every environment database from config/database.yml
 altair db:migrate    # run pending migrations
 altair db:rollback   # roll back the last migration
+altair db:drop       # drop databases (refuses in production without --force)
+altair db:seed       # run db/seeds.cr
+altair assets:precompile  # fingerprint assets/ -> public/assets/
+altair jobs:work     # run background jobs
+altair jobs:stats    # print job counts
 ```
 
 ## Project structure

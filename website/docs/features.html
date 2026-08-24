@@ -155,7 +155,7 @@ quoted statements, halving the write-path allocations (PostgreSQL:
 </ul>
 <h2>Testing and quality</h2>
 <ul>
-<li>817 specs passing (6 pending: the PostgreSQL concurrency contract tests; the full PostgreSQL contract suite runs when <code>ALTAIR_TEST_PG_URL</code> is set)</li>
+<li>992 specs passing (15 pending: 7 Redis rate-limit + 1 Redis middleware + 6 PostgreSQL concurrency contract; the full PostgreSQL contract suite runs when <code>ALTAIR_TEST_PG_URL</code> is set)</li>
 <li>Formatter clean, linter silent on framework sources</li>
 <li>Smart error pages: 404 with route suggestions, 405 with <code>_method</code> explanation, detailed 500 diagnostics in debug mode only</li>
 </ul>
@@ -188,6 +188,14 @@ re-reads attributes from the database</li>
 <li><strong>Atomic writes</strong> — <code>db/schema.cr</code> written via tmp+rename;
 <code>db:migrate</code> acquires PG advisory lock against concurrent races</li>
 </ul>
+<h3>Phase 8 — Database ergonomics</h3>
+<p>Completed — <code>altair new -d postgresql</code> wires the <code>pg</code> shard, <code>postgres://</code> URLs and the adapter require; <code>bin/altair db:create</code> / <code>db:drop</code> manage every env in <code>config/database.yml</code>; <code>ENV[&quot;DATABASE_URL&quot;]</code> overrides at boot and in those commands.</p>
+<h3>v0.4.0 — ORM completion wave</h3>
+<ul>
+<li><strong>Query DSL</strong>: <code>where_not</code>, <code>or_where</code>, <code>:like</code> / <code>:in</code> / <code>:null</code> / <code>:not_null</code> operators; finders <code>first</code> / <code>last</code> / <code>take</code> / <code>ids</code> / <code>pick</code> / <code>exists?</code> / <code>any?</code> / <code>none?</code>; bulk <code>update_all</code> / <code>delete_all</code></li>
+<li><strong>Lifecycle</strong>: <code>after_commit</code> / <code>after_rollback</code> hooks; direct-write <code>touch</code> / <code>increment!</code> / <code>decrement!</code></li>
+<li><strong>Associations &amp; validations</strong>: <code>counter_cache</code>, batched <code>dependent: :destroy</code>, conditional validations (<code>if:</code> / <code>unless:</code> / <code>allow_nil:</code>) and <code>case_sensitive: false</code> uniqueness</li>
+</ul>
 <h3>Phase 10 — Router &amp; future features</h3>
 <ul>
 <li><strong>Dynamic redirect</strong>: <code>redirect &quot;/t/:id&quot;, to: &quot;/tweets/:id&quot;</code> interpolates route params into Location headers</li>
@@ -200,6 +208,8 @@ re-reads attributes from the database</li>
 <li><strong>Structured logs</strong>: <code>config.structured_logs = true</code> emits one JSON object per request</li>
 <li><strong>Redis client</strong>: Pure-Crystal <code>Altair::Redis::Client</code> built from scratch — RESP2, connection pool, pub/sub, pipeline, transactions. No external Redis shard needed.</li>
 </ul>
+<h3>Phase 9 — CLI ergonomics</h3>
+<p>Planned — <code>altair g job</code> and <code>destroy</code> generators, per-environment database helpers, server flags, and project diagnostics.</p>
 <h2>What is planned next</h2>
 <ul>
 <li><strong>Phase 12 candidate:</strong> multi-tenancy</li>

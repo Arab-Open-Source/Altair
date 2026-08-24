@@ -1,9 +1,10 @@
 # Security
 
-The default middleware stack ships three security layers, safe-by-default
-and each overridable through `config`. Combined with
-[CSRF protection](/docs/sessions.html) and the signed session cookie, a
-generated project is hardened without writing a line of it yourself.
+The default middleware stack ships six layers, four of them security
+layers, safe-by-default and each overridable through `config`. Combined
+with [CSRF protection](/docs/sessions.html) and the signed session
+cookie, a generated project is hardened without writing a line of it
+yourself.
 
 ## Security headers
 

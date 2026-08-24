@@ -101,11 +101,16 @@ or programmatically with `config.environment(name)`.
 
 `config.middleware` holds the stack run on every request before routing,
 each entry a factory proc. The default stack is logging, request-id
-assignment, the default security headers, CORS and static files:
+assignment, rate limiting (pass-through by default), the default
+security headers, CORS and static files:
 
 ```crystal
 config.middleware = [
   ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::Logger.new(app) },
+  ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::RequestId.new(app) },
+  ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::RateLimit.new(app) },
+  ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::SecurityHeaders.new(app) },
+  ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::Cors.new(app) },
   ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::Static.new(app) },
 ]
 ```

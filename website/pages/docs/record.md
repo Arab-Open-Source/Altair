@@ -7,18 +7,18 @@ strings stay constant, so values can never be interpolated into a query.
 
 ## Connecting
 
-The application points at a database; `ALTAIR_DB_URL` overrides it at run
+The application points at a database; `DATABASE_URL` overrides it at run
 time:
 
 ```crystal
 class Blog < Altair::Application
-  config.db_url = ENV["ALTAIR_DB_URL"]? || "sqlite3://./db/blog.db"
+  config.db_url = ENV["DATABASE_URL"]? || "sqlite3://./db/blog.db"
 end
 ```
 
 ```sh
 # SQLite (default) — or PostgreSQL:
-ALTAIR_DB_URL="postgres://postgres:secret@localhost:5433/blog" altair server
+DATABASE_URL="postgres://postgres:secret@localhost:5433/blog" altair server
 ```
 
 ## Models
@@ -390,7 +390,6 @@ table :posts, primary_key: :uuid   # column must exist in the migration
 String PKs auto-generate a `SecureRandom.uuid` before insert. All finders,
 loaders, updates and deletes respect the custom name.
 
-## has_many :through
 ## has_many :through
 
 ```crystal

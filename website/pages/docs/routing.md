@@ -130,6 +130,25 @@ browser follows it for `GET` and `POST` alike:
 redirect "/legacy", to: "/posts"
 ```
 
+Route parameters interpolate into the destination and the format suffix is
+preserved:
+
+```crystal
+redirect "/t/:id", to: "/tweets/:id"
+# GET /t/42.json → 301 /tweets/42.json
+```
+
+## Namespaces
+
+`namespace` prefixes paths, controller lookup, and helper names without
+repeating yourself:
+
+```crystal
+namespace :admin do
+  resources :posts   # /admin/posts → Admin::PostsController, admin_posts_path
+end
+```
+
 ## Not found and method not allowed
 
 - A path no route matches answers **404**. In development the error page

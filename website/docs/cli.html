@@ -75,8 +75,8 @@
 </tr>
 </thead>
 <tbody><tr>
-<td><code>altair new &lt;name&gt; [--framework-path DIR] [-d sqlite|postgresql]</code></td>
-<td>Scaffold a runnable project. <code>&lt;name&gt;</code> may include a path (<code>a/b</code>, <code>/tmp/my_app</code>); only its basename becomes the application name. Names must be lowercase letters, digits and underscores starting with a letter — <code>my-app</code> is rejected with a suggestion <code>my_app</code>. By default it depends on the published shard; pass <code>--framework-path</code> (or set <code>ALTAIR_PATH</code>) to use a local checkout. <code>-d postgresql</code> wires the <code>pg</code> shard, postgres URLs in <code>config/database.yml</code> and the adapter require; <code>-d sqlite</code> is the default (<code>ALTAIR_DATABASE</code> env fallback).</td>
+<td><code>altair new &lt;name&gt; [--framework-path DIR] [-d sqlite|postgresql] [--api]</code></td>
+<td>Scaffold a runnable project. <code>&lt;name&gt;</code> may include a path (<code>a/b</code>, <code>/tmp/my_app</code>); only its basename becomes the application name. Names must be lowercase letters, digits and underscores starting with a letter — <code>my-app</code> is rejected with a suggestion <code>my_app</code>. By default it depends on the published shard; pass <code>--framework-path</code> (or set <code>ALTAIR_PATH</code>) to use a local checkout. <code>-d postgresql</code> wires the <code>pg</code> shard, postgres URLs in <code>config/database.yml</code> and the adapter require; <code>-d sqlite</code> is the default (<code>ALTAIR_DATABASE</code> env fallback). <code>--api</code> generates a JSON-only project (no views/assets) with CORS enabled.</td>
 </tr>
 <tr>
 <td><code>altair g scaffold &lt;Name&gt; [column:type ...]</code></td>
@@ -85,6 +85,10 @@
 <tr>
 <td><code>altair g model &lt;Name&gt; [column:type ...]</code></td>
 <td>A model file and its table.</td>
+</tr>
+<tr>
+<td><code>altair g admin &lt;Name&gt;</code></td>
+<td>Namespaced admin controller with <code>require_login</code> + <code>namespace :admin</code> routes.</td>
 </tr>
 <tr>
 <td><code>altair g auth [User]</code></td>

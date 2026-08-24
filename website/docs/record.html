@@ -36,12 +36,12 @@ interface, a migrations DSL, compile-time column metadata, validations,
 callbacks and associations. Every value travels as a bind parameter — SQL
 strings stay constant, so values can never be interpolated into a query.</p>
 <h2>Connecting</h2>
-<p>The application points at a database; <code>ALTAIR_DB_URL</code> overrides it at run
+<p>The application points at a database; <code>DATABASE_URL</code> overrides it at run
 time:</p>
 <pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Blog</span> &lt; <span class="hljs-title">Altair::Application</span></span>
-  config.db_url = ENV[<span class="hljs-string">&quot;ALTAIR_DB_URL&quot;</span>]? || <span class="hljs-string">&quot;sqlite3://./db/blog.db&quot;</span>
+  config.db_url = ENV[<span class="hljs-string">&quot;DATABASE_URL&quot;</span>]? || <span class="hljs-string">&quot;sqlite3://./db/blog.db&quot;</span>
 <span class="hljs-keyword">end</span></code></pre><pre><code class="hljs language-sh"><span class="hljs-comment"># SQLite (default) — or PostgreSQL:</span>
-ALTAIR_DB_URL=<span class="hljs-string">&quot;postgres://postgres:secret@localhost:5433/blog&quot;</span> altair server</code></pre><h2>Models</h2>
+DATABASE_URL=<span class="hljs-string">&quot;postgres://postgres:secret@localhost:5433/blog&quot;</span> altair server</code></pre><h2>Models</h2>
 <p>A model maps to a table and gets typed accessors for every column, generated
 from <code>db/schema.cr</code> at compile time:</p>
 <pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Post</span> &lt; <span class="hljs-title">Altair::Record::Model</span></span>
@@ -264,7 +264,6 @@ post = Post.find!(<span class="hljs-number">1</span>)
 post.reload                                     <span class="hljs-comment"># re-reads from DB</span></code></pre><h2>Custom primary keys</h2>
 <pre><code class="hljs language-crystal">table :posts, <span class="hljs-symbol">primary_key:</span> :uuid   <span class="hljs-comment"># column must exist in the migration</span></code></pre><p>String PKs auto-generate a <code>SecureRandom.uuid</code> before insert. All finders,
 loaders, updates and deletes respect the custom name.</p>
-<h2>has_many :through</h2>
 <h2>has_many :through</h2>
 <pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Post</span> &lt; <span class="hljs-title">Altair::Record::Model</span></span>
   has_many :post_tags

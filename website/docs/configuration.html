@@ -97,9 +97,14 @@ config.environments.production.max_body_size = <span class="hljs-number">100</sp
 <h3>The middleware stack</h3>
 <p><code>config.middleware</code> holds the stack run on every request before routing,
 each entry a factory proc. The default stack is logging, request-id
-assignment, the default security headers, CORS and static files:</p>
+assignment, rate limiting (pass-through by default), the default
+security headers, CORS and static files:</p>
 <pre><code class="hljs language-crystal">config.middleware = [
   -&gt;(app : <span class="hljs-symbol">Altair:</span>:Application) : <span class="hljs-symbol">Altair:</span>:Middleware { <span class="hljs-symbol">Altair:</span>:<span class="hljs-symbol">Middleware:</span>:Logger.new(app) },
+  -&gt;(app : <span class="hljs-symbol">Altair:</span>:Application) : <span class="hljs-symbol">Altair:</span>:Middleware { <span class="hljs-symbol">Altair:</span>:<span class="hljs-symbol">Middleware:</span>:RequestId.new(app) },
+  -&gt;(app : <span class="hljs-symbol">Altair:</span>:Application) : <span class="hljs-symbol">Altair:</span>:Middleware { <span class="hljs-symbol">Altair:</span>:<span class="hljs-symbol">Middleware:</span>:RateLimit.new(app) },
+  -&gt;(app : <span class="hljs-symbol">Altair:</span>:Application) : <span class="hljs-symbol">Altair:</span>:Middleware { <span class="hljs-symbol">Altair:</span>:<span class="hljs-symbol">Middleware:</span>:SecurityHeaders.new(app) },
+  -&gt;(app : <span class="hljs-symbol">Altair:</span>:Application) : <span class="hljs-symbol">Altair:</span>:Middleware { <span class="hljs-symbol">Altair:</span>:<span class="hljs-symbol">Middleware:</span>:Cors.new(app) },
   -&gt;(app : <span class="hljs-symbol">Altair:</span>:Application) : <span class="hljs-symbol">Altair:</span>:Middleware { <span class="hljs-symbol">Altair:</span>:<span class="hljs-symbol">Middleware:</span>:Static.new(app) },
 ]</code></pre><p>Assign an empty array to disable them all, or build your own stack. CORS is
 a pass-through until <code>config.cors.origins</code> is filled (see

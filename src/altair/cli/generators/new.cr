@@ -1135,7 +1135,7 @@ module Altair
           class Blog < Altair::Application
             use Altair::Middleware::Logger
           end
-          # Default stack: Logger → RequestId → SecurityHeaders → Cors → Static
+          # Default stack: Logger → RequestId → RateLimit → SecurityHeaders → Cors → Static
           ```
 
           `SecurityHeaders` (nosniff/SAMEORIGIN/referrer), `RequestId` (X-Request-Id echo), `Cors` (opt-in via `config.cors.origins`), `Static` (serves `public/` with traversal protection; immutable cache on fingerprints).

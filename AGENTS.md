@@ -122,7 +122,10 @@ Nothing ships unless someone can look at it, click it, and see it work.
 | 4 | Record (ORM) | Completed |
 | 5 | CLI + Generators | Completed |
 | 6 | Hardening | Completed |
-| 7 | Post-release | Planned |
+| 7 | Post-release | Completed |
+| 8 | Database ergonomics | Completed |
+| 9 | CLI ergonomics | Planned |
+| 10 | Router & future features | Completed |
 
 ## The phases
 
@@ -299,7 +302,7 @@ crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
 
 ## Testing
 
-The suite is `crystal spec` (currently 989 examples, 8 of them pending: the PostgreSQL concurrency contract examples, gated behind `ALTAIR_TEST_PG_CONCURRENCY`, with the
+The suite is `crystal spec` (currently 992 examples, 15 of them pending: 7 Redis rate-limit + 1 Redis middleware + 6 PostgreSQL concurrency contract gated on `ALTAIR_TEST_PG_CONCURRENCY`, with the
 fuller PostgreSQL contract suite gated on `ALTAIR_TEST_PG_URL`). Run it before and
 after every change:
 

@@ -115,6 +115,23 @@ Fields include `text_field`, `email_field`, `password_field`, `hidden_field`,
 <% end %>
 ```
 
+## Assets and caching
+
+`stylesheet_link_tag`, `javascript_asset_tag` and `asset_url` resolve through
+the fingerprinted manifest written by `altair assets:precompile` (`public/assets`
++ `manifest.json`), falling back to plain copies in development. `cache` wraps
+a fragment with `Altair.cache.fetch`:
+
+```ecr
+<%= stylesheet_link_tag "app" %>
+<%= javascript_asset_tag "app" %>
+<img src="<%= asset_url "logo.png" %>">
+
+<% cache "sidebar", expires_in: 5.minutes do %>
+  <p>Expensive fragment</p>
+<% end %>
+```
+
 ## htmx
 
 The htmx layer ships helpers for the request side and the response side. On

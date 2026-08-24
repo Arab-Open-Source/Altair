@@ -14,7 +14,7 @@ On `altair server` the console shows:
 │ Address       http://localhost:3000          │
 │ PID           15244                          │
 │ Routes        5                              │
-│ Middleware    5                              │
+│ Middleware    6                              │
 │ Crystal       1.21.0                         │
 │ Started in    12.3ms                         │
 ╰──────────────────────────────────────────────╯

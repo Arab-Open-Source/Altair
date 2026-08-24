@@ -126,7 +126,15 @@ the last segment:</p>
 <h2>Redirects</h2>
 <p><code>redirect &quot;/old&quot;, to: &quot;/new&quot;</code> registers the route under every method, so the
 browser follows it for <code>GET</code> and <code>POST</code> alike:</p>
-<pre><code class="hljs language-crystal">redirect <span class="hljs-string">&quot;/legacy&quot;</span>, <span class="hljs-symbol">to:</span> <span class="hljs-string">&quot;/posts&quot;</span></code></pre><h2>Not found and method not allowed</h2>
+<pre><code class="hljs language-crystal">redirect <span class="hljs-string">&quot;/legacy&quot;</span>, <span class="hljs-symbol">to:</span> <span class="hljs-string">&quot;/posts&quot;</span></code></pre><p>Route parameters interpolate into the destination and the format suffix is
+preserved:</p>
+<pre><code class="hljs language-crystal">redirect <span class="hljs-string">&quot;/t/:id&quot;</span>, <span class="hljs-symbol">to:</span> <span class="hljs-string">&quot;/tweets/:id&quot;</span>
+<span class="hljs-comment"># GET /t/42.json → 301 /tweets/42.json</span></code></pre><h2>Namespaces</h2>
+<p><code>namespace</code> prefixes paths, controller lookup, and helper names without
+repeating yourself:</p>
+<pre><code class="hljs language-crystal">namespace :admin <span class="hljs-keyword">do</span>
+  resources :posts   <span class="hljs-comment"># /admin/posts → Admin::PostsController, admin_posts_path</span>
+<span class="hljs-keyword">end</span></code></pre><h2>Not found and method not allowed</h2>
 <ul>
 <li>A path no route matches answers <strong>404</strong>. In development the error page
 suggests routes whose patterns resemble what you typed.</li>

@@ -100,7 +100,20 @@ auto-escaped:</p>
 <pre><code class="hljs">&lt;% form_for(<span class="hljs-string">&quot;/tasks&quot;</span>, hx_post: <span class="hljs-string">&quot;/tasks&quot;</span>, hx_target: <span class="hljs-string">&quot;#task-list&quot;</span>, hx_swap: <span class="hljs-string">&quot;outerHTML&quot;</span>) <span class="hljs-keyword">do</span> |f| %&gt;
   &lt;%= f.text_field(<span class="hljs-string">&quot;title&quot;</span>) %&gt;
   &lt;%= f.submit(<span class="hljs-string">&quot;Add&quot;</span>) %&gt;
-&lt;% end %&gt;</code></pre><h2>htmx</h2>
+&lt;% end %&gt;</code></pre><h2>Assets and caching</h2>
+<p><code>stylesheet_link_tag</code>, <code>javascript_asset_tag</code> and <code>asset_url</code> resolve through
+the fingerprinted manifest written by <code>altair assets:precompile</code> (<code>public/assets</code></p>
+<ul>
+<li><code>manifest.json</code>), falling back to plain copies in development. <code>cache</code> wraps
+a fragment with <code>Altair.cache.fetch</code>:</li>
+</ul>
+<pre><code class="hljs"><span class="language-xml">&lt;%=</span><span class="language-ruby"> stylesheet_link_tag <span class="hljs-string">&quot;app&quot;</span> </span><span class="language-xml">%&gt;
+&lt;%=</span><span class="language-ruby"> javascript_asset_tag <span class="hljs-string">&quot;app&quot;</span> </span><span class="language-xml">%&gt;
+<span class="hljs-tag">&lt;<span class="hljs-name">img</span> <span class="hljs-attr">src</span>=<span class="hljs-string">&quot;&lt;%=</span></span></span><span class="language-ruby"> asset_url <span class="hljs-string">&quot;logo.png&quot;</span> </span><span class="language-xml"><span class="hljs-tag"><span class="hljs-string">%&gt;&quot;</span>&gt;</span>
+
+&lt;%</span><span class="language-ruby"> cache <span class="hljs-string">&quot;sidebar&quot;</span>, <span class="hljs-symbol">expires_in:</span> <span class="hljs-number">5</span>.minutes <span class="hljs-keyword">do</span> </span><span class="language-xml">%&gt;
+  <span class="hljs-tag">&lt;<span class="hljs-name">p</span>&gt;</span>Expensive fragment<span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span>
+&lt;%</span><span class="language-ruby"> <span class="hljs-keyword">end</span> </span><span class="language-xml">%&gt;</span></code></pre><h2>htmx</h2>
 <p>The htmx layer ships helpers for the request side and the response side. On
 the request side, <code>request.hx_request?</code> tells an action whether the browser
 sent the <code>HX-Request</code> header, so one action can render a full page or a bare

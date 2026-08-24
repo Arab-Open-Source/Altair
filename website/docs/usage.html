@@ -52,8 +52,14 @@ altair server</code></pre><p>You get a working CRUD app for posts, ready to edit
 altair g migration add-email-to-person email:string
 altair g controller People index show</code></pre><h2>List the routes</h2>
 <pre><code class="hljs language-sh">altair routes</code></pre><h2>Database commands</h2>
-<pre><code class="hljs language-sh">altair db:migrate    <span class="hljs-comment"># run pending migrations</span>
-altair db:rollback   <span class="hljs-comment"># roll back the last migration</span></code></pre><h2>Project structure</h2>
+<pre><code class="hljs language-sh">altair db:create     <span class="hljs-comment"># create every environment database from config/database.yml</span>
+altair db:migrate    <span class="hljs-comment"># run pending migrations</span>
+altair db:rollback   <span class="hljs-comment"># roll back the last migration</span>
+altair db:drop       <span class="hljs-comment"># drop databases (refuses in production without --force)</span>
+altair db:seed       <span class="hljs-comment"># run db/seeds.cr</span>
+altair assets:precompile  <span class="hljs-comment"># fingerprint assets/ -&gt; public/assets/</span>
+altair <span class="hljs-built_in">jobs</span>:work     <span class="hljs-comment"># run background jobs</span>
+altair <span class="hljs-built_in">jobs</span>:stats    <span class="hljs-comment"># print job counts</span></code></pre><h2>Project structure</h2>
 <pre><code class="hljs">src/            your application code
 db/             migrations <span class="hljs-keyword">and</span> db/<span class="hljs-keyword">schema</span>.cr
 <span class="hljs-built_in">public</span>/         static assets served <span class="hljs-keyword">as</span>-<span class="hljs-keyword">is</span>
