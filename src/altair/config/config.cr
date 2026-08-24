@@ -227,6 +227,7 @@ module Altair
     property middleware : Array(Proc(Altair::Application, Altair::Middleware)) = [
       ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::Logger.new(app) },
       ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::RequestId.new(app) },
+      ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::RateLimit.new(app) },
       ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::SecurityHeaders.new(app) },
       ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::Cors.new(app) },
       ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::Static.new(app) },
@@ -249,6 +250,18 @@ module Altair
 
     # Cross-origin resource sharing settings driving the `Cors` middleware.
     getter cors : Cors = Cors.new
+
+    # Rate-limit settings driving the `RateLimit` middleware. A rule-less
+    # configuration (the default) leaves the middleware a pass-through.
+    #
+    # ```
+    # config.rate_limit.configure do |rl|
+    #   rl.store :redis
+    #   rl.limit 300, per: 1.minute
+    #   rl.limit 5, per: 1.minute, only: ["/login"]
+    # end
+    # ```
+    getter rate_limit : RateLimit = RateLimit.new
 
     # Global debug flag, inherited from the active environment's settings.
     property? debug : Bool = false
@@ -347,6 +360,58 @@ module Altair
       # the client-requested headers when the echo-back is needed.
       def allow_headers(requested : String?) : String
         requested && !requested.empty? ? requested : headers
+      end
+    end
+
+    # Rate-limit configuration: which store counts, how clients are
+    # identified, and the rules that decide who gets through.
+    class RateLimit
+      # The counting backend — `:memory` (per-process) or `:redis`
+      # (shared across every process pointing at one Redis). Set through
+      # `store` inside the `configure` block.
+      property backend : Symbol = :memory
+
+      def store(backend : Symbol) : Nil
+        unless {:memory, :redis}.includes?(backend)
+          raise Altair::Error.new("Unknown rate-limit store `#{backend}` — supported: memory, redis")
+        end
+        @backend = backend
+      end
+
+      # The Redis URL when `backend` is `:redis`; falls back to
+      # `ENV["ALTAIR_REDIS_URL"]` and raises a clear error when neither
+      # is set.
+      property redis_url : String? = nil
+
+      # Whether `X-Forwarded-For` is trusted for client identification.
+      # Leave off unless a proxy you control sets it — clients can spoof
+      # it to mint fresh buckets.
+      property? trusted_headers : Bool = false
+
+      getter rules : Array(Altair::RateLimit::Rule) = [] of Altair::RateLimit::Rule
+
+      # Declares a rule: `count` requests per `period`, optionally scoped
+      # to path prefixes (`only: ["/login"]`). A rule without `only`
+      # matches every path.
+      def limit(count : Int32, per period : Time::Span, only paths : Array(String)? = nil) : Nil
+        @rules << Altair::RateLimit::Rule.new(count, period, paths)
+      end
+
+      # Block form for grouped declarations.
+      def configure(& : self -> Nil) : Nil
+        yield self
+      end
+
+      # The governing rule for a path — the most restrictive (fewest
+      # requests-per-second) among the matchers, or nil when free.
+      def rule_for(path : String) : Altair::RateLimit::Rule?
+        matching = @rules.select(&.matches?(path))
+        return nil if matching.empty?
+        matching.min_by(&.tightness)
+      end
+
+      def empty? : Bool
+        @rules.empty?
       end
     end
   end

@@ -5,6 +5,17 @@ All notable changes to Altair will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Rate limiting middleware** (`Altair::Middleware::RateLimit`) — sliding-window
+  counter with `config.rate_limit` declarative rules (`limit 100, per: 1.minute`,
+  `only: ["/login"]`), shared `MemoryStore` / `RedisStore` backends, trusted
+  `X-Forwarded-For` support, and standard `429` + `Retry-After` +
+  `X-RateLimit-*` headers. Pass-through until configured; demonstrated in
+  `examples/rate_limit_demo`.
+
 ## [0.4.1] — 2026-08-24
 
 ### Added

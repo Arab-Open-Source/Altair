@@ -28,6 +28,12 @@ module Altair
         @request.cookies
       end
 
+      # The peer address the server saw, when the socket reported one —
+      # the rate limiter's default client key.
+      def remote_address : ::Socket::Address?
+        @request.remote_address
+      end
+
       # The request body as a `String`, or `nil` when the request has none.
       getter body : String?
 

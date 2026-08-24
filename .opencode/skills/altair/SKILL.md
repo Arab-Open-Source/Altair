@@ -40,7 +40,9 @@ Phase 6 hardening shipped in waves: sessions + flash + CSRF + auth
 (`require_login` / `authenticate!` + `Altair::Auth::JWT`), file-driven
 configuration (`.env` / `database.yml`), multipart uploads
 (`params.upload`, `Altair::HTTP::UploadedFile`), and a security
-middleware set (`SecurityHeaders`, `RequestId`, opt-in `Cors`) in the
+middleware set (`SecurityHeaders`, `RequestId`, `RateLimit` (sliding-window,
+`config.rate_limit` — `MemoryStore` / `RedisStore`, per-path rules,
+`X-RateLimit-*` + `Retry-After`), opt-in `Cors`) in the
 default stack. The development console was redesigned with an enriched
 boot banner and aligned, colored request logs (method/status colors,
 request counter, slow-request highlighting). Phase 7 shipped its first
@@ -50,8 +52,8 @@ full authentication (`altair g auth` + `password_auth` + PBKDF2 hashing),
 the asset pipeline (`assets:precompile`, manifest-backed helpers, immutable
 caching) and background jobs (typed `params` jobs, lazy `altair_jobs`
 table, atomic claiming, backoff retries, `jobs:work` / `jobs:stats`).
-989 specs passing
-(6 pending: the PostgreSQL contract suite on `ALTAIR_TEST_PG_URL`).
+992 specs (15 pending: 7 Redis rate-limit + 1 Redis middleware + 6
+PostgreSQL contract + 1 other; 19 errors without `ALTAIR_REDIS_URL`).
 The record layer shipped a post-Phase-4 performance wave: `find_each`
 keeps scoped `where` filters + `includes` preloaders across batches,
 `Relation#count`/`size` run `COUNT(*)` without materializing rows (and
@@ -124,7 +126,8 @@ core/        Application, request handling, error pages
 http/        Request, Response, Params
 routing/     Router, DSL, Route, RouteSet, Segment (segment-based, no regex)
 controller/  Controller base
-middleware/  Base, Logger, Static, SecurityHeaders, RequestId, Cors
+middleware/  Base, Logger, Static, SecurityHeaders, RequestId, Cors, RateLimit
+ratelimit/   RateLimit (Rule/Hit/Store), MemoryStore, RedisStore (sliding-window)
 config/      Config, Env, environments/
 support/     ANSI (console colors), Inflector, utilities
 exceptions/  Exception hierarchy
@@ -137,7 +140,8 @@ testing/    Test helpers (Altair::Test.boot)
 ```
 
 `spec/` mirrors `src/altair/`; `examples/hello_world/` is the runnable demo,
-`examples/blog/` the persistent ORM demo.
+`examples/blog/` the persistent ORM demo, `examples/rate_limit_demo/` the
+sliding-window limiter demo (memory + Redis, per-path rules).
 
 ## Architecture principles
 
@@ -153,7 +157,7 @@ testing/    Test helpers (Altair::Test.boot)
 ## Testing
 
 ```bash
-crystal spec                              # full suite (currently 752)
+crystal spec                              # full suite (currently 992, 15 pending without Redis)
 crystal tool format --check src spec examples
 crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
 ```

@@ -71,6 +71,33 @@ Notes:
 - Combine CORS with the framework's signed session cookie, which carries
   `SameSite=Lax` by default, to keep cross-origin sessions honest.
 
+## Rate limiting
+
+`Altair::Middleware::RateLimit` is a **pass-through until you configure it**.
+Declare rules on `config.rate_limit` — every value travels as a bind
+parameter internally, and the middleware enforces the most restrictive
+matching rule per request:
+
+```crystal
+config.rate_limit.configure do |rl|
+  rl.store :memory          # or :redis for multi-instance deployments
+  rl.limit 100, per: 1.minute
+  rl.limit 5, per: 1.minute, only: ["/login"]
+end
+```
+
+* `store :memory` — per-process, evicts dead keys lazily.
+* `store :redis` — shared via `Altair::Redis` (set `redis_url` or `ALTAIR_REDIS_URL`).
+* `only:` scopes a rule to path prefixes (`"/login"` matches `/login` and
+  `/login/*`); unmatched paths are free.
+* `trusted_headers = true` makes `X-Forwarded-For` the client key — only
+  enable behind a proxy you control.
+
+Allowed responses carry `X-RateLimit-Limit` / `-Remaining` / `-Reset`;
+denied ones answer `429 Too Many Requests` with `Retry-After`.
+
+See `examples/rate_limit_demo` for a runnable demo.
+
 ## The full stack
 
 The default `config.middleware` runs, in order:
@@ -79,6 +106,7 @@ The default `config.middleware` runs, in order:
 |-------|-----|
 | `Logger` | Request logging with the request id appended |
 | `RequestId` | Assign and echo a request identifier |
+| `RateLimit` | Sliding-window rate limiting (pass-through by default) |
 | `SecurityHeaders` | Stamp safe-by-default response headers |
 | `Cors` | Opt-in cross-origin support (pass-through by default) |
 | `Static` | Serve `public/` files as-is |

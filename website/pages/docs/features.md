@@ -69,10 +69,12 @@ security middleware set, shipped in waves:
   parameter bag (scalar fields as params, files as
   `Altair::HTTP::UploadedFile` via `params.upload("avatar")`, with
   `UploadedFile#save` + `#content`)
-- **Security middleware set** — `SecurityHeaders` (default `nosniff` /
+ - **Security middleware set** — `SecurityHeaders` (default `nosniff` /
   `SAMEORIGIN` / referrer policy, driven by `config.security_headers`),
   `RequestId` (`request.request_id`, echo-back through
-  `config.request_id_header`, appended to the request log line), and
+  `config.request_id_header`, appended to the request log line),
+  `RateLimit` (sliding-window, `config.rate_limit` — `MemoryStore` /
+  `RedisStore`, per-path rules, `X-RateLimit-*` + `Retry-After`), and
   opt-in `Cors` (`config.cors.origins` enables it; preflight answered
   directly)
 
@@ -177,7 +179,4 @@ Four features shipped, demonstrated end to end in `examples/blog`:
 ## What is planned next
 
 - **Phase 12 candidate:** multi-tenancy
-- Rate limiting middleware
 - Email sending
-
-- **Phase 8 candidate:** multi-tenancy

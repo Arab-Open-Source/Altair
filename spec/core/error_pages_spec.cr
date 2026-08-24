@@ -233,7 +233,7 @@ describe "error pages" do
         response.status_code.should eq(404)
         body = response.body
         body.should contain("5 routes")
-        body.should contain("5 middleware")
+        body.should contain("6 middleware")
       end
     end
   end
