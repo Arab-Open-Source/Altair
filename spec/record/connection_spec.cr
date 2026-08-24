@@ -42,7 +42,9 @@ end
 # SQLite is single-writer, so true concurrency is only possible on a server
 # database (PostgreSQL).
 private def parallel_writers?(conn : Altair::Record::Connection) : Bool
-  !conn.adapter.class.name.includes?("SQLite")
+  # Opt-in like the adapter-contract concurrency examples — see there.
+  !conn.adapter.class.name.includes?("SQLite") &&
+    !!ENV["ALTAIR_TEST_PG_CONCURRENCY"]?
 end
 
 describe Altair::Record::Connection do

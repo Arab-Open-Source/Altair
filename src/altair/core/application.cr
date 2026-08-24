@@ -165,6 +165,11 @@ abstract class Altair::Application
     Altair::Config::DotEnv.load(@root)
     @config = Altair::Config.new
     Altair::Config::Database.apply(@config, @root)
+    # `ENV["DATABASE_URL"]` wins over the file — the override every piece
+    # of generated documentation promises.
+    if url = ENV["DATABASE_URL"]?
+      @config.db_url = url
+    end
     apply_environment_config
   end
 

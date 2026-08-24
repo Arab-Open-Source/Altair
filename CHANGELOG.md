@@ -5,6 +5,41 @@ All notable changes to Altair will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`altair new <name> -d postgresql`**: generates the project wired for
+  PostgreSQL end to end — `pg` in `shard.yml`, `postgres://` URLs in
+  `config/database.yml` (defaults matching the repo's docker-compose
+  postgres), and the adapter require emitted into both entry points.
+  `-d sqlite` stays the default; `ALTAIR_DATABASE` env fallback supported;
+  unknown adapters are rejected at generation time.
+- **`bin/altair db:create` / `db:drop`**: manage every environment database
+  declared in `config/database.yml`. PostgreSQL targets are created/dropped
+  through a connection to the maintenance database (idempotent — existing
+  databases are skipped); SQLite paths materialize as files. `db:drop`
+  refuses to run in production without `--force`. As everywhere else,
+  `ENV["DATABASE_URL"]` overrides the file.
+- **CI runs the PostgreSQL contract suite**: a postgres service joined CI
+  and `ALTAIR_TEST_PG_URL` is exported to the spec job, so the adapter
+  contract executes against a real server on every push. The concurrency
+  examples stay opt-in behind `ALTAIR_TEST_PG_CONCURRENCY` until the suite
+  isolates global hook state between spec files. `docker compose up -d`
+  now brings postgres up locally too (host port 5433).
+
+### Fixed
+
+- **`ENV["DATABASE_URL"]` was documented but never applied at boot** —
+  three generated docs promised it would override `config/database.yml`,
+  yet nothing read it. The application constructor now applies it after
+  loading the file.
+- **PermitGate measurement race in its cap spec** (the intermittent failure
+  seen during 0.3.3 verification): the counter window was wider than the
+  permit window. The count now lives inside a checkout hook registered
+  after the gate's, measuring exactly the permit-held span; the gate also
+  re-registers if the handler table was cleared underneath it.
+
 ## [0.4.0] — 2026-08-24
 
 ### Added

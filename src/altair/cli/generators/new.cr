@@ -25,7 +25,7 @@ module Altair
         # `/tmp/my_app`; only its basename becomes the application name.
         # Returns the process exit code.
         def self.run(args : Array(String)) : Int32
-          framework_path, api, remaining = parse_args(args)
+          framework_path, api, database, remaining = parse_args(args)
           framework_path = resolve_framework_path(framework_path)
 
           name = remaining.first?
@@ -37,16 +37,17 @@ module Altair
           end
 
           begin
-            New.new(name, framework_path, api).generate
+            New.new(name, framework_path, api, database).generate
           rescue ex : Altair::Error
             abort ex.message || ex.to_s
           end
           0
         end
 
-        private def self.parse_args(args : Array(String)) : {String?, Bool, Array(String)}
+        private def self.parse_args(args : Array(String)) : {String?, Bool, Symbol, Array(String)}
           framework_path = nil
           api = false
+          database : Symbol? = nil
           remaining = [] of String
           index = 0
           while index < args.size
@@ -60,12 +61,33 @@ module Altair
             elsif arg == "--api"
               api = true
               index += 1
+            elsif arg == "-d" || arg == "--database"
+              value = args[index + 1]?
+              raise Altair::Error.new("#{arg} requires a value — sqlite or postgresql") unless value
+              database = normalize_database(value)
+              index += 2
+            elsif arg.starts_with?("--database=")
+              database = normalize_database(arg.split("=", 2)[1]? || "")
+              index += 1
+            elsif arg.starts_with?("-d=") && arg.size > 3
+              database = normalize_database(arg[3..])
+              index += 1
             else
               remaining << arg
               index += 1
             end
           end
-          {framework_path, api, remaining}
+          database ||= normalize_database(ENV["ALTAIR_DATABASE"]? || "sqlite")
+          {framework_path, api, database, remaining}
+        end
+
+        private def self.normalize_database(raw : String) : Symbol
+          case raw.strip.downcase
+          when "sqlite", "sqlite3"            then :sqlite
+          when "postgresql", "postgres", "pg" then :postgresql
+          else
+            raise Altair::Error.new("Unknown database adapter `#{raw}` — supported: sqlite, postgresql")
+          end
         end
 
         private def self.resolve_framework_path(path : String?) : String?
@@ -95,7 +117,10 @@ module Altair
         # Whether this project exposes only JSON endpoints.
         getter? api : Bool
 
-        def initialize(raw_name : String, @framework_path : String? = nil, @api : Bool = false)
+        def initialize(raw_name : String, @framework_path : String? = nil, @api : Bool = false, @database : Symbol = :sqlite)
+          unless {:sqlite, :postgresql}.includes?(@database)
+            raise Altair::Error.new("Unknown database adapter `#{@database}` — supported: sqlite, postgresql")
+          end
           @raw_name = raw_name
           @name = Path.new(raw_name).basename.to_s
           if @name.empty? || @name == "." || @name == ".."
@@ -225,6 +250,10 @@ module Altair
             io << "dependencies:\n"
             io << "  altair:\n"
             io << framework << "\n"
+            if @database == :postgresql
+              io << "  pg:\n"
+              io << "    github: will/crystal-pg\n"
+            end
           end
         end
 
@@ -249,6 +278,7 @@ module Altair
         private def bin_altair : String
           String.build do |io|
             io << "require \"altair\"\n"
+            io << "require \"altair/record/adapters/postgresql\"\n" if @database == :postgresql
             io << "require \"../db/schema\"\n"
             io << "require \"../db/migrations/**\"\n"
             io << "require \"../db/seeds\"\n"
@@ -266,6 +296,10 @@ module Altair
             io << "  exit Altair::CLI::Project.migrate(#{app_class})\n"
             io << "when \"db:rollback\"\n"
             io << "  exit Altair::CLI::Project.rollback(#{app_class})\n"
+            io << "when \"db:create\"\n"
+            io << "  exit Altair::CLI::Project.create_databases\n"
+            io << "when \"db:drop\"\n"
+            io << "  exit Altair::CLI::Project.drop_databases\n"
             io << "when \"db:seed\"\n"
             io << "  exit Altair::CLI::Project.seed\n"
             io << "when \"assets:precompile\"\n"
@@ -306,6 +340,7 @@ module Altair
           String.build do |io|
             io << "# #{app_class} — #{@name}. Run it with `crystal run src/#{@name}.cr`.\n"
             io << "require \"altair\"\n"
+            io << "require \"altair/record/adapters/postgresql\"\n" if @database == :postgresql
             io << "require \"../db/schema\"\n"
             io << "require \"../db/migrations/**\"\n"
             io << "require \"./app/models/**\"\n"
@@ -347,14 +382,27 @@ module Altair
             io << "# The active environment's section is applied at boot by\n"
             io << "# `Altair::Config::Database`; `ENV[\"DATABASE_URL\"]` overrides `url`.\n"
             io << "#\n"
-            io << "development:\n"
-            io << "  url: \"sqlite3://./db/#{@name}.db\"\n"
-            io << "\n"
-            io << "test:\n"
-            io << "  url: \"sqlite3://./db/#{@name}_test.db\"\n"
-            io << "\n"
-            io << "production:\n"
-            io << "  url: \"sqlite3://./db/#{@name}_production.db\"\n"
+            if @database == :postgresql
+              io << "# Defaults match the repo's docker-compose postgres\n"
+              io << "# (docker compose up -d postgres) — edit for your server.\n"
+              io << "development:\n"
+              io << "  url: \"postgres://postgres:postgres@localhost/#{@name}_development\"\n"
+              io << "\n"
+              io << "test:\n"
+              io << "  url: \"postgres://postgres:postgres@localhost/#{@name}_test\"\n"
+              io << "\n"
+              io << "production:\n"
+              io << "  url: \"postgres://postgres:postgres@localhost/#{@name}_production\"\n"
+            else
+              io << "development:\n"
+              io << "  url: \"sqlite3://./db/#{@name}.db\"\n"
+              io << "\n"
+              io << "test:\n"
+              io << "  url: \"sqlite3://./db/#{@name}_test.db\"\n"
+              io << "\n"
+              io << "production:\n"
+              io << "  url: \"sqlite3://./db/#{@name}_production.db\"\n"
+            end
           end
         end
 
@@ -471,7 +519,8 @@ module Altair
             io << "\n"
             io << "```\n"
             io << "bin/altair routes        # print the route table\n"
-            io << "bin/altair db:migrate   # run migrations\n"
+            io << "bin/altair db:create     # create databases from database.yml (db:drop to remove)\n"
+            io << "bin/altair db:migrate    # run migrations\n"
             io << "bin/altair db:seed      # run db/seeds.cr\n"
             io << "bin/altair g scaffold Post title:string\n"
             io << "```\n"
@@ -492,6 +541,7 @@ module Altair
 
           ```bash
           shards install
+          bin/altair db:create    # create the databases
           bin/altair db:migrate   # create/update schema
           bin/altair server       # http://localhost:3000
           bin/altair routes       # print route table
@@ -702,7 +752,7 @@ module Altair
           |------|---------|
           | New app | `altair new #{@name} && shards install` |
           | Scaffold | `altair g scaffold Post title:string` |
-          | Migrate | `bin/altair db:migrate` / `db:rollback` / `db:seed` |
+          | Migrate | `bin/altair db:migrate` / `db:rollback` / `db:create` / `db:drop` / `db:seed` |
           | Routes | `bin/altair routes` |
           | Server | `bin/altair server` |
           | Assets | `bin/altair assets:precompile` |
@@ -1068,8 +1118,9 @@ module Altair
           end
           ```
 
-          `config/database.yml` per-env URLs; `.env` (real ENV wins; `.env.<env>` overrides `.env`) merged at boot via `Altair::Config::DotEnv` / `Database`.
+          `config/database.yml` per-env URLs; `.env` (real ENV wins; `.env.<env>` overrides `.env`) merged at boot via `Altair::Config::DotEnv` / `Database`. `ENV["DATABASE_URL"]` overrides everything.
           Pool: `db_max_pool_size` 10, `db_initial_pool_size` 2, `db_max_idle_pool_size` 2, `db_checkout_timeout` 5s, `db_query_timeout` 5s.
+          Databases: `bin/altair db:create` / `db:drop` manage every env in database.yml (PG through the maintenance db; drop guarded in production).
           Jobs: `jobs_poll_interval`, `jobs_max_attempts`, `jobs_queues`. Router: `router_cache_size` 1024.
           MD
         end
@@ -1097,7 +1148,7 @@ module Altair
           # CLI — Altair
 
           ```bash
-          altair new blog [--framework-path DIR]     # scaffold (ALTAIR_PATH env too)
+          altair new blog [-d sqlite|postgresql] [--framework-path DIR]   # scaffold (ALTAIR_PATH, ALTAIR_DATABASE env too)
           altair g model Post title:string
           altair g migration CreatePosts title:string
           altair g controller Posts
@@ -1105,7 +1156,7 @@ module Altair
           altair g auth [User]
           altair install [--dir DIR] [--force]        # copy binary to PATH
           altair update [--check] [--force]
-          bin/altair server | routes | db:migrate | db:rollback | db:seed | assets:precompile | jobs:work | jobs:stats
+          bin/altair server | routes | db:migrate | db:rollback | db:create | db:drop | db:seed | assets:precompile | jobs:work | jobs:stats
           ```
 
           `new` prints `shards install` reminder. Standalone `altair` auto-forwards app-context commands by walking up to `bin/altair.cr`.

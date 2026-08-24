@@ -60,7 +60,7 @@ module Altair
 
     # Returns up to three close matches for `input` among known commands.
     def self.did_you_mean(input : String) : Array(String)
-      known = %w[new generate g install update version help server routes db:migrate db:rollback db:seed assets:precompile jobs:work jobs:stats]
+      known = %w[new generate g install update version help server routes db:migrate db:rollback db:create db:drop db:seed assets:precompile jobs:work jobs:stats]
       scored = known.map { |command| {command, levenshtein(input, command)} }
         .select { |_, dist| dist <= 3 && dist > 0 }
         .sort_by! { |_, dist| dist }
@@ -89,7 +89,7 @@ module Altair
     # True when `command` is an app-context command that must run against a
     # project's compiled source rather than the global binary.
     def self.project_command?(command : String?) : Bool
-      %w[server routes db:migrate db:rollback db:seed assets:precompile jobs:work jobs:stats].includes?(command)
+      %w[server routes db:migrate db:rollback db:create db:drop db:seed assets:precompile jobs:work jobs:stats].includes?(command)
     end
 
     # The directory of the Altair project surrounding the current working

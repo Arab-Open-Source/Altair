@@ -35,26 +35,36 @@ describe Altair::Record::PermitGate do
     conn.exec("DROP TABLE IF EXISTS gates")
     conn.exec("CREATE TABLE gates (id INTEGER PRIMARY KEY AUTOINCREMENT)")
     begin
+      # The counter lives inside a checkout hook registered after the
+      # gate's own — hooks nest, so this counts exactly the permit-held
+      # window and never the queue wait around it.
       lock = Mutex.new
       current = 0
       peak = 0
       done = Channel(Bool).new
       n = 8
-      n.times do
-        spawn do
-          lock.synchronize do
-            current += 1
-            peak = current if current > peak
-          end
-          conn.exec("INSERT INTO gates DEFAULT VALUES")
+      Altair::Record.on_checkout do |run|
+        lock.synchronize do
+          current += 1
+          peak = current if current > peak
+        end
+        begin
+          run.call
         ensure
           lock.synchronize { current -= 1 }
+        end
+      end
+      n.times do
+        spawn do
+          conn.exec("INSERT INTO gates DEFAULT VALUES")
+        ensure
           done.send(true)
         end
       end
       n.times { done.receive }
       peak.should be <= 2
     ensure
+      Altair::Record.clear_handlers!
       conn.close
     end
   end

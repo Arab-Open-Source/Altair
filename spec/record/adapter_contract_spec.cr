@@ -22,7 +22,11 @@ end
 # SQLite is single-writer, so true concurrency is only possible on a server
 # database (PostgreSQL).
 private def parallel_writers? : Bool
-  !Altair::Record.connection.adapter.class.name.includes?("SQLite")
+  # Concurrency contract examples additionally require
+  # ALTAIR_TEST_PG_CONCURRENCY: they depend on pristine global hook state
+  # and are opt-in until the suite isolates that state properly.
+  !Altair::Record.connection.adapter.class.name.includes?("SQLite") &&
+    !!ENV["ALTAIR_TEST_PG_CONCURRENCY"]?
 end
 
 # Runs the shared behaviour battery as one describe with the given setup
@@ -353,7 +357,7 @@ module PgContract
   end
 
   def self.setup_database(connection : Altair::Record::Connection) : Nil
-    %w[accounts labels payloads events tags children humans articles categories profiles users comments posts].each do |table|
+    %w[accounts members auth_users post_tags videos notes workflows audit_widgets labels payloads events tags children humans articles categories profiles users comments posts].each do |table|
       connection.exec("DROP TABLE IF EXISTS #{connection.adapter.quote_identifier(table)}")
     end
     connection.exec(
@@ -361,12 +365,14 @@ module PgContract
       "\"id\" INTEGER GENERATED ALWAYS AS IDENTITY, " \
       "\"title\" TEXT, \"body\" TEXT, \"views\" INTEGER NOT NULL DEFAULT 0, " \
       "\"published\" BOOLEAN NOT NULL DEFAULT false, \"rating\" DOUBLE PRECISION, \"user_id\" INTEGER, " \
+      "\"comments_count\" INTEGER NOT NULL DEFAULT 0, " \
       "\"created_at\" TIMESTAMP, \"updated_at\" TIMESTAMP)"
     )
     connection.exec(
       "CREATE TABLE comments (" \
       "\"id\" INTEGER GENERATED ALWAYS AS IDENTITY, " \
-      "\"post_id\" INTEGER, \"body\" TEXT NOT NULL)"
+      "\"post_id\" INTEGER, \"body\" TEXT NOT NULL, " \
+      "\"notable_id\" INTEGER, \"notable_type\" TEXT)"
     )
     connection.exec(
       "CREATE TABLE users (" \
@@ -412,6 +418,38 @@ module PgContract
       "CREATE TABLE accounts (" \
       "\"id\" INTEGER GENERATED ALWAYS AS IDENTITY, \"name\" TEXT, " \
       "\"balance\" NUMERIC(20,3), \"min_balance\" NUMERIC(20,3) NOT NULL DEFAULT 0)"
+    )
+    # The remaining fixture tables — the models behind polymorphic
+    # dependents, counter caches and auth specs reference them.
+    connection.exec(
+      "CREATE TABLE post_tags (" \
+      "\"id\" INTEGER GENERATED ALWAYS AS IDENTITY, \"post_id\" INTEGER, \"tag_id\" INTEGER)"
+    )
+    connection.exec(
+      "CREATE TABLE videos (" \
+      "\"id\" INTEGER GENERATED ALWAYS AS IDENTITY, \"title\" TEXT, \"views\" INTEGER NOT NULL DEFAULT 0)"
+    )
+    connection.exec(
+      "CREATE TABLE notes (" \
+      "\"id\" INTEGER GENERATED ALWAYS AS IDENTITY, \"body\" TEXT, " \
+      "\"notable_id\" INTEGER, \"notable_type\" TEXT)"
+    )
+    connection.exec(
+      "CREATE TABLE workflows (" \
+      "\"id\" INTEGER GENERATED ALWAYS AS IDENTITY, \"state\" TEXT)"
+    )
+    connection.exec(
+      "CREATE TABLE audit_widgets (" \
+      "\"id\" INTEGER GENERATED ALWAYS AS IDENTITY, \"name\" TEXT NOT NULL, " \
+      "\"counter\" INTEGER NOT NULL DEFAULT 0, \"created_at\" TIMESTAMP, \"updated_at\" TIMESTAMP)"
+    )
+    connection.exec(
+      "CREATE TABLE members (" \
+      "\"id\" INTEGER GENERATED ALWAYS AS IDENTITY, \"role\" TEXT, \"name\" TEXT, \"email\" TEXT, \"password\" TEXT, \"age\" INTEGER)"
+    )
+    connection.exec(
+      "CREATE TABLE auth_users (" \
+      "\"id\" INTEGER GENERATED ALWAYS AS IDENTITY, \"email\" TEXT NOT NULL, \"password_digest\" TEXT NOT NULL)"
     )
   end
 end

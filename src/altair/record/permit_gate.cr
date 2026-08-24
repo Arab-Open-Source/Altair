@@ -37,7 +37,10 @@ module Altair
           @@timeout = timeout
           @@semaphore = max_active > 0 ? Altair::Concurrency::Semaphore.new(max_active) : nil
           @@enabled = max_active > 0
-          register if @@enabled && !@@registered
+          # Re-register when the handler table was wiped under us (specs
+          # call `Record.clear_handlers!`) — an armed gate without its
+          # hook would silently admit everything.
+          register if @@enabled && (!@@registered || !Altair::Record.checkout_hooks?)
         end
       end
 

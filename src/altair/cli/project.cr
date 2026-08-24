@@ -115,6 +115,106 @@ module Altair
         0
       end
 
+      # Creates the databases declared in `config/database.yml` — one per
+      # environment section. PostgreSQL targets are created through a
+      # connection to the maintenance database; SQLite paths materialize
+      # as empty files (the schema arrives with `db:migrate`). Idempotent:
+      # existing databases are skipped. Returns a process exit code.
+      def create_databases(root : Path = Path.new(".")) : Int32
+        manage_databases(root) do |url|
+          case url.scheme
+          when "sqlite3"
+            path = Path.new("./#{url.path.lstrip('/')}")
+            Dir.mkdir_p(path.dirname)
+            DB.open(url.to_s) { }
+            puts "Prepared #{path}"
+            true
+          when "postgres", "postgresql"
+            name = url.path.lstrip('/')
+            next false if name.empty?
+            maintenance = maintenance_url(url)
+            exists = false
+            DB.open(maintenance.to_s) do |db|
+              db.query("SELECT 1 FROM pg_database WHERE datname = $1", name) do |rs|
+                exists = rs.move_next
+              end
+              db.exec(%(CREATE DATABASE "#{name}")) unless exists
+              puts exists ? "Exists: #{name}" : "Created #{name}"
+            end
+            !exists
+          else
+            false
+          end
+        end
+      end
+
+      # Drops the databases declared in `config/database.yml`. Refuses in
+      # production unless `force:` — dropping is not undoable. Returns a
+      # process exit code: `0` on success, `-1` on refusal.
+      def drop_databases(root : Path = Path.new("."), force : Bool = false) : Int32
+        if Altair.env.production? && !force
+          STDERR.puts "Refusing to drop databases in production — pass --force to override."
+          return -1
+        end
+        manage_databases(root) do |url|
+          case url.scheme
+          when "sqlite3"
+            path = Path.new("./#{url.path.lstrip('/')}")
+            if File.exists?(path)
+              File.delete(path)
+              true
+            else
+              false
+            end
+          when "postgres", "postgresql"
+            name = url.path.lstrip('/')
+            next false if name.empty?
+            DB.open(maintenance_url(url).to_s) do |db|
+              db.exec(%(DROP DATABASE IF EXISTS "#{name}"))
+            end
+            true
+          else
+            false
+          end
+        end
+      end
+
+      # The server-maintenance URL for a postgres target: same credentials
+      # and host, connected to the always-present `postgres` database so
+      # CREATE / DROP DATABASE can run outside the target itself.
+      def maintenance_url(url : URI) : URI
+        clone = url.dup
+        clone.path = "/postgres"
+        clone
+      end
+
+      private def manage_databases(root : Path, &handler : URI -> Bool) : Int32
+        # `ENV["DATABASE_URL"]` wins over the file — one target, same rule
+        # as application boot.
+        if override = ENV["DATABASE_URL"]?
+          handled = handler.call(URI.parse(override))
+          puts "Done: #{override}" if handled
+          return handled ? 1 : 0
+        end
+        path = root.join("config").join("database.yml")
+        return 0 unless File.exists?(path)
+        parsed = YAML.parse(File.read(path))
+        sections = parsed.as_h?
+        return 0 unless sections
+
+        changed = 0
+        sections.each do |env_name, section|
+          next unless raw_url = section["url"]?
+          next unless raw = raw_url.as_s?
+          url = URI.parse(raw)
+          if handler.call(url)
+            changed += 1
+            puts "[#{env_name.to_s.downcase}] #{url}"
+          end
+        end
+        changed
+      end
+
       # Runs the background-jobs worker until interrupted. Blocks the
       # process; returns a process exit code once stopped.
       def jobs_work(app : A.class) : Int32 forall A
