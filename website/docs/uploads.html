@@ -8,6 +8,7 @@
   <link rel="icon" href="../favicon.png" type="image/png">
   <link rel="stylesheet" href="../assets/css/main.css">
   <link rel="stylesheet" href="../assets/css/docs.css">
+  <link rel="stylesheet" href="../assets/css/highlight.css">
 </head>
 <body>
   <header class="site-header">
@@ -38,48 +39,40 @@ memory at parse time, so a file outlives the request that delivered it.</p>
 <p>A file field needs the form to carry <code>enctype=&quot;multipart/form-data&quot;</code>. The
 form builder passes extra attributes through to the <code>&lt;form&gt;</code> tag, so set it
 directly (raw HTML works just as well):</p>
-<pre><code class="language-ecr">&lt;% form_for(&quot;/posts&quot;, enctype: &quot;multipart/form-data&quot;) do |f| %&gt;
-  &lt;%= f.label(&quot;title&quot;, &quot;Title&quot;) %&gt;
-  &lt;%= f.text_field(&quot;title&quot;) %&gt;
-  &lt;label for=&quot;image&quot;&gt;Image&lt;/label&gt;
-  &lt;input type=&quot;file&quot; name=&quot;image&quot; id=&quot;image&quot;&gt;
-  &lt;%= f.submit(&quot;Create&quot;) %&gt;
-&lt;% end %&gt;
-</code></pre>
-<h2>Reading the upload</h2>
+<pre><code class="hljs">&lt;% form_for<span class="hljs-punctuation">(</span><span class="hljs-string">&quot;/posts&quot;</span>, enctype: <span class="hljs-string">&quot;multipart/form-data&quot;</span><span class="hljs-punctuation">)</span> do |f| %&gt;
+  &lt;%= f.label<span class="hljs-punctuation">(</span><span class="hljs-string">&quot;title&quot;</span>, <span class="hljs-string">&quot;Title&quot;</span><span class="hljs-punctuation">)</span> %&gt;
+  &lt;%= f.text_field<span class="hljs-punctuation">(</span><span class="hljs-string">&quot;title&quot;</span><span class="hljs-punctuation">)</span> %&gt;
+  &lt;label for=<span class="hljs-string">&quot;image&quot;</span>&gt;Image&lt;/label&gt;
+  &lt;input type=<span class="hljs-string">&quot;file&quot;</span> name=<span class="hljs-string">&quot;image&quot;</span> id=<span class="hljs-string">&quot;image&quot;</span>&gt;
+  &lt;%= f.submit<span class="hljs-punctuation">(</span><span class="hljs-string">&quot;Create&quot;</span><span class="hljs-punctuation">)</span> %&gt;
+&lt;% end %&gt;</code></pre><h2>Reading the upload</h2>
 <p>In the action, scalar fields land in <code>params</code> as usual; the file arrives
 under the field name:</p>
-<pre><code class="language-crystal">def create : Nil
-  post = Post.create(title: params[&quot;title&quot;]?)
+<pre><code class="hljs language-crystal"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">create</span></span> : Nil
+  post = Post.create(<span class="hljs-symbol">title:</span> params[<span class="hljs-string">&quot;title&quot;</span>]?)
 
-  if file = params.upload(&quot;image&quot;)
-    file.name               # =&gt; &quot;image&quot; — the form field name
-    file.original_filename  # =&gt; &quot;portrait.png&quot; — client-provided
-    file.content_type       # =&gt; &quot;image/png&quot; — client-claimed media type
-    file.size               # =&gt; Int64 — bytes, measured from the buffer
-    file.content            # =&gt; String — the raw bytes
-  end
+  <span class="hljs-keyword">if</span> file = params.upload(<span class="hljs-string">&quot;image&quot;</span>)
+    file.name               <span class="hljs-comment"># =&gt; &quot;image&quot; — the form field name</span>
+    file.original_filename  <span class="hljs-comment"># =&gt; &quot;portrait.png&quot; — client-provided</span>
+    file.content_type       <span class="hljs-comment"># =&gt; &quot;image/png&quot; — client-claimed media type</span>
+    file.size               <span class="hljs-comment"># =&gt; Int64 — bytes, measured from the buffer</span>
+    file.content            <span class="hljs-comment"># =&gt; String — the raw bytes</span>
+  <span class="hljs-keyword">end</span>
 
   redirect_to posts_path
-end
-</code></pre>
-<p><code>params.upload(&quot;image&quot;)</code> returns <code>UploadedFile?</code> — <code>nil</code> when no file was
+<span class="hljs-keyword">end</span></code></pre><p><code>params.upload(&quot;image&quot;)</code> returns <code>UploadedFile?</code> — <code>nil</code> when no file was
 uploaded under that name, so a plain <code>if</code> guard is all you need.</p>
 <h2>Saving the file</h2>
 <p><code>UploadedFile#save</code> writes the bytes to a path and returns the path it
 wrote to:</p>
-<pre><code class="language-crystal">def create : Nil
-  if file = params.upload(&quot;avatar&quot;)
-    dest = file.save(Path.new(&quot;public/uploads/#{file.original_filename}&quot;))
-    # &quot;public/uploads/portrait.png&quot; — served by the Static middleware
-  end
-end
-</code></pre>
-<p><code>#read</code> returns the bytes as a String, safe to write verbatim or wrap in a
+<pre><code class="hljs language-crystal"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">create</span></span> : Nil
+  <span class="hljs-keyword">if</span> file = params.upload(<span class="hljs-string">&quot;avatar&quot;</span>)
+    dest = file.save(Path.new(<span class="hljs-string">&quot;public/uploads/<span class="hljs-subst">#{file.original_filename}</span>&quot;</span>))
+    <span class="hljs-comment"># &quot;public/uploads/portrait.png&quot; — served by the Static middleware</span>
+  <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span></code></pre><p><code>#read</code> returns the bytes as a String, safe to write verbatim or wrap in a
 response:</p>
-<pre><code class="language-crystal">render text: file.read, content_type: &quot;application/octet-stream&quot;
-</code></pre>
-<blockquote>
+<pre><code class="hljs language-crystal">render <span class="hljs-symbol">text:</span> file.read, <span class="hljs-symbol">content_type:</span> <span class="hljs-string">&quot;application/octet-stream&quot;</span></code></pre><blockquote>
 <p>Prefer a filename you control over the client&#39;s <code>original_filename</code> when
 saving — the client-supplied value is untrusted input. A random name plus
 a kept mapping is the safe pattern for public directories.</p>
@@ -87,17 +80,13 @@ a kept mapping is the safe pattern for public directories.</p>
 <h2>Multiple files</h2>
 <p><code>params.uploads</code> returns every uploaded file keyed by form field name —
 iterate its values to process them all:</p>
-<pre><code class="language-crystal">params.uploads.each_value do |file|
-  file.save(Path.new(&quot;public/uploads/#{SecureRandom.uuid}&quot;))
-end
-</code></pre>
-<h2>Body limits</h2>
+<pre><code class="hljs language-crystal">params.uploads.each_value <span class="hljs-keyword">do</span> |file|
+  file.save(Path.new(<span class="hljs-string">&quot;public/uploads/<span class="hljs-subst">#{SecureRandom.uuid}</span>&quot;</span>))
+<span class="hljs-keyword">end</span></code></pre><h2>Body limits</h2>
 <p><code>config.max_body_size</code> (default 2 MB) applies while the body is read before
 parsing; a request that exceeds it answers <strong>413 Payload Too Large</strong>. Raise
 it for large uploads:</p>
-<pre><code class="language-crystal">config.max_body_size = 100.megabytes
-</code></pre>
-<p>See <a href="../docs/configuration.html">Configuration</a> for per-environment tuning.</p>
+<pre><code class="hljs language-crystal">config.max_body_size = <span class="hljs-number">100</span>.megabytes</code></pre><p>See <a href="../docs/configuration.html">Configuration</a> for per-environment tuning.</p>
 <div class="docs-pager"><div class="pager-progress">Page 11 of 16</div><div class="pager-links"><a class="pager-card" href="security.html"><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span><span><span class="label">Previous</span><span class="pager-title">Security</span></span></a><a class="pager-card right" href="console.html"><span><span class="label">Next</span><span class="pager-title">Console</span></span><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></a></div></div></article></div>
   </main>
 

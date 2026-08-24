@@ -8,6 +8,7 @@
   <link rel="icon" href="../favicon.png" type="image/png">
   <link rel="stylesheet" href="../assets/css/main.css">
   <link rel="stylesheet" href="../assets/css/docs.css">
+  <link rel="stylesheet" href="../assets/css/highlight.css">
 </head>
 <body>
   <header class="site-header">
@@ -36,29 +37,25 @@ so user input is XSS-safe out of the box.</p>
 <h2>Declaring templates</h2>
 <p>A controller names its view files with <code>templates</code>, declaring the locals
 each one receives:</p>
-<pre><code class="language-crystal">class TasksController &lt; ApplicationController
-  templates &quot;tasks&quot;,
-    root: __DIR__ + &quot;/../views&quot;,
-    layout: &quot;application&quot;,
-    index: {tasks: Array(Task)},
-    edit: {task: Task}
-end
-</code></pre>
-<p>The macro compiles <code>views/tasks/index.ecr</code> and <code>views/tasks/edit.ecr</code> into
+<pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">TasksController</span> &lt; <span class="hljs-title">ApplicationController</span></span>
+  templates <span class="hljs-string">&quot;tasks&quot;</span>,
+    <span class="hljs-symbol">root:</span> <span class="hljs-keyword">__DIR__</span> + <span class="hljs-string">&quot;/../views&quot;</span>,
+    <span class="hljs-symbol">layout:</span> <span class="hljs-string">&quot;application&quot;</span>,
+    <span class="hljs-symbol">index:</span> {<span class="hljs-symbol">tasks:</span> Array(Task)},
+    <span class="hljs-symbol">edit:</span> {<span class="hljs-symbol">task:</span> Task}
+<span class="hljs-keyword">end</span></code></pre><p>The macro compiles <code>views/tasks/index.ecr</code> and <code>views/tasks/edit.ecr</code> into
 <code>render :index</code> and <code>render :edit</code>. A wrong local name or type in the action
 call is a compile error.</p>
 <h2>Template syntax</h2>
-<pre><code class="language-ecr">&lt;% if tasks.empty? %&gt;
-  &lt;p class=&quot;empty&quot;&gt;No tasks yet.&lt;/p&gt;
-&lt;% else %&gt;
-  &lt;ul&gt;
-    &lt;% tasks.each do |task| %&gt;
-      &lt;li&gt;&lt;%= task.title %&gt;&lt;/li&gt;
-    &lt;% end %&gt;
-  &lt;/ul&gt;
-&lt;% end %&gt;
-</code></pre>
-<ul>
+<pre><code class="hljs"><span class="language-vbscript">&lt;% <span class="hljs-keyword">if</span> tasks.<span class="hljs-literal">empty</span>? %&gt;</span><span class="language-xml">
+  <span class="hljs-tag">&lt;<span class="hljs-name">p</span> <span class="hljs-attr">class</span>=<span class="hljs-string">&quot;empty&quot;</span>&gt;</span>No tasks yet.<span class="hljs-tag">&lt;/<span class="hljs-name">p</span>&gt;</span>
+</span><span class="language-vbscript">&lt;% <span class="hljs-keyword">else</span> %&gt;</span><span class="language-xml">
+  <span class="hljs-tag">&lt;<span class="hljs-name">ul</span>&gt;</span>
+    </span><span class="language-vbscript">&lt;% tasks.<span class="hljs-keyword">each</span> <span class="hljs-keyword">do</span> |task| %&gt;</span><span class="language-xml">
+      <span class="hljs-tag">&lt;<span class="hljs-name">li</span>&gt;</span></span><span class="language-vbscript">&lt;%= task.title %&gt;</span><span class="language-xml"><span class="hljs-tag">&lt;/<span class="hljs-name">li</span>&gt;</span>
+    </span><span class="language-vbscript">&lt;% <span class="hljs-keyword">end</span> %&gt;</span><span class="language-xml">
+  <span class="hljs-tag">&lt;/<span class="hljs-name">ul</span>&gt;</span>
+</span><span class="language-vbscript">&lt;% <span class="hljs-keyword">end</span> %&gt;</span></code></pre><ul>
 <li><code>&lt;%= expr %&gt;</code> — interpolate, escaped</li>
 <li><code>&lt;%== expr %&gt;</code> — interpolate, raw</li>
 <li><code>&lt;% code %&gt;</code> — plain Crystal</li>
@@ -67,62 +64,48 @@ already escaped HTML, so they render unchanged even inside <code>&lt;%= %&gt;</c
 </ul>
 <h2>Layouts</h2>
 <p>A template renders inside the layout&#39;s <code>yield</code>:</p>
-<pre><code class="language-ecr">&lt;!DOCTYPE html&gt;
-&lt;html lang=&quot;en&quot;&gt;
-&lt;head&gt;
-  &lt;meta charset=&quot;utf-8&quot;&gt;
-  &lt;title&gt;Altair&lt;/title&gt;
-&lt;/head&gt;
-&lt;body&gt;
-  &lt;header&gt;&lt;h1&gt;&lt;a href=&quot;/&quot;&gt;Altair&lt;/a&gt;&lt;/h1&gt;&lt;/header&gt;
-  &lt;main&gt;
-&lt;% yield %&gt;
-  &lt;/main&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre>
-<p>Pass <code>layout: false</code> to render a bare fragment — handy for partial page
+<pre><code class="hljs"><span class="language-xml"><span class="hljs-meta">&lt;!DOCTYPE <span class="hljs-keyword">html</span>&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">html</span> <span class="hljs-attr">lang</span>=<span class="hljs-string">&quot;en&quot;</span>&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">head</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">meta</span> <span class="hljs-attr">charset</span>=<span class="hljs-string">&quot;utf-8&quot;</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">title</span>&gt;</span>Altair<span class="hljs-tag">&lt;/<span class="hljs-name">title</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">head</span>&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">body</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">header</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">h1</span>&gt;</span><span class="hljs-tag">&lt;<span class="hljs-name">a</span> <span class="hljs-attr">href</span>=<span class="hljs-string">&quot;/&quot;</span>&gt;</span>Altair<span class="hljs-tag">&lt;/<span class="hljs-name">a</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">h1</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">header</span>&gt;</span>
+  <span class="hljs-tag">&lt;<span class="hljs-name">main</span>&gt;</span>
+&lt;%</span><span class="language-ruby"> <span class="hljs-keyword">yield</span> </span><span class="language-xml">%&gt;
+  <span class="hljs-tag">&lt;/<span class="hljs-name">main</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">body</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">html</span>&gt;</span></span></code></pre><p>Pass <code>layout: false</code> to render a bare fragment — handy for partial page
 updates.</p>
 <h2>Partials</h2>
 <p><code>render</code> a partial by name with its locals; it returns a String you can
 embed anywhere:</p>
-<pre><code class="language-crystal">render &quot;form&quot;, locals: {post: post}
-</code></pre>
-<h2>Helpers</h2>
-<pre><code class="language-ecr">&lt;%= link_to &quot;Edit&quot;, &quot;/tasks/#{task.id}/edit&quot; %&gt;
-&lt;%= content_tag :li, &quot;task&quot;, id: &quot;task-#{task.id}&quot; %&gt;
-&lt;%= button_to &quot;delete&quot;, &quot;/tasks/#{task.id}&quot;, method: :delete %&gt;
-&lt;%= javascript_include_tag :htmx %&gt;
-</code></pre>
-<p><code>link_to</code> and <code>button_to</code> accept extra attributes and pass them through to
+<pre><code class="hljs language-crystal">render <span class="hljs-string">&quot;form&quot;</span>, <span class="hljs-symbol">locals:</span> {<span class="hljs-symbol">post:</span> post}</code></pre><h2>Helpers</h2>
+<pre><code class="hljs">&lt;%= link_to <span class="hljs-string">&quot;Edit&quot;</span>, <span class="hljs-string">&quot;/tasks/#{task.id}/edit&quot;</span> %&gt;
+&lt;%= content_tag :li, <span class="hljs-string">&quot;task&quot;</span>, id: <span class="hljs-string">&quot;task-#{task.id}&quot;</span> %&gt;
+&lt;%= button_to <span class="hljs-string">&quot;delete&quot;</span>, <span class="hljs-string">&quot;/tasks/#{task.id}&quot;</span>, method: :<span class="hljs-keyword">delete</span> %&gt;
+&lt;%= javascript_include_tag :htmx %&gt;</code></pre><p><code>link_to</code> and <code>button_to</code> accept extra attributes and pass them through to
 the generated tag, so htmx attributes work directly:</p>
-<pre><code class="language-ecr">&lt;%= link_to &quot;edit&quot;, &quot;/tasks/#{task.id}/edit&quot;, hx_get: &quot;/tasks/#{task.id}/edit&quot;,
-            hx_target: &quot;#task-#{task.id}&quot;, hx_swap: &quot;outerHTML&quot; %&gt;
-</code></pre>
-<h2>Form builder</h2>
+<pre><code class="hljs">&lt;%= link_to <span class="hljs-string">&quot;edit&quot;</span>, <span class="hljs-string">&quot;/tasks/<span class="hljs-subst">#{task.id}</span>/edit&quot;</span>, hx_get: <span class="hljs-string">&quot;/tasks/<span class="hljs-subst">#{task.id}</span>/edit&quot;</span>,
+            hx_target: <span class="hljs-string">&quot;<span class="hljs-subst">#task</span>-<span class="hljs-subst">#{task.id}</span>&quot;</span>, hx_swap: <span class="hljs-string">&quot;outerHTML&quot;</span> %&gt;</code></pre><h2>Form builder</h2>
 <p><code>form_for</code> yields a builder with typed field helpers; the generated form is
 auto-escaped:</p>
-<pre><code class="language-ecr">&lt;% form_for(&quot;/tasks&quot;) do |f| %&gt;
-  &lt;%= f.label(&quot;title&quot;, &quot;What needs doing?&quot;) %&gt;
-  &lt;%= f.text_field(&quot;title&quot;, placeholder: &quot;Add a task&quot;) %&gt;
-  &lt;%= f.submit(&quot;Add&quot;) %&gt;
-&lt;% end %&gt;
-</code></pre>
-<p>Fields include <code>text_field</code>, <code>email_field</code>, <code>password_field</code>, <code>hidden_field</code>,
+<pre><code class="hljs">&lt;% form_for(<span class="hljs-string">&quot;/tasks&quot;</span>) <span class="hljs-keyword">do</span> |f| %&gt;
+  &lt;%= f.label(<span class="hljs-string">&quot;title&quot;</span>, <span class="hljs-string">&quot;What needs doing?&quot;</span>) %&gt;
+  &lt;%= f.text_field(<span class="hljs-string">&quot;title&quot;</span>, placeholder: <span class="hljs-string">&quot;Add a task&quot;</span>) %&gt;
+  &lt;%= f.submit(<span class="hljs-string">&quot;Add&quot;</span>) %&gt;
+&lt;% end %&gt;</code></pre><p>Fields include <code>text_field</code>, <code>email_field</code>, <code>password_field</code>, <code>hidden_field</code>,
 <code>label</code> and <code>submit</code>. Pass method and htmx attributes through <code>form_for</code>:</p>
-<pre><code class="language-ecr">&lt;% form_for(&quot;/tasks&quot;, hx_post: &quot;/tasks&quot;, hx_target: &quot;#task-list&quot;, hx_swap: &quot;outerHTML&quot;) do |f| %&gt;
-  &lt;%= f.text_field(&quot;title&quot;) %&gt;
-  &lt;%= f.submit(&quot;Add&quot;) %&gt;
-&lt;% end %&gt;
-</code></pre>
-<h2>htmx</h2>
+<pre><code class="hljs">&lt;% form_for(<span class="hljs-string">&quot;/tasks&quot;</span>, hx_post: <span class="hljs-string">&quot;/tasks&quot;</span>, hx_target: <span class="hljs-string">&quot;#task-list&quot;</span>, hx_swap: <span class="hljs-string">&quot;outerHTML&quot;</span>) <span class="hljs-keyword">do</span> |f| %&gt;
+  &lt;%= f.text_field(<span class="hljs-string">&quot;title&quot;</span>) %&gt;
+  &lt;%= f.submit(<span class="hljs-string">&quot;Add&quot;</span>) %&gt;
+&lt;% end %&gt;</code></pre><h2>htmx</h2>
 <p>The htmx layer ships helpers for the request side and the response side. On
 the request side, <code>request.hx_request?</code> tells an action whether the browser
 sent the <code>HX-Request</code> header, so one action can render a full page or a bare
 fragment:</p>
-<pre><code class="language-crystal">render :index, layout: !request.hx_request?, locals: {tasks: @@tasks}
-</code></pre>
-<p>On the response side, <code>hx_trigger_after_swap(:task_changed)</code> and
+<pre><code class="hljs language-crystal">render :index, <span class="hljs-symbol">layout:</span> !request.hx_request?, <span class="hljs-symbol">locals:</span> {<span class="hljs-symbol">tasks:</span> <span class="hljs-variable">@@tasks</span>}</code></pre><p>On the response side, <code>hx_trigger_after_swap(:task_changed)</code> and
 <code>hx_trigger_after_settle(:task_changed)</code> emit the <code>HX-Trigger</code> header, which
 the page listens for to update the UI.</p>
 <div class="docs-pager"><div class="pager-progress">Page 6 of 16</div><div class="pager-links"><a class="pager-card" href="controllers.html"><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span><span><span class="label">Previous</span><span class="pager-title">Controllers</span></span></a><a class="pager-card right" href="record.html"><span><span class="label">Next</span><span class="pager-title">Record (ORM)</span></span><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></a></div></div></article></div>

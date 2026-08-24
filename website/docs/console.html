@@ -8,6 +8,7 @@
   <link rel="icon" href="../favicon.png" type="image/png">
   <link rel="stylesheet" href="../assets/css/main.css">
   <link rel="stylesheet" href="../assets/css/docs.css">
+  <link rel="stylesheet" href="../assets/css/highlight.css">
 </head>
 <body>
   <header class="site-header">
@@ -33,26 +34,22 @@
 <p>The development server prints a boxed banner once at boot and one aligned line per request. The banner and the log are designed to be scanned — methods and status codes are colored, slow requests are highlighted, and everything adapts to the terminal.</p>
 <h2>Boot banner</h2>
 <p>On <code>altair server</code> the console shows:</p>
-<pre><code>╭──────────────────────────────────────────────╮
-│                Altair v0.2.2                 │
+<pre><code class="hljs">╭──────────────────────────────────────────────╮
+│                <span class="hljs-title class_">Altair</span> v0.<span class="hljs-number">2.2</span>                 │
 ├──────────────────────────────────────────────┤
-│ Environment   Development                    │
-│ Address       http://localhost:3000          │
-│ PID           15244                          │
-│ Routes        5                              │
-│ Middleware    5                              │
-│ Crystal       1.21.0                         │
-│ Started in    12.3ms                         │
-╰──────────────────────────────────────────────╯
-</code></pre>
-<p>The banner is printed to <code>STDOUT</code> outside the log stream. <code>Address</code> shows <code>localhost</code> when the server binds to <code>0.0.0.0</code>. <code>Started in</code> measures the time from <code>Application#start</code> to the banner.</p>
+│ <span class="hljs-title class_">Environment</span>   <span class="hljs-title class_">Development</span>                    │
+│ <span class="hljs-title class_">Address</span>       http:<span class="hljs-comment">//localhost:3000          │</span>
+│ PID           <span class="hljs-number">15244</span>                          │
+│ <span class="hljs-title class_">Routes</span>        <span class="hljs-number">5</span>                              │
+│ <span class="hljs-title class_">Middleware</span>    <span class="hljs-number">5</span>                              │
+│ <span class="hljs-title class_">Crystal</span>       <span class="hljs-number">1.21</span>.<span class="hljs-number">0</span>                         │
+│ <span class="hljs-title class_">Started</span> <span class="hljs-keyword">in</span>    <span class="hljs-number">12</span>.3ms                         │
+╰──────────────────────────────────────────────╯</code></pre><p>The banner is printed to <code>STDOUT</code> outside the log stream. <code>Address</code> shows <code>localhost</code> when the server binds to <code>0.0.0.0</code>. <code>Started in</code> measures the time from <code>Application#start</code> to the banner.</p>
 <h2>Request log</h2>
 <p>Each request logs one line through <code>config.logger</code> (<code>Log.for(&quot;altair&quot;)</code>):</p>
-<pre><code>17:33:04  GET      /                     200    0.1ms
-17:33:05  POST     /posts                201    1.2ms
-17:33:06  DELETE   /posts/4              204    0.2ms
-</code></pre>
-<p>Columns are aligned (<code>method.ljust(7)</code>, <code>path.ljust(22)</code>, <code>status.rjust(3)</code>), so the output scans as a table. Long paths are truncated with a leading ellipsis (<code>…/very/long/path</code>).</p>
+<pre><code class="hljs"><span class="hljs-attribute">17</span>:<span class="hljs-number">33</span>:<span class="hljs-number">04</span>  GET      /                     <span class="hljs-number">200</span>    <span class="hljs-number">0</span>.<span class="hljs-number">1</span>ms
+<span class="hljs-attribute">17</span>:<span class="hljs-number">33</span>:<span class="hljs-number">05</span>  POST     /posts                <span class="hljs-number">201</span>    <span class="hljs-number">1</span>.<span class="hljs-number">2</span>ms
+<span class="hljs-attribute">17</span>:<span class="hljs-number">33</span>:<span class="hljs-number">06</span>  DELETE   /posts/<span class="hljs-number">4</span>              <span class="hljs-number">204</span>    <span class="hljs-number">0</span>.<span class="hljs-number">2</span>ms</code></pre><p>Columns are aligned (<code>method.ljust(7)</code>, <code>path.ljust(22)</code>, <code>status.rjust(3)</code>), so the output scans as a table. Long paths are truncated with a leading ellipsis (<code>…/very/long/path</code>).</p>
 <h3>Colors</h3>
 <p>Methods and status codes are colored by family when the terminal supports it:</p>
 <ul>
@@ -60,53 +57,41 @@
 <li><strong>Status:</strong> 2xx green, 3xx blue, 4xx yellow, 5xx red</li>
 </ul>
 <p>Colors auto-detect <code>STDOUT.tty?</code> and respect <code>NO_COLOR=1</code> and <code>TERM=dumb</code>. Force them on or off:</p>
-<pre><code class="language-crystal">class Blog &lt; Altair::Application
-  config.logger_colors = true  # nil = auto, true/false = forced
-end
-</code></pre>
-<h3>Slow requests</h3>
+<pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Blog</span> &lt; <span class="hljs-title">Altair::Application</span></span>
+  config.logger_colors = <span class="hljs-literal">true</span>  <span class="hljs-comment"># nil = auto, true/false = forced</span>
+<span class="hljs-keyword">end</span></code></pre><h3>Slow requests</h3>
 <p>Requests slower than <code>config.slow_request_threshold</code> (default <code>20.milliseconds</code>) are highlighted in yellow and suffixed with <code>[SLOW]</code>:</p>
-<pre><code>17:33:04  GET      /dashboard            200  124.3ms [SLOW]
-</code></pre>
-<p>Tune or disable the threshold:</p>
-<pre><code class="language-crystal">config.slow_request_threshold = 50.milliseconds
-</code></pre>
-<p>Set it to <code>0.milliseconds</code> to highlight every request, or to a large value to never highlight.</p>
+<pre><code class="hljs"><span class="hljs-attribute">17</span>:<span class="hljs-number">33</span>:<span class="hljs-number">04</span>  GET      /dashboard            <span class="hljs-number">200</span>  <span class="hljs-number">124</span>.<span class="hljs-number">3</span>ms<span class="hljs-meta"> [SLOW]</span></code></pre><p>Tune or disable the threshold:</p>
+<pre><code class="hljs language-crystal">config.slow_request_threshold = <span class="hljs-number">50</span>.milliseconds</code></pre><p>Set it to <code>0.milliseconds</code> to highlight every request, or to a large value to never highlight.</p>
 <h3>Timestamps and counter</h3>
-<pre><code class="language-crystal">config.logger_timestamps = true       # HH:MM:SS prefix (default true)
-config.logger_request_counter = true  # #0001 prefix (default false)
-config.logger_compact = true          # compact single-line without alignment
-</code></pre>
-<p>Compact mode logs <code>GET / 200 0.1ms</code> without timestamps or padding — useful when piping to a file.</p>
+<pre><code class="hljs language-crystal">config.logger_timestamps = <span class="hljs-literal">true</span>       <span class="hljs-comment"># HH:MM:SS prefix (default true)</span>
+config.logger_request_counter = <span class="hljs-literal">true</span>  <span class="hljs-comment"># #0001 prefix (default false)</span>
+config.logger_compact = <span class="hljs-literal">true</span>          <span class="hljs-comment"># compact single-line without alignment</span></code></pre><p>Compact mode logs <code>GET / 200 0.1ms</code> without timestamps or padding — useful when piping to a file.</p>
 <h3>Request ID</h3>
 <p>When the <code>RequestId</code> middleware assigns an identifier, it is appended:</p>
-<pre><code>17:33:04  GET      /posts                200    0.8ms (abc-123)
-</code></pre>
-<p>The same identifier is echoed back in the <code>X-Request-Id</code> response header.</p>
+<pre><code class="hljs"><span class="hljs-attribute">17</span>:<span class="hljs-number">33</span>:<span class="hljs-number">04</span>  GET      /posts                <span class="hljs-number">200</span>    <span class="hljs-number">0</span>.<span class="hljs-number">8</span>ms (abc-<span class="hljs-number">123</span>)</code></pre><p>The same identifier is echoed back in the <code>X-Request-Id</code> response header.</p>
 <h2>Error output</h2>
 <p>On unhandled exceptions (500) the console logs a highlighted block to <code>STDERR</code> via <code>config.logger.error</code>:</p>
-<pre><code>──────────────────────────────────────────────────
+<pre><code class="hljs">──────────────────────────────────────────────────
 
-500 Internal Server Error
+<span class="hljs-number">500</span> <span class="hljs-title class_">Internal</span> <span class="hljs-title class_">Server</span> <span class="hljs-title class_">Error</span>
 
-Route
-GET /users/42
+<span class="hljs-title class_">Route</span>
+GET /users/<span class="hljs-number">42</span>
 
-Controller
-UsersController#show
+<span class="hljs-title class_">Controller</span>
+<span class="hljs-title class_">UsersController</span>#<span class="hljs-keyword">show</span>
 
-Exception
-NilAssertionError
+<span class="hljs-title class_">Exception</span>
+<span class="hljs-title class_">NilAssertionError</span>
 
-Message
-User not found
+<span class="hljs-title class_">Message</span>
+<span class="hljs-title class_">User</span> not found
 
-Location
-src/controllers/users.cr:42
+<span class="hljs-title class_">Location</span>
+src/controllers/users.cr:<span class="hljs-number">42</span>
 
-──────────────────────────────────────────────────
-</code></pre>
-<p>The HTML error page is still rendered in the browser when <code>config.debug</code> is true; the console block makes the same information visible without switching context.</p>
+──────────────────────────────────────────────────</code></pre><p>The HTML error page is still rendered in the browser when <code>config.debug</code> is true; the console block makes the same information visible without switching context.</p>
 <h2>Configuration reference</h2>
 <table>
 <thead>

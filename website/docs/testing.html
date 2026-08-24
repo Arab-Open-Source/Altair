@@ -8,6 +8,7 @@
   <link rel="icon" href="../favicon.png" type="image/png">
   <link rel="stylesheet" href="../assets/css/main.css">
   <link rel="stylesheet" href="../assets/css/docs.css">
+  <link rel="stylesheet" href="../assets/css/highlight.css">
 </head>
 <body>
   <header class="site-header">
@@ -33,77 +34,63 @@
 <p>Altair ships testing helpers so application specs read as intent instead of socket plumbing. The helpers live in <code>Altair::Test</code> and mirror the patterns the framework&#39;s own suite uses.</p>
 <h2>Booting an application</h2>
 <p><code>Altair::Test.boot</code> binds the application on an ephemeral port, waits until it accepts, yields the port, and restores the shared application instance afterwards:</p>
-<pre><code class="language-crystal">require &quot;spec_helper&quot;
+<pre><code class="hljs language-crystal"><span class="hljs-keyword">require</span> <span class="hljs-string">&quot;spec_helper&quot;</span>
 
-class MyApp &lt; Altair::Application
-  routes do
-    get &quot;/ping&quot;, to: PingController.ping
-  end
-end
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">MyApp</span> &lt; <span class="hljs-title">Altair::Application</span></span>
+  routes <span class="hljs-keyword">do</span>
+    get <span class="hljs-string">&quot;/ping&quot;</span>, <span class="hljs-symbol">to:</span> PingController.ping
+  <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span>
 
-class PingController &lt; Altair::Controller
-  def ping : Nil
-    render text: &quot;pong&quot;
-  end
-end
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PingController</span> &lt; <span class="hljs-title">Altair::Controller</span></span>
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">ping</span></span> : Nil
+    render <span class="hljs-symbol">text:</span> <span class="hljs-string">&quot;pong&quot;</span>
+  <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span>
 
-describe &quot;ping&quot; do
-  it &quot;answers pong&quot; do
-    Altair::Test.boot(MyApp) do |port|
-      response = Altair::Test.get(port, &quot;/ping&quot;)
-      response.status_code.should eq(200)
-      response.body.should eq(&quot;pong&quot;)
-    end
-  end
-end
-</code></pre>
-<p>The block form guarantees cleanup — the server closes and <code>Altair.application_instance</code> is restored even when the example raises.</p>
+describe <span class="hljs-string">&quot;ping&quot;</span> <span class="hljs-keyword">do</span>
+  it <span class="hljs-string">&quot;answers pong&quot;</span> <span class="hljs-keyword">do</span>
+    <span class="hljs-symbol">Altair:</span>:Test.boot(MyApp) <span class="hljs-keyword">do</span> |port|
+      response = <span class="hljs-symbol">Altair:</span>:Test.get(port, <span class="hljs-string">&quot;/ping&quot;</span>)
+      response.status_code.should eq(<span class="hljs-number">200</span>)
+      response.body.should eq(<span class="hljs-string">&quot;pong&quot;</span>)
+    <span class="hljs-keyword">end</span>
+  <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span></code></pre><p>The block form guarantees cleanup — the server closes and <code>Altair.application_instance</code> is restored even when the example raises.</p>
 <h2>Request helpers</h2>
 <p>Small wrappers over <code>HTTP::Client</code> with the base URL already filled in:</p>
-<pre><code class="language-crystal">Altair::Test.get(port, &quot;/posts&quot;)
-Altair::Test.post(port, &quot;/posts&quot;, form: &quot;title=Hello&quot;)
-Altair::Test.post_json(port, &quot;/api/token&quot;, body: %({&quot;email&quot;:&quot;a@b.com&quot;}))
-Altair::Test.put(port, &quot;/posts/1&quot;, form: &quot;title=Edited&quot;)
-Altair::Test.patch(port, &quot;/posts/1&quot;, form: &quot;title=Patched&quot;)
-Altair::Test.delete(port, &quot;/posts/1&quot;)
-</code></pre>
-<p>All helpers accept an optional <code>headers</code> argument (<code>HTTP::Headers</code>) and return <code>HTTP::Client::Response</code>.</p>
+<pre><code class="hljs language-crystal"><span class="hljs-symbol">Altair:</span>:Test.get(port, <span class="hljs-string">&quot;/posts&quot;</span>)
+<span class="hljs-symbol">Altair:</span>:Test.post(port, <span class="hljs-string">&quot;/posts&quot;</span>, <span class="hljs-symbol">form:</span> <span class="hljs-string">&quot;title=Hello&quot;</span>)
+<span class="hljs-symbol">Altair:</span>:Test.post_json(port, <span class="hljs-string">&quot;/api/token&quot;</span>, <span class="hljs-symbol">body:</span> <span class="hljs-string">%({&quot;email&quot;:&quot;a@b.com&quot;})</span>)
+<span class="hljs-symbol">Altair:</span>:Test.put(port, <span class="hljs-string">&quot;/posts/1&quot;</span>, <span class="hljs-symbol">form:</span> <span class="hljs-string">&quot;title=Edited&quot;</span>)
+<span class="hljs-symbol">Altair:</span>:Test.patch(port, <span class="hljs-string">&quot;/posts/1&quot;</span>, <span class="hljs-symbol">form:</span> <span class="hljs-string">&quot;title=Patched&quot;</span>)
+<span class="hljs-symbol">Altair:</span>:Test.delete(port, <span class="hljs-string">&quot;/posts/1&quot;</span>)</code></pre><p>All helpers accept an optional <code>headers</code> argument (<code>HTTP::Headers</code>) and return <code>HTTP::Client::Response</code>.</p>
 <h2>The cookie-jar client</h2>
 <p><code>Altair::Test::Client</code> keeps the server&#39;s cookies between requests, so a sign-in carries into every later request without manual header plumbing, and follows redirects the way a browser does when asked:</p>
-<pre><code class="language-crystal">client = Altair::Test::Client.new(port)                     # or: follow_redirects: true
-client.post(&quot;/login&quot;, form: &quot;email=a@b.com&amp;password=secret&quot;)
-client.get(&quot;/me&quot;).body.should contain(&quot;a@b.com&quot;)            # session carried
+<pre><code class="hljs language-crystal">client = <span class="hljs-symbol">Altair:</span>:<span class="hljs-symbol">Test:</span>:Client.new(port)                     <span class="hljs-comment"># or: follow_redirects: true</span>
+client.post(<span class="hljs-string">&quot;/login&quot;</span>, <span class="hljs-symbol">form:</span> <span class="hljs-string">&quot;email=a@b.com&amp;password=secret&quot;</span>)
+client.get(<span class="hljs-string">&quot;/me&quot;</span>).body.should contain(<span class="hljs-string">&quot;a@b.com&quot;</span>)            <span class="hljs-comment"># session carried</span>
 
-destroyed = client.get(&quot;/logout&quot;)                           # expired cookies leave the jar
-client.get(&quot;/me&quot;).status_code.should eq(302)
-</code></pre>
-<p>Redirects follow only when <code>follow_redirects: true</code>; 301/302/303 downgrade to GET (so POST-then-redirect lands on the page), 307/308 keep the method, and the jar rides along every hop.</p>
+destroyed = client.get(<span class="hljs-string">&quot;/logout&quot;</span>)                           <span class="hljs-comment"># expired cookies leave the jar</span>
+client.get(<span class="hljs-string">&quot;/me&quot;</span>).status_code.should eq(<span class="hljs-number">302</span>)</code></pre><p>Redirects follow only when <code>follow_redirects: true</code>; 301/302/303 downgrade to GET (so POST-then-redirect lands on the page), 307/308 keep the method, and the jar rides along every hop.</p>
 <h2>Configuring the booted app</h2>
 <p>The <code>configure:</code> proc runs on the fresh instance before the server is built — where per-spec settings belong:</p>
-<pre><code class="language-crystal">Altair::Test.boot(SessionApp, configure: -&gt;(app : SessionApp) {
-  app.config.secret_key_base = &quot;test-secret&quot;
-}) do |port|
-  # sessions work here
-end
-</code></pre>
-<h2>Database helpers</h2>
+<pre><code class="hljs language-crystal"><span class="hljs-symbol">Altair:</span>:Test.boot(SessionApp, <span class="hljs-symbol">configure:</span> -&gt;(app : SessionApp) {
+  app.config.secret_key_base = <span class="hljs-string">&quot;test-secret&quot;</span>
+}) <span class="hljs-keyword">do</span> |port|
+  <span class="hljs-comment"># sessions work here</span>
+<span class="hljs-keyword">end</span></code></pre><h2>Database helpers</h2>
 <p><code>Altair::Test.migrate!</code> applies pending migrations against the application&#39;s configured database — the same engine <code>db:migrate</code> runs:</p>
-<pre><code class="language-crystal">Altair::Test.migrate!(MyApp)
-</code></pre>
-<p><code>Altair::Test.transactional { }</code> wraps a block in a transaction that is always rolled back, so every example starts from the same data; nested calls join the outer transaction through savepoints:</p>
-<pre><code class="language-crystal">Altair::Test.transactional do
-  Post.create(title: &quot;only this example sees me&quot;)
-end
-</code></pre>
-<p>Background jobs have their own test seam: set <code>Altair::Jobs::Queue.test_mode = true</code> and enqueues collect in memory (<code>Queue.enqueued</code>, <code>Queue.clear_enqueued!</code>) instead of hitting the table; drain them synchronously with a <code>Worker#execute</code> loop over sorted calls.</p>
+<pre><code class="hljs language-crystal"><span class="hljs-symbol">Altair:</span>:Test.migrate!(MyApp)</code></pre><p><code>Altair::Test.transactional { }</code> wraps a block in a transaction that is always rolled back, so every example starts from the same data; nested calls join the outer transaction through savepoints:</p>
+<pre><code class="hljs language-crystal"><span class="hljs-symbol">Altair:</span>:Test.transactional <span class="hljs-keyword">do</span>
+  Post.create(<span class="hljs-symbol">title:</span> <span class="hljs-string">&quot;only this example sees me&quot;</span>)
+<span class="hljs-keyword">end</span></code></pre><p>Background jobs have their own test seam: set <code>Altair::Jobs::Queue.test_mode = true</code> and enqueues collect in memory (<code>Queue.enqueued</code>, <code>Queue.clear_enqueued!</code>) instead of hitting the table; drain them synchronously with a <code>Worker#execute</code> loop over sorted calls.</p>
 <h2>Isolation</h2>
 <p>Each <code>boot</code> saves the current <code>Altair.application_instance</code>, sets it to <code>nil</code> so the application builds a fresh instance, and restores the original in an <code>ensure</code> block. Nested boots are not supported — finish one before starting the next.</p>
 <p>For specs that need to reset state between examples without a server, use the same pattern the framework uses internally:</p>
-<pre><code class="language-crystal">before_each do
-  # clear database, reset singletons, etc.
-end
-</code></pre>
-<h2>Tips</h2>
+<pre><code class="hljs language-crystal">before_each <span class="hljs-keyword">do</span>
+  <span class="hljs-comment"># clear database, reset singletons, etc.</span>
+<span class="hljs-keyword">end</span></code></pre><h2>Tips</h2>
 <ul>
 <li>Prefer <code>Altair::Test.boot</code> over hand-rolled <code>HTTP::Server.new</code> + <code>spawn</code> + polling — it handles the readiness probe and the <code>ensure</code> cleanup.</li>
 <li>Keep specs fast by booting once per <code>describe</code> when the application does not mutate global state; otherwise boot per <code>it</code>.</li>

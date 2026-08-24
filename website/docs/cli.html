@@ -8,6 +8,7 @@
   <link rel="icon" href="../favicon.png" type="image/png">
   <link rel="stylesheet" href="../assets/css/main.css">
   <link rel="stylesheet" href="../assets/css/docs.css">
+  <link rel="stylesheet" href="../assets/css/highlight.css">
 </head>
 <body>
   <header class="site-header">
@@ -35,21 +36,13 @@
 <h3>From a GitHub release (recommended for new users)</h3>
 <p>The official installer downloads the prebuilt binary for your platform, verifies its SHA-256 digest against the published <code>SHA256SUMS</code>, and installs it onto your <code>PATH</code> — no Crystal toolchain required.</p>
 <p><strong>Linux / macOS:</strong></p>
-<pre><code class="language-bash">curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.sh | sh
-</code></pre>
-<p><strong>Windows (PowerShell):</strong></p>
-<pre><code class="language-powershell">iex (irm https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.ps1)
-</code></pre>
-<p><strong>Windows (cmd):</strong></p>
-<pre><code class="language-cmd">curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.cmd | cmd
-</code></pre>
-<p>It is fail-safe: nothing is written unless the checksum matches, an existing different binary is never overwritten without <code>--force</code> (or <code>-Force</code> on Windows), and it is idempotent over an identical install. Options: <code>--dir DIR</code> / <code>-Dir</code>, <code>--force</code> / <code>-Force</code>, <code>--version VER</code> / <code>-Version</code>.</p>
+<pre><code class="hljs language-bash">curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.sh | sh</code></pre><p><strong>Windows (PowerShell):</strong></p>
+<pre><code class="hljs language-powershell"><span class="hljs-built_in">iex</span> (<span class="hljs-built_in">irm</span> https://github.com/Arab<span class="hljs-literal">-Open-Source</span>/Altair/releases/latest/download/install.ps1)</code></pre><p><strong>Windows (cmd):</strong></p>
+<pre><code class="hljs language-cmd">curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.<span class="hljs-built_in">cmd</span> | <span class="hljs-built_in">cmd</span></code></pre><p>It is fail-safe: nothing is written unless the checksum matches, an existing different binary is never overwritten without <code>--force</code> (or <code>-Force</code> on Windows), and it is idempotent over an identical install. Options: <code>--dir DIR</code> / <code>-Dir</code>, <code>--force</code> / <code>-Force</code>, <code>--version VER</code> / <code>-Version</code>.</p>
 <h3>From a source checkout</h3>
 <p>The framework builds a standalone binary from <code>src/altair_cli.cr</code>:</p>
-<pre><code class="language-bash">shards build altair
-./bin/altair install
-</code></pre>
-<p><code>altair install</code> copies the running binary into a user-owned bin directory on <code>PATH</code>:</p>
+<pre><code class="hljs language-bash">shards build altair
+./bin/altair install</code></pre><p><code>altair install</code> copies the running binary into a user-owned bin directory on <code>PATH</code>:</p>
 <table>
 <thead>
 <tr>
@@ -170,17 +163,13 @@ project the same way. The project launcher itself (<code>bin/altair</code>, or
 <code>bin/altair.cr</code> in projects created before the executable wrapper) is
 still there and accepts the same commands — both work.</p>
 <p>When running the launcher with <code>crystal run</code> instead of the built binary, use <code>--</code> before the argument so <code>crystal run</code> does not consume it:</p>
-<pre><code class="language-bash">crystal run bin/altair.cr -- db:migrate
-</code></pre>
-<h2>Updating</h2>
+<pre><code class="hljs language-bash">crystal run bin/altair.cr -- db:migrate</code></pre><h2>Updating</h2>
 <p><code>altair update</code> checks GitHub for the latest release, downloads the binary
 for your platform, verifies its SHA-256 digest against the published
 <code>SHA256SUMS</code>, and replaces the running executable:</p>
-<pre><code class="language-bash">altair update          # update to the latest release
-altair update --check  # report whether a newer version exists, install nothing
-altair update --force  # reinstall even when already up to date
-</code></pre>
-<p><code>--check</code> is safe for automation — it exits <code>0</code> when the installed binary
+<pre><code class="hljs language-bash">altair update          <span class="hljs-comment"># update to the latest release</span>
+altair update --check  <span class="hljs-comment"># report whether a newer version exists, install nothing</span>
+altair update --force  <span class="hljs-comment"># reinstall even when already up to date</span></code></pre><p><code>--check</code> is safe for automation — it exits <code>0</code> when the installed binary
 is current and <code>1</code> when an update is available, without writing anything.</p>
 <p>Updating the <code>altair</code> binary is separate from updating a project&#39;s copy of
 the framework: inside a project, <code>shards update altair</code> pulls the latest

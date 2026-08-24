@@ -8,6 +8,7 @@
   <link rel="icon" href="../favicon.png" type="image/png">
   <link rel="stylesheet" href="../assets/css/main.css">
   <link rel="stylesheet" href="../assets/css/docs.css">
+  <link rel="stylesheet" href="../assets/css/highlight.css">
 </head>
 <body>
   <header class="site-header">
@@ -33,45 +34,25 @@
 <p>Altair ships prebuilt binaries for Linux, macOS and Windows (both amd64 and arm64). The installer downloads the right build, verifies its SHA-256 checksum against the published <code>SHA256SUMS</code>, and copies it onto your <code>PATH</code>.</p>
 <h2>Linux and macOS</h2>
 <p>The POSIX installer works with <code>sh</code> (requires <code>curl</code> and <code>sha256sum</code>):</p>
-<pre><code class="language-sh">curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.sh | sh
-</code></pre>
-<p>The binary is installed to <code>~/.local/bin</code>. If that directory is not on your <code>PATH</code>, add it:</p>
-<pre><code class="language-sh">export PATH=&quot;$HOME/.local/bin:$PATH&quot;
-</code></pre>
-<h2>Windows</h2>
+<pre><code class="hljs language-sh">curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.sh | sh</code></pre><p>The binary is installed to <code>~/.local/bin</code>. If that directory is not on your <code>PATH</code>, add it:</p>
+<pre><code class="hljs language-sh"><span class="hljs-built_in">export</span> PATH=<span class="hljs-string">&quot;<span class="hljs-variable">$HOME</span>/.local/bin:<span class="hljs-variable">$PATH</span>&quot;</span></code></pre><h2>Windows</h2>
 <p>PowerShell (requires <code>irm</code>):</p>
-<pre><code class="language-powershell">iex (irm https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.ps1)
-</code></pre>
-<p>Or from the classic command prompt:</p>
-<pre><code class="language-cmd">curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.cmd | cmd
-</code></pre>
-<p>The binary is installed to <code>%USERPROFILE%\.altair\bin</code>. You may need to restart your terminal for the <code>PATH</code> update to take effect.</p>
+<pre><code class="hljs language-powershell"><span class="hljs-built_in">iex</span> (<span class="hljs-built_in">irm</span> https://github.com/Arab<span class="hljs-literal">-Open-Source</span>/Altair/releases/latest/download/install.ps1)</code></pre><p>Or from the classic command prompt:</p>
+<pre><code class="hljs language-cmd">curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.<span class="hljs-built_in">cmd</span> | <span class="hljs-built_in">cmd</span></code></pre><p>The binary is installed to <code>%USERPROFILE%\.altair\bin</code>. You may need to restart your terminal for the <code>PATH</code> update to take effect.</p>
 <p>Downloads are resilient by design: the installers ride curl&#39;s own retries (bundled with Windows 10 1803+), fall back to resumable BITS, then to <code>Invoke-WebRequest</code> with a 10-minute ceiling — and every file is size-checked before checksum verification, so a truncated transfer is reported with exact byte counts instead of a mysterious digest failure.</p>
 <h2>Verify the installation</h2>
-<pre><code class="language-sh">altair version
-</code></pre>
-<p>You should see something like <code>Altair 0.2.0</code>.</p>
+<pre><code class="hljs language-sh">altair version</code></pre><p>You should see something like <code>Altair 0.2.0</code>.</p>
 <h2>Offline installs (--framework)</h2>
 <p>Every release ships the framework source itself as checksummed assets (<code>altair-src-v&lt;version&gt;.tar.gz</code> / <code>.zip</code>). Pass the framework switch and the installer unpacks it next to the binary:</p>
-<pre><code class="language-powershell">.\install.ps1 -Framework            # Windows: %USERPROFILE%\.altair\framework\&lt;version&gt;\
-curl ... | sh -s -- --framework     # Unix:    ~/.altair/framework/&lt;version&gt;/
-</code></pre>
-<p>A machine without GitHub access can then scaffold projects against that local copy — no network needed at dependency-resolution time:</p>
-<pre><code class="language-sh">altair new myapp --framework-path &quot;$HOME/.altair/framework/0.3.1&quot;
-</code></pre>
-<h2>Installing to a custom directory</h2>
-<pre><code class="language-sh">altair install --dir /usr/local/bin
-</code></pre>
-<p>The installer refuses to overwrite an unrelated file without <code>--force</code>:</p>
-<pre><code class="language-sh">altair install --dir /usr/local/bin --force
-</code></pre>
-<h2>Install from source</h2>
+<pre><code class="hljs language-powershell">.\install.ps1 <span class="hljs-literal">-Framework</span>            <span class="hljs-comment"># Windows: %USERPROFILE%\.altair\framework\&lt;version&gt;\</span>
+<span class="hljs-built_in">curl</span> ... | sh <span class="hljs-literal">-s</span> <span class="hljs-literal">--</span> <span class="hljs-literal">--framework</span>     <span class="hljs-comment"># Unix:    ~/.altair/framework/&lt;version&gt;/</span></code></pre><p>A machine without GitHub access can then scaffold projects against that local copy — no network needed at dependency-resolution time:</p>
+<pre><code class="hljs language-sh">altair new myapp --framework-path <span class="hljs-string">&quot;<span class="hljs-variable">$HOME</span>/.altair/framework/0.3.1&quot;</span></code></pre><h2>Installing to a custom directory</h2>
+<pre><code class="hljs language-sh">altair install --<span class="hljs-built_in">dir</span> /usr/local/bin</code></pre><p>The installer refuses to overwrite an unrelated file without <code>--force</code>:</p>
+<pre><code class="hljs language-sh">altair install --<span class="hljs-built_in">dir</span> /usr/local/bin --force</code></pre><h2>Install from source</h2>
 <p>Inside a checkout of the repository:</p>
-<pre><code class="language-sh">shards install
+<pre><code class="hljs language-sh">shards install
 shards build altair
-./bin/altair version
-</code></pre>
-<div class="docs-pager"><div class="pager-progress">Page 1 of 16</div><div class="pager-links"><span></span><a class="pager-card right" href="usage.html"><span><span class="label">Next</span><span class="pager-title">Usage</span></span><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></a></div></div></article></div>
+./bin/altair version</code></pre><div class="docs-pager"><div class="pager-progress">Page 1 of 16</div><div class="pager-links"><span></span><a class="pager-card right" href="usage.html"><span><span class="label">Next</span><span class="pager-title">Usage</span></span><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></a></div></div></article></div>
   </main>
 
   <footer class="site-footer">

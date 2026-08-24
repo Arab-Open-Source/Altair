@@ -8,6 +8,7 @@
   <link rel="icon" href="../favicon.png" type="image/png">
   <link rel="stylesheet" href="../assets/css/main.css">
   <link rel="stylesheet" href="../assets/css/docs.css">
+  <link rel="stylesheet" href="../assets/css/highlight.css">
 </head>
 <body>
   <header class="site-header">
@@ -35,133 +36,109 @@ method on a class that subclasses <code>Altair::Controller</code>, called once p
 request with the request&#39;s <code>params</code>. Routes reference actions with typed
 references (<code>to: PostsController.index</code>), so a wrong action name is a compile
 error, not a runtime 500.</p>
-<pre><code class="language-crystal">class PostsController &lt; ApplicationController
-  def index : Nil
+<pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PostsController</span> &lt; <span class="hljs-title">ApplicationController</span></span>
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">index</span></span> : Nil
     posts = Post.all.to_a
-    render :index, locals: {posts: posts}
-  end
+    render :index, <span class="hljs-symbol">locals:</span> {<span class="hljs-symbol">posts:</span> posts}
+  <span class="hljs-keyword">end</span>
 
-  def show : Nil
-    if post = Post.find(params.fetch(&quot;id&quot;, Int32))
-      render :show, locals: {post: post}
-    else
-      render text: &quot;Post not found&quot;, status: ::HTTP::Status::NOT_FOUND
-    end
-  end
-end
-</code></pre>
-<h2>Parameters</h2>
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">show</span></span> : Nil
+    <span class="hljs-keyword">if</span> post = Post.find(params.fetch(<span class="hljs-string">&quot;id&quot;</span>, Int32))
+      render :show, <span class="hljs-symbol">locals:</span> {<span class="hljs-symbol">post:</span> post}
+    <span class="hljs-keyword">else</span>
+      render <span class="hljs-symbol">text:</span> <span class="hljs-string">&quot;Post not found&quot;</span>, <span class="hljs-symbol">status:</span> ::<span class="hljs-symbol">HTTP:</span>:<span class="hljs-symbol">Status:</span>:NOT_FOUND
+    <span class="hljs-keyword">end</span>
+  <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span></code></pre><h2>Parameters</h2>
 <p><code>params</code> merges the route parameters, the query string and the form body,
 with route values taking precedence. Fetch with a type to keep actions
 compile-time safe — a malformed value becomes a 422, never a 500:</p>
-<pre><code class="language-crystal">params[&quot;title&quot;]?          # String? — absent key is nil
-params[&quot;id&quot;]              # String  — absent key raises KeyError
-params.fetch(&quot;id&quot;, Int32)     # Integer, or 422 on bad input
-params.fetch?(&quot;id&quot;, Int32)    # Integer?, or nil on bad input
-params.permit(&quot;title&quot;, &quot;body&quot;)
-params.require(&quot;post&quot;).permit(&quot;title&quot;, &quot;body&quot;)
-</code></pre>
-<p>An <code>application/json</code> request body joins the same params: <code>request.json</code>
+<pre><code class="hljs language-crystal">params[<span class="hljs-string">&quot;title&quot;</span>]?          <span class="hljs-comment"># String? — absent key is nil</span>
+params[<span class="hljs-string">&quot;id&quot;</span>]              <span class="hljs-comment"># String  — absent key raises KeyError</span>
+params.fetch(<span class="hljs-string">&quot;id&quot;</span>, Int32)     <span class="hljs-comment"># Integer, or 422 on bad input</span>
+params.fetch?(<span class="hljs-string">&quot;id&quot;</span>, Int32)    <span class="hljs-comment"># Integer?, or nil on bad input</span>
+params.permit(<span class="hljs-string">&quot;title&quot;</span>, <span class="hljs-string">&quot;body&quot;</span>)
+params.<span class="hljs-keyword">require</span>(<span class="hljs-string">&quot;post&quot;</span>).permit(<span class="hljs-string">&quot;title&quot;</span>, <span class="hljs-string">&quot;body&quot;</span>)</code></pre><p>An <code>application/json</code> request body joins the same params: <code>request.json</code>
 holds the parsed body, and its top-level scalar values are merged (query and
 form values win on conflicts):</p>
-<pre><code class="language-crystal">request.json            # JSON::Any? — nil when the body is not JSON
-params[&quot;name&quot;]?         # a top-level JSON value, as a String
-</code></pre>
-<p><code>request.format</code> reports the format the client asked for — the path suffix
+<pre><code class="hljs language-crystal">request.json            <span class="hljs-comment"># JSON::Any? — nil when the body is not JSON</span>
+params[<span class="hljs-string">&quot;name&quot;</span>]?         <span class="hljs-comment"># a top-level JSON value, as a String</span></code></pre><p><code>request.format</code> reports the format the client asked for — the path suffix
 (<code>/posts.json</code>), else the <code>Accept</code> header, else <code>:html</code>:</p>
-<pre><code class="language-crystal">case request.format
-when :json then render json: post
-when :text then render text: &quot;…&quot;
-else            render :show
-end
-</code></pre>
-<h2>Rendering</h2>
+<pre><code class="hljs language-crystal"><span class="hljs-keyword">case</span> request.format
+<span class="hljs-keyword">when</span> :json <span class="hljs-keyword">then</span> render <span class="hljs-symbol">json:</span> post
+<span class="hljs-keyword">when</span> :text <span class="hljs-keyword">then</span> render <span class="hljs-symbol">text:</span> <span class="hljs-string">&quot;…&quot;</span>
+<span class="hljs-keyword">else</span>            render :show
+<span class="hljs-keyword">end</span></code></pre><h2>Rendering</h2>
 <p>An action ends by rendering something. Plain strings and helpers:</p>
-<pre><code class="language-crystal">render html: &quot;&lt;h1&gt;Hello&lt;/h1&gt;&quot;
-render text: &quot;plain&quot;, status: ::HTTP::Status::NOT_FOUND
-render json: %({&quot;ok&quot;: true})
-render json: {ok: true, id: 42}   # any JSON-able object is serialized
+<pre><code class="hljs language-crystal">render <span class="hljs-symbol">html:</span> <span class="hljs-string">&quot;&lt;h1&gt;Hello&lt;/h1&gt;&quot;</span>
+render <span class="hljs-symbol">text:</span> <span class="hljs-string">&quot;plain&quot;</span>, <span class="hljs-symbol">status:</span> ::<span class="hljs-symbol">HTTP:</span>:<span class="hljs-symbol">Status:</span>:NOT_FOUND
+render <span class="hljs-symbol">json:</span> <span class="hljs-string">%({&quot;ok&quot;: true})</span>
+render <span class="hljs-symbol">json:</span> {<span class="hljs-symbol">ok:</span> <span class="hljs-literal">true</span>, <span class="hljs-symbol">id:</span> <span class="hljs-number">42</span>}   <span class="hljs-comment"># any JSON-able object is serialized</span>
 redirect_to posts_path
-redirect_back fallback: posts_path   # honors Referer, same-host only
-head ::HTTP::Status::NO_CONTENT      # bodyless answer; later writes ignored
-no_content                           # shorthand for 204
-</code></pre>
-<p>When the controller declares templates, <code>render</code> takes the action name plus
+redirect_back <span class="hljs-symbol">fallback:</span> posts_path   <span class="hljs-comment"># honors Referer, same-host only</span>
+head ::<span class="hljs-symbol">HTTP:</span>:<span class="hljs-symbol">Status:</span>:NO_CONTENT      <span class="hljs-comment"># bodyless answer; later writes ignored</span>
+no_content                           <span class="hljs-comment"># shorthand for 204</span></code></pre><p>When the controller declares templates, <code>render</code> takes the action name plus
 its locals:</p>
-<pre><code class="language-crystal">render :index, locals: {posts: Post.all.to_a}
-render :index, layout: false, locals: {posts: Post.all.to_a}
-render &quot;form&quot;, locals: {post: post}   # a partial, returns a String
-</code></pre>
-<h2>Callbacks</h2>
+<pre><code class="hljs language-crystal">render :index, <span class="hljs-symbol">locals:</span> {<span class="hljs-symbol">posts:</span> Post.all.to_a}
+render :index, <span class="hljs-symbol">layout:</span> <span class="hljs-literal">false</span>, <span class="hljs-symbol">locals:</span> {<span class="hljs-symbol">posts:</span> Post.all.to_a}
+render <span class="hljs-string">&quot;form&quot;</span>, <span class="hljs-symbol">locals:</span> {<span class="hljs-symbol">post:</span> post}   <span class="hljs-comment"># a partial, returns a String</span></code></pre><h2>Callbacks</h2>
 <p>Filters run around the action. <code>only:</code> / <code>except:</code> restrict the actions a
 filter applies to, and a before callback that writes a response (render,
 redirect, head) halts the chain — the action and its after callbacks are
 skipped:</p>
-<pre><code class="language-crystal">class Admin::PostsController &lt; PostsController
-  before_action :require_login, only: [:new, :create]
+<pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Admin::PostsController</span> &lt; <span class="hljs-title">PostsController</span></span>
+  before_action :require_login, <span class="hljs-symbol">only:</span> [:new, :create]
   after_action :audit_action
 
-  skip_before_action :require_login   # inherited filters can be removed
-end
-</code></pre>
-<p>Filters are inherited across the controller hierarchy, and a skip declared
+  skip_before_action :require_login   <span class="hljs-comment"># inherited filters can be removed</span>
+<span class="hljs-keyword">end</span></code></pre><p>Filters are inherited across the controller hierarchy, and a skip declared
 in one subclass does not affect its siblings. A filter is a plain public
 method; any response it writes answers the request.</p>
 <h2>respond_to</h2>
 <p>One action, several format handlers. The block declares a handler per
 format; the one matching <code>request.format</code> runs, and a request for an
 undeclared format answers 406:</p>
-<pre><code class="language-crystal">def show : Nil
-  post = Post.find(params.fetch(&quot;id&quot;, Int32))
-  respond_to do |format|
-    format.html { render :show, locals: {post: post} }
-    format.json { render json: post }
-    format.text { render text: post.to_s }
-  end
-end
-</code></pre>
-<h2>Streaming</h2>
+<pre><code class="hljs language-crystal"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">show</span></span> : Nil
+  post = Post.find(params.fetch(<span class="hljs-string">&quot;id&quot;</span>, Int32))
+  respond_to <span class="hljs-keyword">do</span> |format|
+    format.html { render :show, <span class="hljs-symbol">locals:</span> {<span class="hljs-symbol">post:</span> post} }
+    format.json { render <span class="hljs-symbol">json:</span> post }
+    format.text { render <span class="hljs-symbol">text:</span> post.to_s }
+  <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span></code></pre><h2>Streaming</h2>
 <p><code>stream</code> opens a chunked response body — every write to the yielded <code>IO</code>
 reaches the client as it happens, with the content type set first:</p>
-<pre><code class="language-crystal">def events : Nil
-  stream(&quot;text/event-stream&quot;) do |io|
-    io &lt;&lt; &quot;data: hello\n\n&quot;
+<pre><code class="hljs language-crystal"><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">events</span></span> : Nil
+  stream(<span class="hljs-string">&quot;text/event-stream&quot;</span>) <span class="hljs-keyword">do</span> |io|
+    io &lt;&lt; <span class="hljs-string">&quot;data: hello\n\n&quot;</span>
     io.flush
-  end
-end
-</code></pre>
-<h2>Exceptions to responses</h2>
+  <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span></code></pre><h2>Exceptions to responses</h2>
 <p>A controller can map a raised exception to a response. The handler method
 receives the exception (cast to the registered type), and subclass
 exceptions match:</p>
-<pre><code class="language-crystal">class PostsController &lt; Altair::Controller
-  rescue_from MissingPost, handle_with: :render_missing
+<pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PostsController</span> &lt; <span class="hljs-title">Altair::Controller</span></span>
+  rescue_from MissingPost, <span class="hljs-symbol">handle_with:</span> :render_missing
 
-  def render_missing(e : MissingPost) : Nil
-    render text: &quot;No such post&quot;, status: ::HTTP::Status::NOT_FOUND
-  end
-end
-</code></pre>
-<p><code>only:</code> / <code>except:</code> restrict the actions a handler answers for, handlers
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">render_missing</span></span>(e : MissingPost) : Nil
+    render <span class="hljs-symbol">text:</span> <span class="hljs-string">&quot;No such post&quot;</span>, <span class="hljs-symbol">status:</span> ::<span class="hljs-symbol">HTTP:</span>:<span class="hljs-symbol">Status:</span>:NOT_FOUND
+  <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span></code></pre><p><code>only:</code> / <code>except:</code> restrict the actions a handler answers for, handlers
 inherit across the hierarchy, and an unhandled exception re-raises to the
 application&#39;s error pages. At the application level, <code>rescue_from</code> maps an
 exception to a fixed status:</p>
-<pre><code class="language-crystal">class Blog &lt; Altair::Application
-  rescue_from KeyError, to: 404
-end
-</code></pre>
-<h2>Templates</h2>
+<pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Blog</span> &lt; <span class="hljs-title">Altair::Application</span></span>
+  rescue_from KeyError, <span class="hljs-symbol">to:</span> <span class="hljs-number">404</span>
+<span class="hljs-keyword">end</span></code></pre><h2>Templates</h2>
 <p>The <code>templates</code> macro declares the view files and compiles them into typed
 render methods — a wrong local name or type is a compile error:</p>
-<pre><code class="language-crystal">class PostsController &lt; ApplicationController
-  templates &quot;posts&quot;,
-    root: __DIR__ + &quot;/../views&quot;,
-    layout: &quot;application&quot;,
-    index: {posts: Array(Post)},
-    show: {post: Post}
-end
-</code></pre>
-<p>This renders <code>views/posts/index.ecr</code> and <code>views/posts/show.ecr</code>, each
+<pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PostsController</span> &lt; <span class="hljs-title">ApplicationController</span></span>
+  templates <span class="hljs-string">&quot;posts&quot;</span>,
+    <span class="hljs-symbol">root:</span> <span class="hljs-keyword">__DIR__</span> + <span class="hljs-string">&quot;/../views&quot;</span>,
+    <span class="hljs-symbol">layout:</span> <span class="hljs-string">&quot;application&quot;</span>,
+    <span class="hljs-symbol">index:</span> {<span class="hljs-symbol">posts:</span> Array(Post)},
+    <span class="hljs-symbol">show:</span> {<span class="hljs-symbol">post:</span> Post}
+<span class="hljs-keyword">end</span></code></pre><p>This renders <code>views/posts/index.ecr</code> and <code>views/posts/show.ecr</code>, each
 receiving exactly the declared locals. See the <a href="../docs/views.html">Views guide</a>.</p>
 <div class="docs-pager"><div class="pager-progress">Page 5 of 16</div><div class="pager-links"><a class="pager-card" href="routing.html"><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span><span><span class="label">Previous</span><span class="pager-title">Routing</span></span></a><a class="pager-card right" href="views.html"><span><span class="label">Next</span><span class="pager-title">Views</span></span><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></a></div></div></article></div>
   </main>

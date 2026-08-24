@@ -8,6 +8,7 @@
   <link rel="icon" href="../favicon.png" type="image/png">
   <link rel="stylesheet" href="../assets/css/main.css">
   <link rel="stylesheet" href="../assets/css/docs.css">
+  <link rel="stylesheet" href="../assets/css/highlight.css">
 </head>
 <body>
   <header class="site-header">
@@ -33,22 +34,16 @@
 <p>The <code>altair</code> binary updates itself from the latest GitHub release, with
 checksum verification and an atomic swap — no Crystal toolchain required.</p>
 <h2>One command</h2>
-<pre><code class="language-bash">altair update
-</code></pre>
-<p>It downloads the binary for your platform, verifies its SHA-256 digest
+<pre><code class="hljs language-bash">altair update</code></pre><p>It downloads the binary for your platform, verifies its SHA-256 digest
 against the published <code>SHA256SUMS</code>, and replaces the running executable
 via a temporary file, so a failed download never leaves a broken <code>altair</code>
 behind.</p>
 <h2>Checking without installing</h2>
-<pre><code class="language-bash">altair update --check
-</code></pre>
-<p>Reports whether a newer version exists and installs nothing. Safe for
+<pre><code class="hljs language-bash">altair update --check</code></pre><p>Reports whether a newer version exists and installs nothing. Safe for
 automation: it exits <code>0</code> when the installed binary is current and <code>1</code>
 when an update is available.</p>
 <h2>Forcing a reinstall</h2>
-<pre><code class="language-bash">altair update --force
-</code></pre>
-<p>Downloads and reinstalls even when you already run the latest version —
+<pre><code class="hljs language-bash">altair update --force</code></pre><p>Downloads and reinstalls even when you already run the latest version —
 handy for repairing a corrupted install or re-pinning a release.</p>
 <h2>Manual paths</h2>
 <ul>
@@ -58,9 +53,7 @@ handy for repairing a corrupted install or re-pinning a release.</p>
 <h2>Updating a project&#39;s framework copy</h2>
 <p>Updating the <code>altair</code> binary is separate from updating the framework a
 project depends on. Inside a project:</p>
-<pre><code class="language-bash">shards update altair   # bump lib/altair to the newest release
-</code></pre>
-<p>A fresh <code>shards install</code> after removing <code>shard.lock</code> and <code>lib/</code> resolves
+<pre><code class="hljs language-bash">shards update altair   <span class="hljs-comment"># bump lib/altair to the newest release</span></code></pre><p>A fresh <code>shards install</code> after removing <code>shard.lock</code> and <code>lib/</code> resolves
 from scratch. Either way, projects resolve shards to the latest published
 git tag.</p>
 <div class="docs-pager"><div class="pager-progress">Page 3 of 16</div><div class="pager-links"><a class="pager-card" href="usage.html"><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span><span><span class="label">Previous</span><span class="pager-title">Usage</span></span></a><a class="pager-card right" href="routing.html"><span><span class="label">Next</span><span class="pager-title">Routing</span></span><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></a></div></div></article></div>

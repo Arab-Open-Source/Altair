@@ -1,6 +1,7 @@
-import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { readFileSync, mkdirSync, writeFileSync, copyFileSync } from "node:fs";
 import { join } from "node:path";
 import { marked } from "marked";
+import hljs from "highlight.js";
 
 const root = new URL(".", import.meta.url).pathname;
 const layout = readFileSync(join(root, "templates", "layout.html"), "utf8");
@@ -160,6 +161,32 @@ function render(page) {
   const image = renderer.image.bind(renderer);
   renderer.image = (href, title, text) =>
     image(String(href).startsWith("/") ? `${rootPrefix}${String(href).slice(1)}` : href, title, text);
+  // Syntax highlighting with highlight.js — handles both marked APIs
+  const code = renderer.code.bind(renderer);
+  renderer.code = (...args) => {
+    let codeContent, infostring, escaped;
+    if (args.length === 1 && typeof args[0] === "object" && args[0] !== null && "text" in args[0]) {
+      const token = args[0];
+      codeContent = token.text;
+      infostring = token.lang || "";
+      escaped = token.escaped;
+    } else {
+      [codeContent, infostring, escaped] = args;
+    }
+    const lang = (infostring || "").match(/\S*/)[0];
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        const highlighted = hljs.highlight(codeContent, { language: lang }).value;
+        return `<pre><code class="hljs language-${lang}">${highlighted}</code></pre>`;
+      } catch (e) {}
+    }
+    try {
+      const highlighted = hljs.highlightAuto(codeContent).value;
+      return `<pre><code class="hljs">${highlighted}</code></pre>`;
+    } catch (e) {
+      return code(...args);
+    }
+  };
   const body = marked.parse(source, { renderer })
     .replaceAll('href="/', `href="${rootPrefix}`)
     .replaceAll('src="/', `src="${rootPrefix}`)
@@ -202,6 +229,14 @@ mkdirSync(join(root, "docs"), { recursive: true });
   const pages = ["index", "install", "usage", "update", "features", "cli", "routing", "controllers", "views", "record", "sessions", "configuration", "security", "uploads", "console", "testing", "benchmarks"];
 for (const page of pages) {
   writeFileSync(join(root, "docs", `${page}.html`), render(`docs/${page}`));
+}
+
+// Copy highlight.js theme for syntax highlighting
+try {
+  const hlTheme = readFileSync(join(root, "node_modules/highlight.js/styles/atom-one-dark.css"), "utf8");
+  writeFileSync(join(root, "assets/css/highlight.css"), hlTheme);
+} catch (e) {
+  console.warn("Could not copy highlight.js theme:", e.message);
 }
 
 console.log(`Built website/: index.html + docs/{${pages.join(",")}}.html`);

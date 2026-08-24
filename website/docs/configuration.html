@@ -8,6 +8,7 @@
   <link rel="icon" href="../favicon.png" type="image/png">
   <link rel="stylesheet" href="../assets/css/main.css">
   <link rel="stylesheet" href="../assets/css/docs.css">
+  <link rel="stylesheet" href="../assets/css/highlight.css">
 </head>
 <body>
   <header class="site-header">
@@ -43,9 +44,7 @@ on <code>config</code>, each with a sane default and most tunable per environmen
 </li>
 <li><p><strong>Real environment variables</strong> — a variable already in the process
 environment always wins over any <code>.env</code> file, so</p>
-<pre><code class="language-sh">export SECRET_KEY_BASE=&quot;$(openssl rand -hex 64)&quot; altair server
-</code></pre>
-<p>beats a checked-in fallback.</p>
+<pre><code class="hljs language-sh"><span class="hljs-built_in">export</span> SECRET_KEY_BASE=<span class="hljs-string">&quot;<span class="hljs-subst">$(openssl rand -hex 64)</span>&quot;</span> altair server</code></pre><p>beats a checked-in fallback.</p>
 </li>
 <li><p><strong><code>config/database.yml</code></strong> — the active environment&#39;s section is merged
 into the database settings.</p>
@@ -59,77 +58,63 @@ overrides whatever the file says, and the same override drives
 <h2><code>.env</code></h2>
 <p><code>KEY=VALUE</code> pairs loaded into the process environment. Handles <code>export</code>,
 quoted and unquoted values and <code>#</code> comments:</p>
-<pre><code class="language-ini"># .env — dev/test defaults
-SECRET_KEY_BASE=change-me-dev-secret
-DATABASE_URL=sqlite3://./db/blog.db
-</code></pre>
-<pre><code class="language-ini"># .env.production — overrides for production
-SECRET_KEY_BASE=8f2a…  # keep out of the repository
-</code></pre>
-<h2><code>config/database.yml</code></h2>
+<pre><code class="hljs language-ini"><span class="hljs-comment"># .env — dev/test defaults</span>
+<span class="hljs-attr">SECRET_KEY_BASE</span>=change-me-dev-secret
+<span class="hljs-attr">DATABASE_URL</span>=sqlite3://./db/blog.db</code></pre><pre><code class="hljs language-ini"><span class="hljs-comment"># .env.production — overrides for production</span>
+<span class="hljs-attr">SECRET_KEY_BASE</span>=<span class="hljs-number">8</span>f2a…  <span class="hljs-comment"># keep out of the repository</span></code></pre><h2><code>config/database.yml</code></h2>
 <p>Per-environment database settings. Only the section matching the active
 environment is applied:</p>
-<pre><code class="language-yaml">production:
-  url: postgresql://user:pass@localhost/blog_production
-  pool: 25
-  initial_pool: 4
-  max_idle_pool: 4
-  checkout_timeout: 5.0
-  query_timeout: 5.0
+<pre><code class="hljs language-yaml"><span class="hljs-attr">production:</span>
+  <span class="hljs-attr">url:</span> <span class="hljs-string">postgresql://user:pass@localhost/blog_production</span>
+  <span class="hljs-attr">pool:</span> <span class="hljs-number">25</span>
+  <span class="hljs-attr">initial_pool:</span> <span class="hljs-number">4</span>
+  <span class="hljs-attr">max_idle_pool:</span> <span class="hljs-number">4</span>
+  <span class="hljs-attr">checkout_timeout:</span> <span class="hljs-number">5.0</span>
+  <span class="hljs-attr">query_timeout:</span> <span class="hljs-number">5.0</span>
 
-test:
-  url: sqlite3://./db/test.db
-</code></pre>
-<p>Recognised keys are the <code>url</code> and the <code>db_*</code> pool settings (<code>pool</code>,
+<span class="hljs-attr">test:</span>
+  <span class="hljs-attr">url:</span> <span class="hljs-string">sqlite3://./db/test.db</span></code></pre><p>Recognised keys are the <code>url</code> and the <code>db_*</code> pool settings (<code>pool</code>,
 <code>initial_pool</code>, <code>max_idle_pool</code>, <code>checkout_timeout</code>, <code>query_timeout</code>).</p>
 <h2>The <code>config</code> object</h2>
 <p>Everything is a typed property on the application&#39;s <code>config</code>, so a typo is
 a compile error:</p>
-<pre><code class="language-crystal">class Blog &lt; Altair::Application
-  config.name = &quot;Blog&quot;
-  config.port = 3000
-  config.secret_key_base = ENV[&quot;SECRET_KEY_BASE&quot;] || &quot;dev-only-secret&quot;
+<pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Blog</span> &lt; <span class="hljs-title">Altair::Application</span></span>
+  config.name = <span class="hljs-string">&quot;Blog&quot;</span>
+  config.port = <span class="hljs-number">3000</span>
+  config.secret_key_base = ENV[<span class="hljs-string">&quot;SECRET_KEY_BASE&quot;</span>] || <span class="hljs-string">&quot;dev-only-secret&quot;</span>
 
-  config.db_url = &quot;sqlite3://./db/blog.db&quot;
-  config.db_max_pool_size = 10
+  config.db_url = <span class="hljs-string">&quot;sqlite3://./db/blog.db&quot;</span>
+  config.db_max_pool_size = <span class="hljs-number">10</span>
 
-  config.login_path = &quot;/login&quot;
-  config.max_body_size = 10.megabytes
-end
-</code></pre>
-<h3>Per-environment settings</h3>
+  config.login_path = <span class="hljs-string">&quot;/login&quot;</span>
+  config.max_body_size = <span class="hljs-number">10</span>.megabytes
+<span class="hljs-keyword">end</span></code></pre><h3>Per-environment settings</h3>
 <p>Environments carry their own bags, addressed as
 <code>config.environments.&lt;env&gt;.&lt;setting&gt;</code>. Development and test default to debug
 on; production defaults to eager loading on:</p>
-<pre><code class="language-crystal">config.environments.production.eager_load = true
-config.environments.production.max_body_size = 100.megabytes
-</code></pre>
-<p>or programmatically with <code>config.environment(name)</code>.</p>
+<pre><code class="hljs language-crystal">config.environments.production.eager_load = <span class="hljs-literal">true</span>
+config.environments.production.max_body_size = <span class="hljs-number">100</span>.megabytes</code></pre><p>or programmatically with <code>config.environment(name)</code>.</p>
 <h3>The middleware stack</h3>
 <p><code>config.middleware</code> holds the stack run on every request before routing,
 each entry a factory proc. The default stack is logging, request-id
 assignment, the default security headers, CORS and static files:</p>
-<pre><code class="language-crystal">config.middleware = [
-  -&gt;(app : Altair::Application) : Altair::Middleware { Altair::Middleware::Logger.new(app) },
-  -&gt;(app : Altair::Application) : Altair::Middleware { Altair::Middleware::Static.new(app) },
-]
-</code></pre>
-<p>Assign an empty array to disable them all, or build your own stack. CORS is
+<pre><code class="hljs language-crystal">config.middleware = [
+  -&gt;(app : <span class="hljs-symbol">Altair:</span>:Application) : <span class="hljs-symbol">Altair:</span>:Middleware { <span class="hljs-symbol">Altair:</span>:<span class="hljs-symbol">Middleware:</span>:Logger.new(app) },
+  -&gt;(app : <span class="hljs-symbol">Altair:</span>:Application) : <span class="hljs-symbol">Altair:</span>:Middleware { <span class="hljs-symbol">Altair:</span>:<span class="hljs-symbol">Middleware:</span>:Static.new(app) },
+]</code></pre><p>Assign an empty array to disable them all, or build your own stack. CORS is
 a pass-through until <code>config.cors.origins</code> is filled (see
 <a href="../docs/security.html">Security</a>).</p>
 <h3>Development console</h3>
 <p>The development server prints a boxed banner once at boot and one
 aligned line per request. Colors are auto-detected from <code>STDOUT.tty?</code>
 and <code>NO_COLOR</code>/<code>TERM</code>, or forced via <code>config.logger_colors</code>.</p>
-<pre><code class="language-crystal">class Blog &lt; Altair::Application
-  config.logger_colors = true              # nil = auto, true/false = forced
-  config.logger_timestamps = true          # HH:MM:SS prefix
-  config.logger_request_counter = true     # #0001 prefix
-  config.logger_compact = false            # compact single-line without alignment
-  config.slow_request_threshold = 20.milliseconds # highlight slower requests
-end
-</code></pre>
-<p>Slow requests are highlighted and suffixed with <code>[SLOW]</code>; status codes
+<pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Blog</span> &lt; <span class="hljs-title">Altair::Application</span></span>
+  config.logger_colors = <span class="hljs-literal">true</span>              <span class="hljs-comment"># nil = auto, true/false = forced</span>
+  config.logger_timestamps = <span class="hljs-literal">true</span>          <span class="hljs-comment"># HH:MM:SS prefix</span>
+  config.logger_request_counter = <span class="hljs-literal">true</span>     <span class="hljs-comment"># #0001 prefix</span>
+  config.logger_compact = <span class="hljs-literal">false</span>            <span class="hljs-comment"># compact single-line without alignment</span>
+  config.slow_request_threshold = <span class="hljs-number">20</span>.milliseconds <span class="hljs-comment"># highlight slower requests</span>
+<span class="hljs-keyword">end</span></code></pre><p>Slow requests are highlighted and suffixed with <code>[SLOW]</code>; status codes
 and HTTP methods are colored by family (2xx green, 3xx blue, 4xx yellow,
 5xx red; GET green, POST blue, etc.).</p>
 <h2>Reference</h2>

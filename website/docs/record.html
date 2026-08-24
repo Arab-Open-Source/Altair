@@ -8,6 +8,7 @@
   <link rel="icon" href="../favicon.png" type="image/png">
   <link rel="stylesheet" href="../assets/css/main.css">
   <link rel="stylesheet" href="../assets/css/docs.css">
+  <link rel="stylesheet" href="../assets/css/highlight.css">
 </head>
 <body>
   <header class="site-header">
@@ -37,120 +38,100 @@ strings stay constant, so values can never be interpolated into a query.</p>
 <h2>Connecting</h2>
 <p>The application points at a database; <code>ALTAIR_DB_URL</code> overrides it at run
 time:</p>
-<pre><code class="language-crystal">class Blog &lt; Altair::Application
-  config.db_url = ENV[&quot;ALTAIR_DB_URL&quot;]? || &quot;sqlite3://./db/blog.db&quot;
-end
-</code></pre>
-<pre><code class="language-sh"># SQLite (default) — or PostgreSQL:
-ALTAIR_DB_URL=&quot;postgres://postgres:secret@localhost:5433/blog&quot; altair server
-</code></pre>
-<h2>Models</h2>
+<pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Blog</span> &lt; <span class="hljs-title">Altair::Application</span></span>
+  config.db_url = ENV[<span class="hljs-string">&quot;ALTAIR_DB_URL&quot;</span>]? || <span class="hljs-string">&quot;sqlite3://./db/blog.db&quot;</span>
+<span class="hljs-keyword">end</span></code></pre><pre><code class="hljs language-sh"><span class="hljs-comment"># SQLite (default) — or PostgreSQL:</span>
+ALTAIR_DB_URL=<span class="hljs-string">&quot;postgres://postgres:secret@localhost:5433/blog&quot;</span> altair server</code></pre><h2>Models</h2>
 <p>A model maps to a table and gets typed accessors for every column, generated
 from <code>db/schema.cr</code> at compile time:</p>
-<pre><code class="language-crystal">class Post &lt; Altair::Record::Model
+<pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Post</span> &lt; <span class="hljs-title">Altair::Record::Model</span></span>
   table :posts
 
-  has_many :comments, dependent: :destroy
+  has_many :comments, <span class="hljs-symbol">dependent:</span> :destroy
   validates_presence_of :title
-end
-</code></pre>
-<h3>CRUD and finders</h3>
-<pre><code class="language-crystal">post = Post.new(title: &quot;Hello&quot;)
-post.save                                  # false when invalid
-post.save!                                 # raises Altair::Record::Error instead
+<span class="hljs-keyword">end</span></code></pre><h3>CRUD and finders</h3>
+<pre><code class="hljs language-crystal">post = Post.new(<span class="hljs-symbol">title:</span> <span class="hljs-string">&quot;Hello&quot;</span>)
+post.save                                  <span class="hljs-comment"># false when invalid</span>
+post.save!                                 <span class="hljs-comment"># raises Altair::Record::Error instead</span>
 
-Post.create(title: &quot;Hello&quot;)                # save + validate, one call
-post.title = &quot;Edited&quot;
-post.update(title: &quot;Edited&quot;)               # save changes in place
-post.delete                                # delete the row
+Post.create(<span class="hljs-symbol">title:</span> <span class="hljs-string">&quot;Hello&quot;</span>)                <span class="hljs-comment"># save + validate, one call</span>
+post.title = <span class="hljs-string">&quot;Edited&quot;</span>
+post.update(<span class="hljs-symbol">title:</span> <span class="hljs-string">&quot;Edited&quot;</span>)               <span class="hljs-comment"># save changes in place</span>
+post.delete                                <span class="hljs-comment"># delete the row</span>
 
-Post.find(5)                               # Post?  — nil when missing
-Post.find!(5)                              # Post   — raises when missing
-Post.find_by_title(&quot;Hello&quot;)                # Post?  — find_by_&lt;column&gt;
-Post.find_by_title!(&quot;Hello&quot;)
-Post.all                                   # Relation(Post)
-Post.count                                 # Int64
-Post.exists?(5)
-Post.pluck(:title)                         # Array(Value)
-</code></pre>
-<p><code>Post.all</code> is lazy and caches after iteration; chain <code>.where</code> to filter:</p>
-<pre><code class="language-crystal">Post.all.where(published: true)
-Post.all.where(:views, :&gt;=, 15).order(:created_at).to_a
-</code></pre>
-<h3>Querying relations</h3>
+Post.find(<span class="hljs-number">5</span>)                               <span class="hljs-comment"># Post?  — nil when missing</span>
+Post.find!(<span class="hljs-number">5</span>)                              <span class="hljs-comment"># Post   — raises when missing</span>
+Post.find_by_title(<span class="hljs-string">&quot;Hello&quot;</span>)                <span class="hljs-comment"># Post?  — find_by_&lt;column&gt;</span>
+Post.find_by_title!(<span class="hljs-string">&quot;Hello&quot;</span>)
+Post.all                                   <span class="hljs-comment"># Relation(Post)</span>
+Post.count                                 <span class="hljs-comment"># Int64</span>
+Post.exists?(<span class="hljs-number">5</span>)
+Post.pluck(:title)                         <span class="hljs-comment"># Array(Value)</span></code></pre><p><code>Post.all</code> is lazy and caches after iteration; chain <code>.where</code> to filter:</p>
+<pre><code class="hljs language-crystal">Post.all.where(<span class="hljs-symbol">published:</span> <span class="hljs-literal">true</span>)
+Post.all.where(:views, :&gt;=, <span class="hljs-number">15</span>).order(:created_at).to_a</code></pre><h3>Querying relations</h3>
 <p>Negation, alternatives, pattern matching and membership — every value
 travels as a bind parameter:</p>
-<pre><code class="language-crystal">Post.all.where_not(published: true)         # NOT (published = ?)
-Post.all.where(:title, :like, &quot;%altair%&quot;)   # title LIKE ?
-Post.all.where(:views, :in, [3, 12])        # views IN (?, ?); empty matches nothing
-Post.all.where(:user_id, :null)             # IS NULL (also :not_null)
-Post.all.where(views: 30).or_where(views: 45)
-# WHERE (views = ? OR views = ?) — alternatives fold into the previous clause
-</code></pre>
-<p>Relation finders read without materializing the scope:</p>
-<pre><code class="language-crystal">Post.all.first / first?                     # pk ascending unless the scope orders
-Post.all.last / last?                       # reverses the scope&#39;s ordering
-Post.all.take(2)                            # first n rows, order untouched
-Post.all.ids                                # scoped primary keys
-Post.all.order(:views).pick(:title)         # one column from the leading scoped row
-Post.all.exists? / any? / none?             # LIMIT 1 probe, never a full load
-</code></pre>
-<p>Bulk writes run one statement for the whole scope. They bypass callbacks,
+<pre><code class="hljs language-crystal">Post.all.where_not(<span class="hljs-symbol">published:</span> <span class="hljs-literal">true</span>)         <span class="hljs-comment"># NOT (published = ?)</span>
+Post.all.where(:title, :like, <span class="hljs-string">&quot;%altair%&quot;</span>)   <span class="hljs-comment"># title LIKE ?</span>
+Post.all.where(:views, :in, [<span class="hljs-number">3</span>, <span class="hljs-number">12</span>])        <span class="hljs-comment"># views IN (?, ?); empty matches nothing</span>
+Post.all.where(:user_id, :null)             <span class="hljs-comment"># IS NULL (also :not_null)</span>
+Post.all.where(<span class="hljs-symbol">views:</span> <span class="hljs-number">30</span>).or_where(<span class="hljs-symbol">views:</span> <span class="hljs-number">45</span>)
+<span class="hljs-comment"># WHERE (views = ? OR views = ?) — alternatives fold into the previous clause</span></code></pre><p>Relation finders read without materializing the scope:</p>
+<pre><code class="hljs language-crystal">Post.all.first / first?                     <span class="hljs-comment"># pk ascending unless the scope orders</span>
+Post.all.last / last?                       <span class="hljs-comment"># reverses the scope&#x27;s ordering</span>
+Post.all.take(<span class="hljs-number">2</span>)                            <span class="hljs-comment"># first n rows, order untouched</span>
+Post.all.ids                                <span class="hljs-comment"># scoped primary keys</span>
+Post.all.order(:views).pick(:title)         <span class="hljs-comment"># one column from the leading scoped row</span>
+Post.all.exists? <span class="hljs-regexp">/ any? /</span> none?             <span class="hljs-comment"># LIMIT 1 probe, never a full load</span></code></pre><p>Bulk writes run one statement for the whole scope. They bypass callbacks,
 validations and timestamps — this is the administrative path:</p>
-<pre><code class="language-crystal">Post.all.where(published: false).update_all(published: true)
-Post.all.where(views: 0).delete_all
-</code></pre>
-<p><code>.count</code> respects <code>limit</code>/<code>offset</code>: a bounded relation counts exactly the
+<pre><code class="hljs language-crystal">Post.all.where(<span class="hljs-symbol">published:</span> <span class="hljs-literal">false</span>).update_all(<span class="hljs-symbol">published:</span> <span class="hljs-literal">true</span>)
+Post.all.where(<span class="hljs-symbol">views:</span> <span class="hljs-number">0</span>).delete_all</code></pre><p><code>.count</code> respects <code>limit</code>/<code>offset</code>: a bounded relation counts exactly the
 rows <code>to_a</code> would return.</p>
 <h3>Bulk inserts, dirty tracking and enum columns</h3>
-<pre><code class="language-crystal"># One multi-row INSERT; timestamps auto-fill like create. Bypasses
-# validations and callbacks — this is the bulk load path. Large sets
-# chunk inside one transaction, so the call stays all-or-nothing.
+<pre><code class="hljs language-crystal"><span class="hljs-comment"># One multi-row INSERT; timestamps auto-fill like create. Bypasses</span>
+<span class="hljs-comment"># validations and callbacks — this is the bulk load path. Large sets</span>
+<span class="hljs-comment"># chunk inside one transaction, so the call stays all-or-nothing.</span>
 Post.insert_all([
-  {title: &quot;a&quot;, views: 1, published: true},
-  {title: &quot;b&quot;, views: 2, published: false},
+  {<span class="hljs-symbol">title:</span> <span class="hljs-string">&quot;a&quot;</span>, <span class="hljs-symbol">views:</span> <span class="hljs-number">1</span>, <span class="hljs-symbol">published:</span> <span class="hljs-literal">true</span>},
+  {<span class="hljs-symbol">title:</span> <span class="hljs-string">&quot;b&quot;</span>, <span class="hljs-symbol">views:</span> <span class="hljs-number">2</span>, <span class="hljs-symbol">published:</span> <span class="hljs-literal">false</span>},
 ])
 
-post = Post.find!(1)
-post.changed?                    # any attribute changed since load?
-post.changed_attributes          # [:title]
-post.attribute_changed?(:views)  # false
-post.restore_attributes(:title)  # revert to the loaded value
-post.restore_attributes          # or every changed attribute
+post = Post.find!(<span class="hljs-number">1</span>)
+post.changed?                    <span class="hljs-comment"># any attribute changed since load?</span>
+post.changed_attributes          <span class="hljs-comment"># [:title]</span>
+post.attribute_changed?(:views)  <span class="hljs-comment"># false</span>
+post.restore_attributes(:title)  <span class="hljs-comment"># revert to the loaded value</span>
+post.restore_attributes          <span class="hljs-comment"># or every changed attribute</span>
 
-# A string column with a compile-time checked value set:
-class Task &lt; Altair::Record::Model
+<span class="hljs-comment"># A string column with a compile-time checked value set:</span>
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Task</span> &lt; <span class="hljs-title">Altair::Record::Model</span></span>
   table :tasks
 
   enum_attribute :state, [:pending, :in_review, :done]
-end
+<span class="hljs-keyword">end</span>
 
-task.state = Task::State::Done   # compiles
-task.state = &quot;done&quot;              # compile error
-</code></pre>
-<p><code>enum_attribute</code> stores the member name in snake_case (<code>&quot;in_review&quot;</code>),
+task.state = <span class="hljs-symbol">Task:</span>:<span class="hljs-symbol">State:</span>:Done   <span class="hljs-comment"># compiles</span>
+task.state = <span class="hljs-string">&quot;done&quot;</span>              <span class="hljs-comment"># compile error</span></code></pre><p><code>enum_attribute</code> stores the member name in snake_case (<code>&quot;in_review&quot;</code>),
 so raw rows stay readable; a stored value no member claims reads back as
 <code>nil</code>, keeping legacy data safe.</p>
 <h2>Migrations</h2>
 <p>Migrations live in <code>db/migrations/</code> as timestamped files; <code>altair db:migrate</code> runs pending ones and <code>altair db:rollback</code> undoes the last.</p>
-<pre><code class="language-crystal">class CreatePosts &lt; Altair::Record::Migration
-  def up(schema : Altair::Record::Schema) : Nil
-    schema.create_table(:posts) do |t|
+<pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">CreatePosts</span> &lt; <span class="hljs-title">Altair::Record::Migration</span></span>
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">up</span></span>(schema : <span class="hljs-symbol">Altair:</span>:<span class="hljs-symbol">Record:</span>:Schema) : Nil
+    schema.create_table(:posts) <span class="hljs-keyword">do</span> |t|
       t.string :title
       t.text :body
       t.boolean :published
       t.datetime :created_at
       t.datetime :updated_at
-    end
+    <span class="hljs-keyword">end</span>
     schema.add_index(:posts, :title)
-  end
+  <span class="hljs-keyword">end</span>
 
-  def down(schema : Altair::Record::Schema) : Nil
+  <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">down</span></span>(schema : <span class="hljs-symbol">Altair:</span>:<span class="hljs-symbol">Record:</span>:Schema) : Nil
     schema.drop_table(:posts)
-  end
-end
-</code></pre>
-<p>Column types are <code>string</code>, <code>text</code>, <code>integer</code>, <code>bigint</code>, <code>float</code>, <code>decimal</code>,
+  <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span></code></pre><p>Column types are <code>string</code>, <code>text</code>, <code>integer</code>, <code>bigint</code>, <code>float</code>, <code>decimal</code>,
 <code>boolean</code>, <code>datetime</code> and <code>json</code>. Timestamps aren&#39;t automatic — add
 <code>created_at</code> / <code>updated_at</code> columns and the model fills them when they
 exist. <code>db/schema.cr</code> is regenerated after every run and feeds the
@@ -162,211 +143,165 @@ SQLite rebuilds the table (rows and explicit indexes preserved).</p>
 <h2>Validations</h2>
 <p>Validations run before save; failures land in <code>errors</code> and <code>valid?</code> returns
 false:</p>
-<pre><code class="language-crystal">class Post &lt; Altair::Record::Model
+<pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Post</span> &lt; <span class="hljs-title">Altair::Record::Model</span></span>
   validates_presence_of :title
-  validates_length_of :title, maximum: 140
-  validates_numericality_of :views, greater_than: 0, integer: true
-  validates_uniqueness_of :slug, scope: :category_id
-  validates_inclusion_of :status, in: %w[draft published]
-  validates_exclusion_of :slug, in: %w[admin login]
-  validates_format_of :email, with: /\A[^@\s]+@[^@\s]+\z/
+  validates_length_of :title, <span class="hljs-symbol">maximum:</span> <span class="hljs-number">140</span>
+  validates_numericality_of :views, <span class="hljs-symbol">greater_than:</span> <span class="hljs-number">0</span>, <span class="hljs-symbol">integer:</span> <span class="hljs-literal">true</span>
+  validates_uniqueness_of :slug, <span class="hljs-symbol">scope:</span> :category_id
+  validates_inclusion_of :status, <span class="hljs-symbol">in:</span> <span class="hljs-string">%w[draft published]</span>
+  validates_exclusion_of :slug, <span class="hljs-symbol">in:</span> <span class="hljs-string">%w[admin login]</span>
+  validates_format_of :email, <span class="hljs-symbol">with:</span> /\A[^@\s]+<span class="hljs-meta">@[^@\s]</span>+\z/
   validates_confirmation_of :password
-end
-</code></pre>
-<p>Every macro accepts <code>if:</code> / <code>unless:</code> predicate methods and <code>allow_nil:</code>;
+<span class="hljs-keyword">end</span></code></pre><p>Every macro accepts <code>if:</code> / <code>unless:</code> predicate methods and <code>allow_nil:</code>;
 uniqueness takes <code>case_sensitive: false</code> to match through <code>LOWER</code>:</p>
-<pre><code class="language-crystal">validates_length_of :name, minimum: 5, if: :verified?
-validates_presence_of :handle, unless: :importing?
-validates_format_of :website, with: %r{https://}, allow_nil: true
-validates_uniqueness_of :email, case_sensitive: false
-</code></pre>
-<pre><code class="language-crystal">post = Post.new(title: &quot;&quot;)
-post.valid?            # false
-post.errors[:title]    # [&quot;Title can&#39;t be blank&quot;]
-post.errors.full_messages
-</code></pre>
-<h2>Callbacks</h2>
+<pre><code class="hljs language-crystal">validates_length_of :name, <span class="hljs-symbol">minimum:</span> <span class="hljs-number">5</span>, <span class="hljs-keyword">if</span>: :verified?
+validates_presence_of :handle, <span class="hljs-keyword">unless</span>: :importing?
+validates_format_of :website, <span class="hljs-symbol">with:</span> <span class="hljs-regexp">%r{https://}</span>, <span class="hljs-symbol">allow_nil:</span> <span class="hljs-literal">true</span>
+validates_uniqueness_of :email, <span class="hljs-symbol">case_sensitive:</span> <span class="hljs-literal">false</span></code></pre><pre><code class="hljs language-crystal">post = Post.new(<span class="hljs-symbol">title:</span> <span class="hljs-string">&quot;&quot;</span>)
+post.valid?            <span class="hljs-comment"># false</span>
+post.errors[:title]    <span class="hljs-comment"># [&quot;Title can&#x27;t be blank&quot;]</span>
+post.errors.full_messages</code></pre><h2>Callbacks</h2>
 <p><code>before_save</code>, <code>after_save</code>, <code>before_create</code>, <code>after_create</code>,
 <code>before_update</code>, <code>after_update</code>, <code>before_destroy</code>, <code>after_destroy</code> — each
 takes method names to run around the lifecycle:</p>
-<pre><code class="language-crystal">class Post &lt; Altair::Record::Model
+<pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Post</span> &lt; <span class="hljs-title">Altair::Record::Model</span></span>
   before_save :slugify
   after_create :notify
 
-  private def slugify : Nil
-    self.slug = title.downcase.gsub(&#39; &#39;, &quot;-&quot;)
-  end
-end
-</code></pre>
-<p><code>after_commit</code> and <code>after_rollback</code> fire after the record&#39;s save or delete
+  <span class="hljs-keyword">private</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">slugify</span></span> : Nil
+    <span class="hljs-keyword">self</span>.slug = title.downcase.gsub(<span class="hljs-string">&#x27; &#x27;</span>, <span class="hljs-string">&quot;-&quot;</span>)
+  <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span></code></pre><p><code>after_commit</code> and <code>after_rollback</code> fire after the record&#39;s save or delete
 transaction lands — or on the way out of a rollback. Enqueue jobs and
 invalidate caches in <code>after_commit</code>, never <code>after_save</code>: inside the
 transaction the data is not yet visible to other connections, and a later
 rollback would leave the job chasing a row that never existed.</p>
-<pre><code class="language-crystal">class Post &lt; Altair::Record::Model
+<pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Post</span> &lt; <span class="hljs-title">Altair::Record::Model</span></span>
   after_commit :reindex
   after_rollback :clear_pending_flag
 
-  private def reindex : Nil
+  <span class="hljs-keyword">private</span> <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">reindex</span></span> : Nil
     SearchJob.enqueue(id)
-  end
-end
-</code></pre>
-<p>Direct-write helpers bypass callbacks and validations — one statement,
+  <span class="hljs-keyword">end</span>
+<span class="hljs-keyword">end</span></code></pre><p>Direct-write helpers bypass callbacks and validations — one statement,
 no ceremony:</p>
-<pre><code class="language-crystal">post.touch                       # updated_at = now
-audit.touch(:reviewed_at)        # listed timestamp columns bump too
-counter.increment!(:hits)        # hits = hits + 1 (atomic)
-counter.decrement!(:hits, 5)     # hits = hits - 5
-</code></pre>
-<h2>Associations</h2>
+<pre><code class="hljs language-crystal">post.touch                       <span class="hljs-comment"># updated_at = now</span>
+audit.touch(:reviewed_at)        <span class="hljs-comment"># listed timestamp columns bump too</span>
+counter.increment!(:hits)        <span class="hljs-comment"># hits = hits + 1 (atomic)</span>
+counter.decrement!(:hits, <span class="hljs-number">5</span>)     <span class="hljs-comment"># hits = hits - 5</span></code></pre><h2>Associations</h2>
 <p><code>belongs_to</code>, <code>has_many</code> and <code>has_one</code> generate typed accessors and foreign
 keys. <code>dependent:</code> clears the child rows when the parent is destroyed, and
 <code>includes</code> eager-loads a whole relation in one batched query — no query per
 row:</p>
-<pre><code class="language-crystal">class Post &lt; Altair::Record::Model
-  has_many :comments, dependent: :destroy
+<pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Post</span> &lt; <span class="hljs-title">Altair::Record::Model</span></span>
+  has_many :comments, <span class="hljs-symbol">dependent:</span> :destroy
   has_one :profile
-end
+<span class="hljs-keyword">end</span>
 
-class Comment &lt; Altair::Record::Model
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Comment</span> &lt; <span class="hljs-title">Altair::Record::Model</span></span>
   belongs_to :post
-end
-</code></pre>
-<p><code>counter_cache: true</code> on a <code>belongs_to</code> maintains <code>&lt;assoc&gt;_count</code> (or the
+<span class="hljs-keyword">end</span></code></pre><p><code>counter_cache: true</code> on a <code>belongs_to</code> maintains <code>&lt;assoc&gt;_count</code> (or the
 named column) on the owner atomically as children are created and deleted:</p>
-<pre><code class="language-crystal">class Comment &lt; Altair::Record::Model
-  belongs_to :post, counter_cache: true   # posts.comments_count
-end
+<pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Comment</span> &lt; <span class="hljs-title">Altair::Record::Model</span></span>
+  belongs_to :post, <span class="hljs-symbol">counter_cache:</span> <span class="hljs-literal">true</span>   <span class="hljs-comment"># posts.comments_count</span>
+<span class="hljs-keyword">end</span>
 
-post.comments_count                       # no COUNT query at read time
-</code></pre>
-<p>When the child model declares no destroy callbacks, <code>dependent: :destroy</code>
+post.comments_count                       <span class="hljs-comment"># no COUNT query at read time</span></code></pre><p>When the child model declares no destroy callbacks, <code>dependent: :destroy</code>
 collapses into one <code>DELETE ... WHERE fk = ?</code>; children with their own
 lifecycle still run it row by row.</p>
-<pre><code class="language-crystal">post.comments.each { |c| puts c.body }
-Post.all.includes(:comments).to_a          # 2 queries total
-</code></pre>
-<h3>Loading and counting without N+1</h3>
+<pre><code class="hljs language-crystal">post.comments.each { |c| puts c.body }
+Post.all.includes(:comments).to_a          <span class="hljs-comment"># 2 queries total</span></code></pre><h3>Loading and counting without N+1</h3>
 <p>Association accessors are lazy: <code>post.comments</code> runs one query the first
 time it is touched. That is free for a single record and quietly
 catastrophic inside a loop — <code>posts.each { |p| p.comments.size }</code> is one
 query per post. The rule: <strong>an association accessed inside a loop belongs
 in <code>includes</code></strong>.</p>
-<pre><code class="language-crystal">posts = Post.all.includes(:comments).to_a   # one batched query per association
-posts.each { |p| p.comments.size }          # no extra queries
-</code></pre>
-<p><code>includes</code> nests through named pairs — every further level applies to the
+<pre><code class="hljs language-crystal">posts = Post.all.includes(:comments).to_a   <span class="hljs-comment"># one batched query per association</span>
+posts.each { |p| p.comments.size }          <span class="hljs-comment"># no extra queries</span></code></pre><p><code>includes</code> nests through named pairs — every further level applies to the
 rows the previous level loaded, still one batched query per level:</p>
-<pre><code class="language-crystal">User.all.includes(posts: :comments).to_a
-User.all.includes(posts: {comments: :post}).to_a   # any depth
-</code></pre>
-<p><code>Relation#count</code> and <code>size</code> never materialize the rows — they run
+<pre><code class="hljs language-crystal">User.all.includes(<span class="hljs-symbol">posts:</span> :comments).to_a
+User.all.includes(<span class="hljs-symbol">posts:</span> {<span class="hljs-symbol">comments:</span> :post}).to_a   <span class="hljs-comment"># any depth</span></code></pre><p><code>Relation#count</code> and <code>size</code> never materialize the rows — they run
 <code>COUNT(*)</code> with the scoped <code>where</code> clauses (and reuse the cached rows once
 loaded):</p>
-<pre><code class="language-crystal">Post.all.where(published: true).count       # SELECT COUNT(*), no row loading
-Post.all.includes(:comments).size           # 2 queries, rows not materialized
-</code></pre>
-<h3>Scopes</h3>
+<pre><code class="hljs language-crystal">Post.all.where(<span class="hljs-symbol">published:</span> <span class="hljs-literal">true</span>).count       <span class="hljs-comment"># SELECT COUNT(*), no row loading</span>
+Post.all.includes(:comments).size           <span class="hljs-comment"># 2 queries, rows not materialized</span></code></pre><h3>Scopes</h3>
 <p>A <code>scope</code> declares a reusable, chainable query fragment as a class
 method. The static form passes <code>key: value</code> pairs to <code>where</code>; the block
 form receives the relation and returns whatever chain it builds:</p>
-<pre><code class="language-crystal">class Post &lt; Altair::Record::Model
+<pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Post</span> &lt; <span class="hljs-title">Altair::Record::Model</span></span>
   table :posts
 
-  scope :published, published: true
-  scope :recent { |query| query.order(:created_at).limit(10) }
-end
+  scope :published, <span class="hljs-symbol">published:</span> <span class="hljs-literal">true</span>
+  scope :recent { |query| query.order(:created_at).limit(<span class="hljs-number">10</span>) }
+<span class="hljs-keyword">end</span>
 
 Post.published.to_a
-Post.recent.where(:views, :&gt;=, 5).to_a
-</code></pre>
-<p>Crystal has no dynamic dispatch, so two scopes compose through
+Post.recent.where(:views, :&gt;=, <span class="hljs-number">5</span>).to_a</code></pre><p>Crystal has no dynamic dispatch, so two scopes compose through
 <code>merge</code> — where clauses AND together and a later <code>order</code>, <code>limit</code> or
 <code>offset</code> wins:</p>
-<pre><code class="language-crystal">Post.published.merge(Post.recent).to_a
-</code></pre>
-<p><code>find_each</code> streams in bounded batches ordered by primary key and keeps
+<pre><code class="hljs language-crystal">Post.published.merge(Post.recent).to_a</code></pre><p><code>find_each</code> streams in bounded batches ordered by primary key and keeps
 the scoped filters and preloaders across batches:</p>
-<pre><code class="language-crystal">Post.all.where(published: true).includes(:comments).find_each(batch_size: 100) do |post|
+<pre><code class="hljs language-crystal">Post.all.where(<span class="hljs-symbol">published:</span> <span class="hljs-literal">true</span>).includes(:comments).find_each(<span class="hljs-symbol">batch_size:</span> <span class="hljs-number">100</span>) <span class="hljs-keyword">do</span> |post|
   post.comments.each { |c| c.touch }
-end
-</code></pre>
-<p>In the Development environment the framework watches every query for the
+<span class="hljs-keyword">end</span></code></pre><p>In the Development environment the framework watches every query for the
 N+1 signature — the same SQL firing more than <code>config.n_plus_one_threshold</code>
 (3) times within one request — and logs a warning naming the statement.
 Production never pays the detector&#39;s cost; disable it with
 <code>config.detect_n_plus_one = false</code> if it is ever noisy.</p>
 <h2>Joins</h2>
 <p>Filter parents by their children in a single SQL query — no N+1, no manual SQL:</p>
-<pre><code class="language-crystal">Post.all.joins(:comments).where(&quot;comments.body&quot;, &quot;altair&quot;)
-Post.all.left_joins(:comments)                 # keep owners without children
-Post.all.joins(:comments).where(&quot;comments.body&quot;, &quot;hi&quot;).count   # COUNT(DISTINCT posts.id)
-</code></pre>
-<p><code>joins</code> on a <code>has_many</code> automatically deduplicates (<code>SELECT DISTINCT</code>) so a post
+<pre><code class="hljs language-crystal">Post.all.joins(:comments).where(<span class="hljs-string">&quot;comments.body&quot;</span>, <span class="hljs-string">&quot;altair&quot;</span>)
+Post.all.left_joins(:comments)                 <span class="hljs-comment"># keep owners without children</span>
+Post.all.joins(:comments).where(<span class="hljs-string">&quot;comments.body&quot;</span>, <span class="hljs-string">&quot;hi&quot;</span>).count   <span class="hljs-comment"># COUNT(DISTINCT posts.id)</span></code></pre><p><code>joins</code> on a <code>has_many</code> automatically deduplicates (<code>SELECT DISTINCT</code>) so a post
 with three matching comments appears once. Qualified columns (<code>&quot;comments.body&quot;</code>)
 are quoted per part; every value is still a bind parameter.</p>
 <h2>Ordering &amp; reloading</h2>
-<pre><code class="language-crystal">Post.all.order(:created_at).order(:title)       # ORDER BY created_at, title (accumulates)
-Post.all.order(:created_at).reorder(:title)     # ORDER BY title (replaces)
-Post.all.unscope_order                          # removes all ORDER BY
+<pre><code class="hljs language-crystal">Post.all.order(:created_at).order(:title)       <span class="hljs-comment"># ORDER BY created_at, title (accumulates)</span>
+Post.all.order(:created_at).reorder(:title)     <span class="hljs-comment"># ORDER BY title (replaces)</span>
+Post.all.unscope_order                          <span class="hljs-comment"># removes all ORDER BY</span>
 
-post = Post.find!(1)
-post.reload                                     # re-reads from DB
-</code></pre>
-<h2>Custom primary keys</h2>
-<pre><code class="language-crystal">table :posts, primary_key: :uuid   # column must exist in the migration
-</code></pre>
-<p>String PKs auto-generate a <code>SecureRandom.uuid</code> before insert. All finders,
+post = Post.find!(<span class="hljs-number">1</span>)
+post.reload                                     <span class="hljs-comment"># re-reads from DB</span></code></pre><h2>Custom primary keys</h2>
+<pre><code class="hljs language-crystal">table :posts, <span class="hljs-symbol">primary_key:</span> :uuid   <span class="hljs-comment"># column must exist in the migration</span></code></pre><p>String PKs auto-generate a <code>SecureRandom.uuid</code> before insert. All finders,
 loaders, updates and deletes respect the custom name.</p>
 <h2>has_many :through</h2>
 <h2>has_many :through</h2>
-<pre><code class="language-crystal">class Post &lt; Altair::Record::Model
+<pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Post</span> &lt; <span class="hljs-title">Altair::Record::Model</span></span>
   has_many :post_tags
-  has_many :tags, through: :post_tags     # source inferred (:tag)
-end
+  has_many :tags, <span class="hljs-symbol">through:</span> :post_tags     <span class="hljs-comment"># source inferred (:tag)</span>
+<span class="hljs-keyword">end</span>
 
-post.tags                                  # lazy: one JOIN query
-Post.all.includes(:tags)                   # eager: one batched JOIN for all posts
-Post.all.joins(:tags).where(&quot;tags.name&quot;, &quot;crystal&quot;)
-</code></pre>
-<p>Pass <code>source:</code> explicitly when the singular name is ambiguous — the framework
+post.tags                                  <span class="hljs-comment"># lazy: one JOIN query</span>
+Post.all.includes(:tags)                   <span class="hljs-comment"># eager: one batched JOIN for all posts</span>
+Post.all.joins(:tags).where(<span class="hljs-string">&quot;tags.name&quot;</span>, <span class="hljs-string">&quot;crystal&quot;</span>)</code></pre><p>Pass <code>source:</code> explicitly when the singular name is ambiguous — the framework
 raises at boot asking for it rather than guessing.</p>
 <h2>Polymorphic associations</h2>
-<pre><code class="language-crystal">class Comment &lt; Altair::Record::Model
-  belongs_to :commentable, polymorphic: true   # commentable_id + commentable_type
-end
+<pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Comment</span> &lt; <span class="hljs-title">Altair::Record::Model</span></span>
+  belongs_to :commentable, <span class="hljs-symbol">polymorphic:</span> <span class="hljs-literal">true</span>   <span class="hljs-comment"># commentable_id + commentable_type</span>
+<span class="hljs-keyword">end</span>
 
-class Post &lt; Altair::Record::Model
-  has_many :comments, as: :commentable, dependent: :destroy
-end
-class Video &lt; Altair::Record::Model
-  has_many :comments, as: :commentable, dependent: :nullify
-end
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Post</span> &lt; <span class="hljs-title">Altair::Record::Model</span></span>
+  has_many :comments, <span class="hljs-symbol">as:</span> :commentable, <span class="hljs-symbol">dependent:</span> :destroy
+<span class="hljs-keyword">end</span>
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Video</span> &lt; <span class="hljs-title">Altair::Record::Model</span></span>
+  has_many :comments, <span class="hljs-symbol">as:</span> :commentable, <span class="hljs-symbol">dependent:</span> :nullify
+<span class="hljs-keyword">end</span>
 
-comment.commentable        # Post or Video, resolved from the type column
-post.comments              # filtered by notable_type = &#39;Post&#39;
-Post.all.includes(:comments)   # one batched query per distinct type
-</code></pre>
-<p>Migrations get a helper too:</p>
-<pre><code class="language-crystal">schema.create_table(:comments) do |t|
+comment.commentable        <span class="hljs-comment"># Post or Video, resolved from the type column</span>
+post.comments              <span class="hljs-comment"># filtered by notable_type = &#x27;Post&#x27;</span>
+Post.all.includes(:comments)   <span class="hljs-comment"># one batched query per distinct type</span></code></pre><p>Migrations get a helper too:</p>
+<pre><code class="hljs language-crystal">schema.create_table(:comments) <span class="hljs-keyword">do</span> |t|
   t.string :body
-  t.references :commentable, polymorphic: true   # id + type + composite index
-end
-</code></pre>
-<h2>Transactions</h2>
+  t.references :commentable, <span class="hljs-symbol">polymorphic:</span> <span class="hljs-literal">true</span>   <span class="hljs-comment"># id + type + composite index</span>
+<span class="hljs-keyword">end</span></code></pre><h2>Transactions</h2>
 <p><code>transaction</code> runs its block atomically; a raise rolls it back:</p>
-<pre><code class="language-crystal">Post.transaction do
+<pre><code class="hljs language-crystal">Post.transaction <span class="hljs-keyword">do</span>
   post.save!
   comment.save!
-end
-</code></pre>
-<h2>Adapters</h2>
+<span class="hljs-keyword">end</span></code></pre><h2>Adapters</h2>
 <p>SQLite3 ships in the framework; PostgreSQL is enabled by requiring the
 adapter and <code>crystal-pg</code> in the project&#39;s shard:</p>
-<pre><code class="language-crystal">require &quot;altair/record/adapters/postgresql&quot;
-</code></pre>
-<p>The same application code runs on either — the adapter interface is the
+<pre><code class="hljs language-crystal"><span class="hljs-keyword">require</span> <span class="hljs-string">&quot;altair/record/adapters/postgresql&quot;</span></code></pre><p>The same application code runs on either — the adapter interface is the
 only thing that changes.</p>
 <h2>Performance defaults</h2>
 <p>Altair ships performance-sane defaults, all overridable through <code>config</code>:</p>

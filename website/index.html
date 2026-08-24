@@ -8,6 +8,7 @@
   <link rel="icon" href="favicon.png" type="image/png">
   <link rel="stylesheet" href="assets/css/main.css">
   <link rel="stylesheet" href="assets/css/docs.css">
+  <link rel="stylesheet" href="assets/css/highlight.css">
 </head>
 <body>
   <header class="site-header">
@@ -51,12 +52,10 @@
   </div>
 </div><div class="content-narrow"><h2>What Altair is</h2>
 <p>Altair is a batteries-included web framework for Crystal. It ships the full stack — routing, controllers, views, an ORM, generators and a CLI — with sane defaults, so building a web app feels like the framework is working <em>for</em> you.</p>
-<pre><code class="language-sh">altair new blog
-cd blog
+<pre><code class="hljs language-sh">altair new blog
+<span class="hljs-built_in">cd</span> blog
 shards install
-altair server
-</code></pre>
-<p>Open <a href="http://localhost:3000">http://localhost:3000</a>. Inside a generated project the CLI finds the
+altair server</code></pre><p>Open <a href="http://localhost:3000">http://localhost:3000</a>. Inside a generated project the CLI finds the
 project automatically — <code>altair server</code>, <code>altair routes</code> and
 <code>altair db:migrate</code> work from any subdirectory, no <code>bin/</code> prefix needed.</p>
 <h2>What ships today</h2>
@@ -99,15 +98,9 @@ project automatically — <code>altair server</code>, <code>altair routes</code>
   </div>
 </div><h2>Installation</h2>
 <p>Install the prebuilt binary on Linux, macOS or Windows:</p>
-<pre><code class="language-sh">curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.sh | sh
-</code></pre>
-<p>Windows PowerShell:</p>
-<pre><code class="language-powershell">iex (irm https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.ps1)
-</code></pre>
-<p>Windows command prompt:</p>
-<pre><code class="language-cmd">curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.cmd | cmd
-</code></pre>
-<h2>Documentation</h2>
+<pre><code class="hljs language-sh">curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.sh | sh</code></pre><p>Windows PowerShell:</p>
+<pre><code class="hljs language-powershell"><span class="hljs-built_in">iex</span> (<span class="hljs-built_in">irm</span> https://github.com/Arab<span class="hljs-literal">-Open-Source</span>/Altair/releases/latest/download/install.ps1)</code></pre><p>Windows command prompt:</p>
+<pre><code class="hljs language-cmd">curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.<span class="hljs-built_in">cmd</span> | <span class="hljs-built_in">cmd</span></code></pre><h2>Documentation</h2>
 <ul>
 <li><a href="docs/install.html">Install</a> — download and set up Altair on your platform.</li>
 <li><a href="docs/usage.html">Usage</a> — create a project, generate a scaffold and run the server.</li>
