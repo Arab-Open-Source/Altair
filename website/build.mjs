@@ -5,6 +5,8 @@ import hljs from "highlight.js";
 
 const root = new URL(".", import.meta.url).pathname;
 const layout = readFileSync(join(root, "templates", "layout.html"), "utf8");
+const SITE_URL = "https://arab-open-source.github.io/Altair";
+const EDIT_BASE = "https://github.com/Arab-Open-Source/Altair/blob/main/website/pages";
 
 const meta = {
   "index": { title: "Altair — batteries-included web framework for Crystal", description: "Altair is a batteries-included web framework for Crystal: routing, controllers, views, an ORM, generators and a CLI." },
@@ -77,7 +79,7 @@ const icons = {
 const flatOrder = docsNav.flatMap((group) => group.pages.map((p) => p.page));
 
 function renderSidebar(current) {
-  let out = '<nav class="docs-sidebar" aria-label="Docs">';
+  let out = '<nav class="docs-sidebar" id="docs-sidebar" aria-label="Docs">';
   for (const group of docsNav) {
     out += `<h4>${group.heading}</h4><ul>`;
     for (const page of group.pages) {
@@ -90,6 +92,56 @@ function renderSidebar(current) {
   }
   out += "</nav>";
   return out;
+}
+
+// Slugify a heading's plain text into a URL-safe anchor id.
+function slugify(text) {
+  return text
+    .toLowerCase()
+    .replace(/<[^>]*>/g, "")
+    .replace(/&[a-z]+;/g, "")
+    .replace(/[^a-z0-9\u00C0-\u024F\u0600-\u06FF\s-]/g, "")
+    .trim()
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-");
+}
+
+// Add ids + anchor links to h2/h3 headings; return {html, toc}.
+function enhanceHeadings(html) {
+  const toc = [];
+  const seen = new Map();
+  const out = html.replace(/<h([23])>([\s\S]*?)<\/h\1>/g, (match, level, inner) => {
+    const plain = inner.replace(/<[^>]*>/g, "").trim();
+    if (!plain) return match;
+    let slug = slugify(plain) || "section";
+    const count = seen.get(slug) || 0;
+    seen.set(slug, count + 1);
+    if (count > 0) slug = `${slug}-${count + 1}`;
+    toc.push({ level: Number(level), id: slug, text: plain });
+    return `<h${level} id="${slug}">${inner}<a class="anchor" href="#${slug}" aria-label="Link to this section">#</a></h${level}>`;
+  });
+  return { html: out, toc };
+}
+
+function renderToc(toc) {
+  if (toc.length === 0) return "";
+  let out = '<aside class="docs-toc" aria-label="On this page"><p class="toc-title">On this page</p><ul>';
+  for (const entry of toc) {
+    const cls = entry.level === 3 ? ' class="toc-h3"' : "";
+    out += `<li${cls}><a href="#${entry.id}">${entry.text}</a></li>`;
+  }
+  out += "</ul></aside>";
+  return out;
+}
+
+// Plain-text excerpt for the search index.
+function excerptOf(html, maxLen = 220) {
+  const text = html
+    .replace(/<pre[\s\S]*?<\/pre>/g, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length > maxLen ? text.slice(0, maxLen).trimEnd() + "..." : text;
 }
 
 function renderBreadcrumbs(current) {
@@ -154,6 +206,7 @@ function activeTokens(page) {
 function render(page) {
   const source = readFileSync(join(root, "pages", `${page}.md`), "utf8");
   const rootPrefix = page === "index" ? "" : "../";
+  const canonical = page === "index" ? `${SITE_URL}/` : `${SITE_URL}/${page}.html`;
   const renderer = new marked.Renderer();
   const link = renderer.link.bind(renderer);
   renderer.link = (href, title, text) =>
@@ -195,16 +248,23 @@ function render(page) {
 
   // Non-docs pages (the homepage) render the content directly.
   let docsLayout = body;
+  let toc = [];
   if (page.startsWith("docs/")) {
+    const enhanced = enhanceHeadings(body);
+    toc = enhanced.toc;
     const breadcrumbs = renderBreadcrumbs(page);
     const pageIcon = icons[page] ? `<span class="docs-page-icon">${icons[page]}</span>` : "";
     // Wrap the first H1 with icon if present
-    let bodyWithHeader = body;
-    if (pageIcon && body.includes("<h1>")) {
-      bodyWithHeader = body.replace("<h1>", `<div class="docs-page-header">${pageIcon}<h1>`);
+    let bodyWithHeader = enhanced.html;
+    if (pageIcon && bodyWithHeader.includes("<h1>")) {
+      bodyWithHeader = bodyWithHeader.replace("<h1>", `<div class="docs-page-header">${pageIcon}<h1>`);
       bodyWithHeader = bodyWithHeader.replace("</h1>", "</h1></div>");
     }
-    docsLayout = `<div class="docs-layout">${renderSidebar(page)}<article class="docs-content"><div class="reading-progress" aria-hidden="true"><div class="reading-progress-bar"></div></div>${breadcrumbs}${bodyWithHeader}${renderPager(page)}</article></div>`;
+    const tocHtml = renderToc(toc);
+    const layoutClass = toc.length === 0 ? "docs-layout no-toc" : "docs-layout";
+    const editUrl = `${EDIT_BASE}/${page}.md`;
+    const footerMeta = `<div class="docs-footer-meta"><span>Found a mistake? <a href="${editUrl}" rel="noopener">Edit this page on GitHub</a>.</span></div>`;
+    docsLayout = `<div class="${layoutClass}">${renderSidebar(page)}<article class="docs-content"><div class="reading-progress" aria-hidden="true"><div class="reading-progress-bar"></div></div>${breadcrumbs}${bodyWithHeader}${footerMeta}${renderPager(page)}</article>${tocHtml}</div>`;
   }
 
   const tokens = activeTokens(page);
@@ -212,6 +272,7 @@ function render(page) {
     .replaceAll("{{home}}", rootPrefix ? rootPrefix : "index.html")
     .replaceAll("{{root}}", rootPrefix)
     .replaceAll("{{title}}", m.title)
+    .replaceAll("{{canonical}}", canonical)
     .replaceAll("{{description}}", m.description)
     .replaceAll("{{docs_layout}}", docsLayout)
     .replaceAll("{{home_active}}", tokens.home_active)
@@ -222,11 +283,43 @@ function render(page) {
     .replaceAll("{{benchmarks_active}}", tokens.benchmarks_active);
 }
 
+function groupOf(page) {
+  for (const group of docsNav) {
+    if (group.pages.some((p) => p.page === page)) return group.heading;
+  }
+  return "Reference";
+}
+
+function pageUrl(page) {
+  if (page === "index") return "index.html";
+  return `${page}.html`;
+}
+
 const indexHtml = render("index");
 writeFileSync(join(root, "index.html"), indexHtml);
 
 mkdirSync(join(root, "docs"), { recursive: true });
   const pages = ["index", "install", "usage", "update", "features", "cli", "routing", "controllers", "views", "record", "sessions", "configuration", "security", "uploads", "console", "testing", "benchmarks"];
+
+// Search index: one entry per page plus one per section (h2/h3).
+const searchIndex = [];
+for (const page of pages) {
+  const key = `docs/${page}`;
+  const source = readFileSync(join(root, "pages", `${key}.md`), "utf8");
+  const html = marked.parse(source);
+  const { toc } = enhanceHeadings(html);
+  const title = (meta[key] && meta[key].title.replace(" — Altair", "")) || page;
+  searchIndex.push({
+    page: key,
+    url: pageUrl(key),
+    group: groupOf(key),
+    title,
+    excerpt: excerptOf(html),
+    headings: toc.map((t) => ({ id: t.id, text: t.text, level: t.level })),
+  });
+}
+mkdirSync(join(root, "assets"), { recursive: true });
+writeFileSync(join(root, "assets", "search-index.json"), JSON.stringify(searchIndex));
 for (const page of pages) {
   writeFileSync(join(root, "docs", `${page}.html`), render(`docs/${page}`));
 }

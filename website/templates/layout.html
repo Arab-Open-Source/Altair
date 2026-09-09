@@ -1,20 +1,45 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="{{description}}">
+  <meta name="theme-color" content="#152033" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0e1624" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Altair">
+  <meta property="og:title" content="{{title}}">
+  <meta property="og:description" content="{{description}}">
+  <meta property="og:image" content="{{root}}assets/img/logo.png">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="{{title}}">
+  <meta name="twitter:description" content="{{description}}">
+  <link rel="canonical" href="{{canonical}}">
   <title>{{title}}</title>
   <link rel="icon" href="{{root}}favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{root}}assets/css/main.css">
   <link rel="stylesheet" href="{{root}}assets/css/docs.css">
   <link rel="stylesheet" href="{{root}}assets/css/highlight.css">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    (function () {
+      try {
+        var saved = localStorage.getItem("altair-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (e) { /* private mode: stay light */ }
+    })();
+  </script>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
   <header class="site-header">
     <nav class="site-nav" aria-label="Main">
       <a class="brand" href="{{home}}">
-        <img class="brand-logo" src="{{root}}assets/img/logo.png" alt="" width="30" height="30">
+        <img class="brand-logo" src="{{root}}assets/img/logo.png" alt="Altair logo" width="30" height="30">
         Altair
       </a>
       <div class="nav-links">
@@ -26,17 +51,82 @@
         <a href="{{root}}docs/benchmarks.html"{{benchmarks_active}}>Benchmarks</a>
         <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
       </div>
+      <div class="nav-actions">
+        <button type="button" class="search-trigger" id="search-trigger" aria-haspopup="dialog" aria-label="Search documentation">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span class="search-label">Search</span>
+          <kbd>Ctrl K</kbd>
+        </button>
+        <button type="button" class="icon-btn theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+          <svg class="sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <button type="button" class="icon-btn nav-toggle" id="nav-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="docs-sidebar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      </div>
     </nav>
   </header>
 
-  <main class="site-main">
+  <div class="nav-scrim" id="nav-scrim" aria-hidden="true"></div>
+
+  <main class="site-main" id="main-content">
     {{docs_layout}}
   </main>
 
   <footer class="site-footer">
-    <p><span class="footer-brand">Altair</span> — batteries-included web framework for Crystal.</p>
-    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a> &middot; <a href="{{root}}docs/features.html">What is implemented</a></p>
+    <div class="footer-inner">
+      <div class="footer-brand-block">
+        <a class="brand" href="{{home}}">
+          <img class="brand-logo" src="{{root}}assets/img/logo.png" alt="Altair logo" width="30" height="30">
+          Altair
+        </a>
+        <p class="footer-tagline">Batteries-included web framework for Crystal. Routing, controllers, views, an ORM, generators and a CLI — with sane defaults.</p>
+      </div>
+      <nav class="footer-col" aria-label="Getting started">
+        <h5>Start</h5>
+        <ul>
+          <li><a href="{{root}}docs/install.html">Install</a></li>
+          <li><a href="{{root}}docs/usage.html">Usage</a></li>
+          <li><a href="{{root}}docs/update.html">Updating</a></li>
+        </ul>
+      </nav>
+      <nav class="footer-col" aria-label="Guides">
+        <h5>Guides</h5>
+        <ul>
+          <li><a href="{{root}}docs/routing.html">Routing</a></li>
+          <li><a href="{{root}}docs/record.html">Record (ORM)</a></li>
+          <li><a href="{{root}}docs/security.html">Security</a></li>
+          <li><a href="{{root}}docs/testing.html">Testing</a></li>
+        </ul>
+      </nav>
+      <nav class="footer-col" aria-label="Project">
+        <h5>Project</h5>
+        <ul>
+          <li><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a></li>
+          <li><a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></li>
+          <li><a href="{{root}}docs/benchmarks.html">Benchmarks</a></li>
+          <li><a href="{{root}}docs/features.html">What is implemented</a></li>
+        </ul>
+      </nav>
+    </div>
+    <div class="footer-bottom">
+      <span>Altair — the web framework for Crystal. MIT licensed.</span>
+    </div>
   </footer>
+
+  <div class="search-modal" id="search-modal" role="dialog" aria-modal="true" aria-label="Search documentation" hidden>
+    <div class="search-backdrop" data-search-close></div>
+    <div class="search-panel">
+      <div class="search-input-row">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="search" id="search-input" placeholder="Search guides, references, commands..." autocomplete="off" spellcheck="false" aria-label="Search documentation" aria-controls="search-results" aria-expanded="false">
+        <kbd>esc</kbd>
+      </div>
+      <div class="search-results" id="search-results" role="listbox" aria-label="Search results"></div>
+      <div class="search-hint">Navigate with arrow keys, Enter to open.</div>
+    </div>
+  </div>
 
   <script src="{{root}}assets/js/docs.js" defer></script>
 </body>

@@ -1,20 +1,45 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Routes, parameters, resources and path helpers in Altair.">
+  <meta name="theme-color" content="#152033" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0e1624" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Altair">
+  <meta property="og:title" content="Routing guide — Altair">
+  <meta property="og:description" content="Routes, parameters, resources and path helpers in Altair.">
+  <meta property="og:image" content="../assets/img/logo.png">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Routing guide — Altair">
+  <meta name="twitter:description" content="Routes, parameters, resources and path helpers in Altair.">
+  <link rel="canonical" href="https://arab-open-source.github.io/Altair/docs/routing.html">
   <title>Routing guide — Altair</title>
   <link rel="icon" href="../favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../assets/css/main.css">
   <link rel="stylesheet" href="../assets/css/docs.css">
   <link rel="stylesheet" href="../assets/css/highlight.css">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    (function () {
+      try {
+        var saved = localStorage.getItem("altair-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (e) { /* private mode: stay light */ }
+    })();
+  </script>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
   <header class="site-header">
     <nav class="site-nav" aria-label="Main">
       <a class="brand" href="../">
-        <img class="brand-logo" src="../assets/img/logo.png" alt="" width="30" height="30">
+        <img class="brand-logo" src="../assets/img/logo.png" alt="Altair logo" width="30" height="30">
         Altair
       </a>
       <div class="nav-links">
@@ -26,11 +51,27 @@
         <a href="../docs/benchmarks.html">Benchmarks</a>
         <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
       </div>
+      <div class="nav-actions">
+        <button type="button" class="search-trigger" id="search-trigger" aria-haspopup="dialog" aria-label="Search documentation">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span class="search-label">Search</span>
+          <kbd>Ctrl K</kbd>
+        </button>
+        <button type="button" class="icon-btn theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+          <svg class="sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <button type="button" class="icon-btn nav-toggle" id="nav-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="docs-sidebar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      </div>
     </nav>
   </header>
 
-  <main class="site-main">
-    <div class="docs-layout"><nav class="docs-sidebar" aria-label="Docs"><h4>Getting started</h4><ul><li><a href="install.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>Install</a></li><li><a href="usage.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>Usage</a></li><li><a href="update.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg></span>Updating</a></li></ul><h4>Guides</h4><ul><li><a href="routing.html" class="is-active" aria-current="page"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="12" r="3"/><path d="M8.5 8.5L13.5 9.5"/><path d="M8.5 15.5L13.5 14.5"/></svg></span>Routing</a></li><li><a href="controllers.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></span>Controllers</a></li><li><a href="views.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>Views</a></li><li><a href="record.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>Record (ORM)</a></li><li><a href="sessions.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg></span>Sessions and auth</a></li><li><a href="configuration.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4"/><path d="M12 19v4"/><path d="M4.22 4.22l2.83 2.83"/><path d="M16.97 16.97l2.83 2.83"/><path d="M1 12h4"/><path d="M19 12h4"/><path d="M4.22 19.78l2.83-2.83"/><path d="M16.97 7.03l2.83-2.83"/></svg></span>Configuration</a></li><li><a href="security.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>Security</a></li><li><a href="uploads.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>Uploads</a></li><li><a href="console.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>Console</a></li><li><a href="testing.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>Testing</a></li></ul><h4>Reference</h4><ul><li><a href="features.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>What is implemented</a></li><li><a href="cli.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>CLI reference</a></li><li><a href="benchmarks.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>Benchmarks</a></li></ul></nav><article class="docs-content"><div class="reading-progress" aria-hidden="true"><div class="reading-progress-bar"></div></div><nav class="breadcrumbs" aria-label="Breadcrumb"><a href="index.html">Docs</a><span class="sep">/</span><span>Guides</span><span class="sep">/</span><span aria-current="page">Routing</span></nav><div class="docs-page-header"><span class="docs-page-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="12" r="3"/><path d="M8.5 8.5L13.5 9.5"/><path d="M8.5 15.5L13.5 14.5"/></svg></span><h1>Routing</h1></div>
+  <div class="nav-scrim" id="nav-scrim" aria-hidden="true"></div>
+
+  <main class="site-main" id="main-content">
+    <div class="docs-layout"><nav class="docs-sidebar" id="docs-sidebar" aria-label="Docs"><h4>Getting started</h4><ul><li><a href="install.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>Install</a></li><li><a href="usage.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>Usage</a></li><li><a href="update.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg></span>Updating</a></li></ul><h4>Guides</h4><ul><li><a href="routing.html" class="is-active" aria-current="page"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="12" r="3"/><path d="M8.5 8.5L13.5 9.5"/><path d="M8.5 15.5L13.5 14.5"/></svg></span>Routing</a></li><li><a href="controllers.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></span>Controllers</a></li><li><a href="views.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>Views</a></li><li><a href="record.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>Record (ORM)</a></li><li><a href="sessions.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg></span>Sessions and auth</a></li><li><a href="configuration.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4"/><path d="M12 19v4"/><path d="M4.22 4.22l2.83 2.83"/><path d="M16.97 16.97l2.83 2.83"/><path d="M1 12h4"/><path d="M19 12h4"/><path d="M4.22 19.78l2.83-2.83"/><path d="M16.97 7.03l2.83-2.83"/></svg></span>Configuration</a></li><li><a href="security.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>Security</a></li><li><a href="uploads.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>Uploads</a></li><li><a href="console.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>Console</a></li><li><a href="testing.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>Testing</a></li></ul><h4>Reference</h4><ul><li><a href="features.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>What is implemented</a></li><li><a href="cli.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>CLI reference</a></li><li><a href="benchmarks.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>Benchmarks</a></li></ul></nav><article class="docs-content"><div class="reading-progress" aria-hidden="true"><div class="reading-progress-bar"></div></div><nav class="breadcrumbs" aria-label="Breadcrumb"><a href="index.html">Docs</a><span class="sep">/</span><span>Guides</span><span class="sep">/</span><span aria-current="page">Routing</span></nav><div class="docs-page-header"><span class="docs-page-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="12" r="3"/><path d="M8.5 8.5L13.5 9.5"/><path d="M8.5 15.5L13.5 14.5"/></svg></span><h1>Routing</h1></div>
 <p>The router parses URL segments directly — no regex over the whole path — and
 every route is declared inside the application&#39;s <code>routes do</code> block, which
 runs at compile time. A typo in a route is a compile error, and the generated
@@ -43,7 +84,7 @@ path helpers are real, type-checked methods.</p>
     get <span class="hljs-string">&quot;/hello/:name&quot;</span>, <span class="hljs-symbol">to:</span> PagesController.hello, <span class="hljs-symbol">named:</span> :greeting
     resources :posts
   <span class="hljs-keyword">end</span>
-<span class="hljs-keyword">end</span></code></pre><h2>Verb macros</h2>
+<span class="hljs-keyword">end</span></code></pre><h2 id="verb-macros">Verb macros<a class="anchor" href="#verb-macros" aria-label="Link to this section">#</a></h2>
 <p><code>get</code>, <code>post</code>, <code>put</code>, <code>patch</code> and <code>delete</code> each register one route. Two
 actions reference styles work everywhere:</p>
 <ul>
@@ -54,7 +95,7 @@ derived from the string.</li>
 </ul>
 <p><code>root to: PagesController.index</code> maps <code>/</code> to an action, and any of the macros
 can also take a handler block <code>|request, response|</code> for one-off endpoints.</p>
-<h2>Parameters</h2>
+<h2 id="parameters">Parameters<a class="anchor" href="#parameters" aria-label="Link to this section">#</a></h2>
 <p>Segments starting with <code>:</code> capture one path part into <code>params</code>:</p>
 <pre><code class="hljs language-crystal">get <span class="hljs-string">&quot;/posts/:id&quot;</span>, <span class="hljs-symbol">to:</span> PostsController.show, <span class="hljs-symbol">named:</span> :post</code></pre><p><code>/posts/42</code> sets <code>params[&quot;id&quot;]</code> to <code>&quot;42&quot;</code>. Lookups follow the conventional
 precedence — route parameters first, then the query string, then the body:</p>
@@ -63,7 +104,7 @@ params[<span class="hljs-string">&quot;id&quot;</span>]            <span class="
 params.fetch(<span class="hljs-string">&quot;id&quot;</span>, Int32)   <span class="hljs-comment"># Integer, or a 422 for a malformed value</span>
 params.fetch?(<span class="hljs-string">&quot;id&quot;</span>, Int32)  <span class="hljs-comment"># Integer?, or nil for a malformed value</span>
 params.permit(<span class="hljs-string">&quot;title&quot;</span>, <span class="hljs-string">&quot;body&quot;</span>)
-params.<span class="hljs-keyword">require</span>(<span class="hljs-string">&quot;post&quot;</span>).permit(<span class="hljs-string">&quot;title&quot;</span>, <span class="hljs-string">&quot;body&quot;</span>)</code></pre><h2>Named routes and helpers</h2>
+params.<span class="hljs-keyword">require</span>(<span class="hljs-string">&quot;post&quot;</span>).permit(<span class="hljs-string">&quot;title&quot;</span>, <span class="hljs-string">&quot;body&quot;</span>)</code></pre><h2 id="named-routes-and-helpers">Named routes and helpers<a class="anchor" href="#named-routes-and-helpers" aria-label="Link to this section">#</a></h2>
 <p><code>named:</code> gives a route a generated path helper, callable in controllers and
 views as a real method:</p>
 <pre><code class="hljs language-crystal">get <span class="hljs-string">&quot;/hello/:name&quot;</span>, <span class="hljs-symbol">to:</span> PagesController.hello, <span class="hljs-symbol">named:</span> :greeting
@@ -97,12 +138,12 @@ views as a real method:</p>
 <td><code>GET</code></td>
 </tr>
 </tbody></table>
-<h2>Format suffix</h2>
+<h2 id="format-suffix">Format suffix<a class="anchor" href="#format-suffix" aria-label="Link to this section">#</a></h2>
 <p>A trailing <code>.ext</code> is stripped before matching and exposed as
 <code>params[&quot;format&quot;]</code>, so <code>/posts/5.json</code> matches <code>GET /posts/:id</code> with
 <code>id = 5</code> and <code>format = &quot;json&quot;</code>. The exact path is tried first, so a literal
 dotted route like <code>/sitemap.xml</code> still matches unchanged.</p>
-<h2>Resources, members and collections</h2>
+<h2 id="resources-members-and-collections">Resources, members and collections<a class="anchor" href="#resources-members-and-collections" aria-label="Link to this section">#</a></h2>
 <p><code>member</code> routes operate on one record, <code>collection</code> routes on the whole set:</p>
 <pre><code class="hljs language-crystal">resources :posts <span class="hljs-keyword">do</span>
   member { get :preview }            <span class="hljs-comment"># GET  /posts/:id/preview</span>
@@ -114,27 +155,27 @@ the generated routes, and <code>constraints:</code> limits matching to the given
 parameter regexes:</p>
 <pre><code class="hljs language-crystal">resources :posts, <span class="hljs-symbol">constraints:</span> { <span class="hljs-symbol">id:</span> /\d+<span class="hljs-regexp">/ } do
   resources :comments
-end</span></code></pre><h2>Singular resources</h2>
+end</span></code></pre><h2 id="singular-resources">Singular resources<a class="anchor" href="#singular-resources" aria-label="Link to this section">#</a></h2>
 <p><code>resource :profile</code> declares the singular form — the URL has no id, and the
 helpers are <code>profile_path</code>, <code>new_profile_path</code>, <code>edit_profile_path</code>:</p>
 <pre><code class="hljs language-crystal">resource :profile <span class="hljs-keyword">do</span>
   member { get :history }   <span class="hljs-comment"># GET /profile/history</span>
-<span class="hljs-keyword">end</span></code></pre><h2>Glob segments</h2>
+<span class="hljs-keyword">end</span></code></pre><h2 id="glob-segments">Glob segments<a class="anchor" href="#glob-segments" aria-label="Link to this section">#</a></h2>
 <p>A <code>*segment</code> captures the rest of the path, joined with slashes. It must be
 the last segment:</p>
 <pre><code class="hljs language-crystal">get <span class="hljs-string">&quot;/docs/*path&quot;</span>, <span class="hljs-symbol">to:</span> PagesController.docs, <span class="hljs-symbol">named:</span> :docs</code></pre><p><code>/docs/routing/overview</code> sets <code>params[&quot;path&quot;]</code> to <code>&quot;routing/overview&quot;</code>.</p>
-<h2>Redirects</h2>
+<h2 id="redirects">Redirects<a class="anchor" href="#redirects" aria-label="Link to this section">#</a></h2>
 <p><code>redirect &quot;/old&quot;, to: &quot;/new&quot;</code> registers the route under every method, so the
 browser follows it for <code>GET</code> and <code>POST</code> alike:</p>
 <pre><code class="hljs language-crystal">redirect <span class="hljs-string">&quot;/legacy&quot;</span>, <span class="hljs-symbol">to:</span> <span class="hljs-string">&quot;/posts&quot;</span></code></pre><p>Route parameters interpolate into the destination and the format suffix is
 preserved:</p>
 <pre><code class="hljs language-crystal">redirect <span class="hljs-string">&quot;/t/:id&quot;</span>, <span class="hljs-symbol">to:</span> <span class="hljs-string">&quot;/tweets/:id&quot;</span>
-<span class="hljs-comment"># GET /t/42.json → 301 /tweets/42.json</span></code></pre><h2>Namespaces</h2>
+<span class="hljs-comment"># GET /t/42.json → 301 /tweets/42.json</span></code></pre><h2 id="namespaces">Namespaces<a class="anchor" href="#namespaces" aria-label="Link to this section">#</a></h2>
 <p><code>namespace</code> prefixes paths, controller lookup, and helper names without
 repeating yourself:</p>
 <pre><code class="hljs language-crystal">namespace :admin <span class="hljs-keyword">do</span>
   resources :posts   <span class="hljs-comment"># /admin/posts → Admin::PostsController, admin_posts_path</span>
-<span class="hljs-keyword">end</span></code></pre><h2>Not found and method not allowed</h2>
+<span class="hljs-keyword">end</span></code></pre><h2 id="not-found-and-method-not-allowed">Not found and method not allowed<a class="anchor" href="#not-found-and-method-not-allowed" aria-label="Link to this section">#</a></h2>
 <ul>
 <li>A path no route matches answers <strong>404</strong>. In development the error page
 suggests routes whose patterns resemble what you typed.</li>
@@ -144,13 +185,62 @@ under <code>ANY</code> and never appear in that list.</li>
 <li><code>HEAD</code> requests match <code>GET</code> routes; the response body is dropped.</li>
 </ul>
 <p>With no routes at all, <code>/</code> renders the welcome page.</p>
-<div class="docs-pager"><div class="pager-progress">Page 4 of 16</div><div class="pager-links"><a class="pager-card" href="update.html"><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span><span><span class="label">Previous</span><span class="pager-title">Updating</span></span></a><a class="pager-card right" href="controllers.html"><span><span class="label">Next</span><span class="pager-title">Controllers</span></span><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></a></div></div></article></div>
+<div class="docs-footer-meta"><span>Found a mistake? <a href="https://github.com/Arab-Open-Source/Altair/blob/main/website/pages/docs/routing.md" rel="noopener">Edit this page on GitHub</a>.</span></div><div class="docs-pager"><div class="pager-progress">Page 4 of 16</div><div class="pager-links"><a class="pager-card" href="update.html"><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span><span><span class="label">Previous</span><span class="pager-title">Updating</span></span></a><a class="pager-card right" href="controllers.html"><span><span class="label">Next</span><span class="pager-title">Controllers</span></span><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></a></div></div></article><aside class="docs-toc" aria-label="On this page"><p class="toc-title">On this page</p><ul><li><a href="#verb-macros">Verb macros</a></li><li><a href="#parameters">Parameters</a></li><li><a href="#named-routes-and-helpers">Named routes and helpers</a></li><li><a href="#format-suffix">Format suffix</a></li><li><a href="#resources-members-and-collections">Resources, members and collections</a></li><li><a href="#singular-resources">Singular resources</a></li><li><a href="#glob-segments">Glob segments</a></li><li><a href="#redirects">Redirects</a></li><li><a href="#namespaces">Namespaces</a></li><li><a href="#not-found-and-method-not-allowed">Not found and method not allowed</a></li></ul></aside></div>
   </main>
 
   <footer class="site-footer">
-    <p><span class="footer-brand">Altair</span> — batteries-included web framework for Crystal.</p>
-    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a> &middot; <a href="../docs/features.html">What is implemented</a></p>
+    <div class="footer-inner">
+      <div class="footer-brand-block">
+        <a class="brand" href="../">
+          <img class="brand-logo" src="../assets/img/logo.png" alt="Altair logo" width="30" height="30">
+          Altair
+        </a>
+        <p class="footer-tagline">Batteries-included web framework for Crystal. Routing, controllers, views, an ORM, generators and a CLI — with sane defaults.</p>
+      </div>
+      <nav class="footer-col" aria-label="Getting started">
+        <h5>Start</h5>
+        <ul>
+          <li><a href="../docs/install.html">Install</a></li>
+          <li><a href="../docs/usage.html">Usage</a></li>
+          <li><a href="../docs/update.html">Updating</a></li>
+        </ul>
+      </nav>
+      <nav class="footer-col" aria-label="Guides">
+        <h5>Guides</h5>
+        <ul>
+          <li><a href="../docs/routing.html">Routing</a></li>
+          <li><a href="../docs/record.html">Record (ORM)</a></li>
+          <li><a href="../docs/security.html">Security</a></li>
+          <li><a href="../docs/testing.html">Testing</a></li>
+        </ul>
+      </nav>
+      <nav class="footer-col" aria-label="Project">
+        <h5>Project</h5>
+        <ul>
+          <li><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a></li>
+          <li><a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></li>
+          <li><a href="../docs/benchmarks.html">Benchmarks</a></li>
+          <li><a href="../docs/features.html">What is implemented</a></li>
+        </ul>
+      </nav>
+    </div>
+    <div class="footer-bottom">
+      <span>Altair — the web framework for Crystal. MIT licensed.</span>
+    </div>
   </footer>
+
+  <div class="search-modal" id="search-modal" role="dialog" aria-modal="true" aria-label="Search documentation" hidden>
+    <div class="search-backdrop" data-search-close></div>
+    <div class="search-panel">
+      <div class="search-input-row">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="search" id="search-input" placeholder="Search guides, references, commands..." autocomplete="off" spellcheck="false" aria-label="Search documentation" aria-controls="search-results" aria-expanded="false">
+        <kbd>esc</kbd>
+      </div>
+      <div class="search-results" id="search-results" role="listbox" aria-label="Search results"></div>
+      <div class="search-hint">Navigate with arrow keys, Enter to open.</div>
+    </div>
+  </div>
 
   <script src="../assets/js/docs.js" defer></script>
 </body>

@@ -1,20 +1,45 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Models, migrations, validations, callbacks and associations in Altair::Record.">
+  <meta name="theme-color" content="#152033" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0e1624" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Altair">
+  <meta property="og:title" content="Record (ORM) guide — Altair">
+  <meta property="og:description" content="Models, migrations, validations, callbacks and associations in Altair::Record.">
+  <meta property="og:image" content="../assets/img/logo.png">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Record (ORM) guide — Altair">
+  <meta name="twitter:description" content="Models, migrations, validations, callbacks and associations in Altair::Record.">
+  <link rel="canonical" href="https://arab-open-source.github.io/Altair/docs/record.html">
   <title>Record (ORM) guide — Altair</title>
   <link rel="icon" href="../favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../assets/css/main.css">
   <link rel="stylesheet" href="../assets/css/docs.css">
   <link rel="stylesheet" href="../assets/css/highlight.css">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    (function () {
+      try {
+        var saved = localStorage.getItem("altair-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (e) { /* private mode: stay light */ }
+    })();
+  </script>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
   <header class="site-header">
     <nav class="site-nav" aria-label="Main">
       <a class="brand" href="../">
-        <img class="brand-logo" src="../assets/img/logo.png" alt="" width="30" height="30">
+        <img class="brand-logo" src="../assets/img/logo.png" alt="Altair logo" width="30" height="30">
         Altair
       </a>
       <div class="nav-links">
@@ -26,22 +51,38 @@
         <a href="../docs/benchmarks.html">Benchmarks</a>
         <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
       </div>
+      <div class="nav-actions">
+        <button type="button" class="search-trigger" id="search-trigger" aria-haspopup="dialog" aria-label="Search documentation">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span class="search-label">Search</span>
+          <kbd>Ctrl K</kbd>
+        </button>
+        <button type="button" class="icon-btn theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+          <svg class="sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <button type="button" class="icon-btn nav-toggle" id="nav-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="docs-sidebar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      </div>
     </nav>
   </header>
 
-  <main class="site-main">
-    <div class="docs-layout"><nav class="docs-sidebar" aria-label="Docs"><h4>Getting started</h4><ul><li><a href="install.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>Install</a></li><li><a href="usage.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>Usage</a></li><li><a href="update.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg></span>Updating</a></li></ul><h4>Guides</h4><ul><li><a href="routing.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="12" r="3"/><path d="M8.5 8.5L13.5 9.5"/><path d="M8.5 15.5L13.5 14.5"/></svg></span>Routing</a></li><li><a href="controllers.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></span>Controllers</a></li><li><a href="views.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>Views</a></li><li><a href="record.html" class="is-active" aria-current="page"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>Record (ORM)</a></li><li><a href="sessions.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg></span>Sessions and auth</a></li><li><a href="configuration.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4"/><path d="M12 19v4"/><path d="M4.22 4.22l2.83 2.83"/><path d="M16.97 16.97l2.83 2.83"/><path d="M1 12h4"/><path d="M19 12h4"/><path d="M4.22 19.78l2.83-2.83"/><path d="M16.97 7.03l2.83-2.83"/></svg></span>Configuration</a></li><li><a href="security.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>Security</a></li><li><a href="uploads.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>Uploads</a></li><li><a href="console.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>Console</a></li><li><a href="testing.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>Testing</a></li></ul><h4>Reference</h4><ul><li><a href="features.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>What is implemented</a></li><li><a href="cli.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>CLI reference</a></li><li><a href="benchmarks.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>Benchmarks</a></li></ul></nav><article class="docs-content"><div class="reading-progress" aria-hidden="true"><div class="reading-progress-bar"></div></div><nav class="breadcrumbs" aria-label="Breadcrumb"><a href="index.html">Docs</a><span class="sep">/</span><span>Guides</span><span class="sep">/</span><span aria-current="page">Record (ORM)</span></nav><div class="docs-page-header"><span class="docs-page-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span><h1>Record (ORM)</h1></div>
+  <div class="nav-scrim" id="nav-scrim" aria-hidden="true"></div>
+
+  <main class="site-main" id="main-content">
+    <div class="docs-layout"><nav class="docs-sidebar" id="docs-sidebar" aria-label="Docs"><h4>Getting started</h4><ul><li><a href="install.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>Install</a></li><li><a href="usage.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>Usage</a></li><li><a href="update.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg></span>Updating</a></li></ul><h4>Guides</h4><ul><li><a href="routing.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="12" r="3"/><path d="M8.5 8.5L13.5 9.5"/><path d="M8.5 15.5L13.5 14.5"/></svg></span>Routing</a></li><li><a href="controllers.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></span>Controllers</a></li><li><a href="views.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>Views</a></li><li><a href="record.html" class="is-active" aria-current="page"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>Record (ORM)</a></li><li><a href="sessions.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg></span>Sessions and auth</a></li><li><a href="configuration.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4"/><path d="M12 19v4"/><path d="M4.22 4.22l2.83 2.83"/><path d="M16.97 16.97l2.83 2.83"/><path d="M1 12h4"/><path d="M19 12h4"/><path d="M4.22 19.78l2.83-2.83"/><path d="M16.97 7.03l2.83-2.83"/></svg></span>Configuration</a></li><li><a href="security.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>Security</a></li><li><a href="uploads.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>Uploads</a></li><li><a href="console.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>Console</a></li><li><a href="testing.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>Testing</a></li></ul><h4>Reference</h4><ul><li><a href="features.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>What is implemented</a></li><li><a href="cli.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>CLI reference</a></li><li><a href="benchmarks.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>Benchmarks</a></li></ul></nav><article class="docs-content"><div class="reading-progress" aria-hidden="true"><div class="reading-progress-bar"></div></div><nav class="breadcrumbs" aria-label="Breadcrumb"><a href="index.html">Docs</a><span class="sep">/</span><span>Guides</span><span class="sep">/</span><span aria-current="page">Record (ORM)</span></nav><div class="docs-page-header"><span class="docs-page-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span><h1>Record (ORM)</h1></div>
 <p><code>Altair::Record</code> is the ORM: SQLite3 and PostgreSQL adapters behind one
 interface, a migrations DSL, compile-time column metadata, validations,
 callbacks and associations. Every value travels as a bind parameter — SQL
 strings stay constant, so values can never be interpolated into a query.</p>
-<h2>Connecting</h2>
+<h2 id="connecting">Connecting<a class="anchor" href="#connecting" aria-label="Link to this section">#</a></h2>
 <p>The application points at a database; <code>DATABASE_URL</code> overrides it at run
 time:</p>
 <pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Blog</span> &lt; <span class="hljs-title">Altair::Application</span></span>
   config.db_url = ENV[<span class="hljs-string">&quot;DATABASE_URL&quot;</span>]? || <span class="hljs-string">&quot;sqlite3://./db/blog.db&quot;</span>
 <span class="hljs-keyword">end</span></code></pre><pre><code class="hljs language-sh"><span class="hljs-comment"># SQLite (default) — or PostgreSQL:</span>
-DATABASE_URL=<span class="hljs-string">&quot;postgres://postgres:secret@localhost:5433/blog&quot;</span> altair server</code></pre><h2>Models</h2>
+DATABASE_URL=<span class="hljs-string">&quot;postgres://postgres:secret@localhost:5433/blog&quot;</span> altair server</code></pre><h2 id="models">Models<a class="anchor" href="#models" aria-label="Link to this section">#</a></h2>
 <p>A model maps to a table and gets typed accessors for every column, generated
 from <code>db/schema.cr</code> at compile time:</p>
 <pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Post</span> &lt; <span class="hljs-title">Altair::Record::Model</span></span>
@@ -49,7 +90,7 @@ from <code>db/schema.cr</code> at compile time:</p>
 
   has_many :comments, <span class="hljs-symbol">dependent:</span> :destroy
   validates_presence_of :title
-<span class="hljs-keyword">end</span></code></pre><h3>CRUD and finders</h3>
+<span class="hljs-keyword">end</span></code></pre><h3 id="crud-and-finders">CRUD and finders<a class="anchor" href="#crud-and-finders" aria-label="Link to this section">#</a></h3>
 <pre><code class="hljs language-crystal">post = Post.new(<span class="hljs-symbol">title:</span> <span class="hljs-string">&quot;Hello&quot;</span>)
 post.save                                  <span class="hljs-comment"># false when invalid</span>
 post.save!                                 <span class="hljs-comment"># raises Altair::Record::Error instead</span>
@@ -68,7 +109,7 @@ Post.count                                 <span class="hljs-comment"># Int64</s
 Post.exists?(<span class="hljs-number">5</span>)
 Post.pluck(:title)                         <span class="hljs-comment"># Array(Value)</span></code></pre><p><code>Post.all</code> is lazy and caches after iteration; chain <code>.where</code> to filter:</p>
 <pre><code class="hljs language-crystal">Post.all.where(<span class="hljs-symbol">published:</span> <span class="hljs-literal">true</span>)
-Post.all.where(:views, :&gt;=, <span class="hljs-number">15</span>).order(:created_at).to_a</code></pre><h3>Querying relations</h3>
+Post.all.where(:views, :&gt;=, <span class="hljs-number">15</span>).order(:created_at).to_a</code></pre><h3 id="querying-relations">Querying relations<a class="anchor" href="#querying-relations" aria-label="Link to this section">#</a></h3>
 <p>Negation, alternatives, pattern matching and membership — every value
 travels as a bind parameter:</p>
 <pre><code class="hljs language-crystal">Post.all.where_not(<span class="hljs-symbol">published:</span> <span class="hljs-literal">true</span>)         <span class="hljs-comment"># NOT (published = ?)</span>
@@ -87,7 +128,7 @@ validations and timestamps — this is the administrative path:</p>
 <pre><code class="hljs language-crystal">Post.all.where(<span class="hljs-symbol">published:</span> <span class="hljs-literal">false</span>).update_all(<span class="hljs-symbol">published:</span> <span class="hljs-literal">true</span>)
 Post.all.where(<span class="hljs-symbol">views:</span> <span class="hljs-number">0</span>).delete_all</code></pre><p><code>.count</code> respects <code>limit</code>/<code>offset</code>: a bounded relation counts exactly the
 rows <code>to_a</code> would return.</p>
-<h3>Bulk inserts, dirty tracking and enum columns</h3>
+<h3 id="bulk-inserts-dirty-tracking-and-enum-columns">Bulk inserts, dirty tracking and enum columns<a class="anchor" href="#bulk-inserts-dirty-tracking-and-enum-columns" aria-label="Link to this section">#</a></h3>
 <pre><code class="hljs language-crystal"><span class="hljs-comment"># One multi-row INSERT; timestamps auto-fill like create. Bypasses</span>
 <span class="hljs-comment"># validations and callbacks — this is the bulk load path. Large sets</span>
 <span class="hljs-comment"># chunk inside one transaction, so the call stays all-or-nothing.</span>
@@ -114,7 +155,7 @@ task.state = <span class="hljs-symbol">Task:</span>:<span class="hljs-symbol">St
 task.state = <span class="hljs-string">&quot;done&quot;</span>              <span class="hljs-comment"># compile error</span></code></pre><p><code>enum_attribute</code> stores the member name in snake_case (<code>&quot;in_review&quot;</code>),
 so raw rows stay readable; a stored value no member claims reads back as
 <code>nil</code>, keeping legacy data safe.</p>
-<h2>Migrations</h2>
+<h2 id="migrations">Migrations<a class="anchor" href="#migrations" aria-label="Link to this section">#</a></h2>
 <p>Migrations live in <code>db/migrations/</code> as timestamped files; <code>altair db:migrate</code> runs pending ones and <code>altair db:rollback</code> undoes the last.</p>
 <pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">CreatePosts</span> &lt; <span class="hljs-title">Altair::Record::Migration</span></span>
   <span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">up</span></span>(schema : <span class="hljs-symbol">Altair:</span>:<span class="hljs-symbol">Record:</span>:Schema) : Nil
@@ -140,7 +181,7 @@ database.</p>
 <p><code>change_column_null(:posts, :title, false)</code> toggles nullability on every
 adapter: engines that can alter a column in place issue one statement,
 SQLite rebuilds the table (rows and explicit indexes preserved).</p>
-<h2>Validations</h2>
+<h2 id="validations">Validations<a class="anchor" href="#validations" aria-label="Link to this section">#</a></h2>
 <p>Validations run before save; failures land in <code>errors</code> and <code>valid?</code> returns
 false:</p>
 <pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Post</span> &lt; <span class="hljs-title">Altair::Record::Model</span></span>
@@ -160,7 +201,7 @@ validates_format_of :website, <span class="hljs-symbol">with:</span> <span class
 validates_uniqueness_of :email, <span class="hljs-symbol">case_sensitive:</span> <span class="hljs-literal">false</span></code></pre><pre><code class="hljs language-crystal">post = Post.new(<span class="hljs-symbol">title:</span> <span class="hljs-string">&quot;&quot;</span>)
 post.valid?            <span class="hljs-comment"># false</span>
 post.errors[:title]    <span class="hljs-comment"># [&quot;Title can&#x27;t be blank&quot;]</span>
-post.errors.full_messages</code></pre><h2>Callbacks</h2>
+post.errors.full_messages</code></pre><h2 id="callbacks">Callbacks<a class="anchor" href="#callbacks" aria-label="Link to this section">#</a></h2>
 <p><code>before_save</code>, <code>after_save</code>, <code>before_create</code>, <code>after_create</code>,
 <code>before_update</code>, <code>after_update</code>, <code>before_destroy</code>, <code>after_destroy</code> — each
 takes method names to run around the lifecycle:</p>
@@ -188,7 +229,7 @@ no ceremony:</p>
 <pre><code class="hljs language-crystal">post.touch                       <span class="hljs-comment"># updated_at = now</span>
 audit.touch(:reviewed_at)        <span class="hljs-comment"># listed timestamp columns bump too</span>
 counter.increment!(:hits)        <span class="hljs-comment"># hits = hits + 1 (atomic)</span>
-counter.decrement!(:hits, <span class="hljs-number">5</span>)     <span class="hljs-comment"># hits = hits - 5</span></code></pre><h2>Associations</h2>
+counter.decrement!(:hits, <span class="hljs-number">5</span>)     <span class="hljs-comment"># hits = hits - 5</span></code></pre><h2 id="associations">Associations<a class="anchor" href="#associations" aria-label="Link to this section">#</a></h2>
 <p><code>belongs_to</code>, <code>has_many</code> and <code>has_one</code> generate typed accessors and foreign
 keys. <code>dependent:</code> clears the child rows when the parent is destroyed, and
 <code>includes</code> eager-loads a whole relation in one batched query — no query per
@@ -210,7 +251,7 @@ post.comments_count                       <span class="hljs-comment"># no COUNT 
 collapses into one <code>DELETE ... WHERE fk = ?</code>; children with their own
 lifecycle still run it row by row.</p>
 <pre><code class="hljs language-crystal">post.comments.each { |c| puts c.body }
-Post.all.includes(:comments).to_a          <span class="hljs-comment"># 2 queries total</span></code></pre><h3>Loading and counting without N+1</h3>
+Post.all.includes(:comments).to_a          <span class="hljs-comment"># 2 queries total</span></code></pre><h3 id="loading-and-counting-without-n1">Loading and counting without N+1<a class="anchor" href="#loading-and-counting-without-n1" aria-label="Link to this section">#</a></h3>
 <p>Association accessors are lazy: <code>post.comments</code> runs one query the first
 time it is touched. That is free for a single record and quietly
 catastrophic inside a loop — <code>posts.each { |p| p.comments.size }</code> is one
@@ -224,7 +265,7 @@ User.all.includes(<span class="hljs-symbol">posts:</span> {<span class="hljs-sym
 <code>COUNT(*)</code> with the scoped <code>where</code> clauses (and reuse the cached rows once
 loaded):</p>
 <pre><code class="hljs language-crystal">Post.all.where(<span class="hljs-symbol">published:</span> <span class="hljs-literal">true</span>).count       <span class="hljs-comment"># SELECT COUNT(*), no row loading</span>
-Post.all.includes(:comments).size           <span class="hljs-comment"># 2 queries, rows not materialized</span></code></pre><h3>Scopes</h3>
+Post.all.includes(:comments).size           <span class="hljs-comment"># 2 queries, rows not materialized</span></code></pre><h3 id="scopes">Scopes<a class="anchor" href="#scopes" aria-label="Link to this section">#</a></h3>
 <p>A <code>scope</code> declares a reusable, chainable query fragment as a class
 method. The static form passes <code>key: value</code> pairs to <code>where</code>; the block
 form receives the relation and returns whatever chain it builds:</p>
@@ -248,23 +289,23 @@ N+1 signature — the same SQL firing more than <code>config.n_plus_one_threshol
 (3) times within one request — and logs a warning naming the statement.
 Production never pays the detector&#39;s cost; disable it with
 <code>config.detect_n_plus_one = false</code> if it is ever noisy.</p>
-<h2>Joins</h2>
+<h2 id="joins">Joins<a class="anchor" href="#joins" aria-label="Link to this section">#</a></h2>
 <p>Filter parents by their children in a single SQL query — no N+1, no manual SQL:</p>
 <pre><code class="hljs language-crystal">Post.all.joins(:comments).where(<span class="hljs-string">&quot;comments.body&quot;</span>, <span class="hljs-string">&quot;altair&quot;</span>)
 Post.all.left_joins(:comments)                 <span class="hljs-comment"># keep owners without children</span>
 Post.all.joins(:comments).where(<span class="hljs-string">&quot;comments.body&quot;</span>, <span class="hljs-string">&quot;hi&quot;</span>).count   <span class="hljs-comment"># COUNT(DISTINCT posts.id)</span></code></pre><p><code>joins</code> on a <code>has_many</code> automatically deduplicates (<code>SELECT DISTINCT</code>) so a post
 with three matching comments appears once. Qualified columns (<code>&quot;comments.body&quot;</code>)
 are quoted per part; every value is still a bind parameter.</p>
-<h2>Ordering &amp; reloading</h2>
+<h2 id="ordering-reloading">Ordering &amp; reloading<a class="anchor" href="#ordering-reloading" aria-label="Link to this section">#</a></h2>
 <pre><code class="hljs language-crystal">Post.all.order(:created_at).order(:title)       <span class="hljs-comment"># ORDER BY created_at, title (accumulates)</span>
 Post.all.order(:created_at).reorder(:title)     <span class="hljs-comment"># ORDER BY title (replaces)</span>
 Post.all.unscope_order                          <span class="hljs-comment"># removes all ORDER BY</span>
 
 post = Post.find!(<span class="hljs-number">1</span>)
-post.reload                                     <span class="hljs-comment"># re-reads from DB</span></code></pre><h2>Custom primary keys</h2>
+post.reload                                     <span class="hljs-comment"># re-reads from DB</span></code></pre><h2 id="custom-primary-keys">Custom primary keys<a class="anchor" href="#custom-primary-keys" aria-label="Link to this section">#</a></h2>
 <pre><code class="hljs language-crystal">table :posts, <span class="hljs-symbol">primary_key:</span> :uuid   <span class="hljs-comment"># column must exist in the migration</span></code></pre><p>String PKs auto-generate a <code>SecureRandom.uuid</code> before insert. All finders,
 loaders, updates and deletes respect the custom name.</p>
-<h2>has_many :through</h2>
+<h2 id="hasmany-through">has_many :through<a class="anchor" href="#hasmany-through" aria-label="Link to this section">#</a></h2>
 <pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Post</span> &lt; <span class="hljs-title">Altair::Record::Model</span></span>
   has_many :post_tags
   has_many :tags, <span class="hljs-symbol">through:</span> :post_tags     <span class="hljs-comment"># source inferred (:tag)</span>
@@ -274,7 +315,7 @@ post.tags                                  <span class="hljs-comment"># lazy: on
 Post.all.includes(:tags)                   <span class="hljs-comment"># eager: one batched JOIN for all posts</span>
 Post.all.joins(:tags).where(<span class="hljs-string">&quot;tags.name&quot;</span>, <span class="hljs-string">&quot;crystal&quot;</span>)</code></pre><p>Pass <code>source:</code> explicitly when the singular name is ambiguous — the framework
 raises at boot asking for it rather than guessing.</p>
-<h2>Polymorphic associations</h2>
+<h2 id="polymorphic-associations">Polymorphic associations<a class="anchor" href="#polymorphic-associations" aria-label="Link to this section">#</a></h2>
 <pre><code class="hljs language-crystal"><span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">Comment</span> &lt; <span class="hljs-title">Altair::Record::Model</span></span>
   belongs_to :commentable, <span class="hljs-symbol">polymorphic:</span> <span class="hljs-literal">true</span>   <span class="hljs-comment"># commentable_id + commentable_type</span>
 <span class="hljs-keyword">end</span>
@@ -292,17 +333,17 @@ Post.all.includes(:comments)   <span class="hljs-comment"># one batched query pe
 <pre><code class="hljs language-crystal">schema.create_table(:comments) <span class="hljs-keyword">do</span> |t|
   t.string :body
   t.references :commentable, <span class="hljs-symbol">polymorphic:</span> <span class="hljs-literal">true</span>   <span class="hljs-comment"># id + type + composite index</span>
-<span class="hljs-keyword">end</span></code></pre><h2>Transactions</h2>
+<span class="hljs-keyword">end</span></code></pre><h2 id="transactions">Transactions<a class="anchor" href="#transactions" aria-label="Link to this section">#</a></h2>
 <p><code>transaction</code> runs its block atomically; a raise rolls it back:</p>
 <pre><code class="hljs language-crystal">Post.transaction <span class="hljs-keyword">do</span>
   post.save!
   comment.save!
-<span class="hljs-keyword">end</span></code></pre><h2>Adapters</h2>
+<span class="hljs-keyword">end</span></code></pre><h2 id="adapters">Adapters<a class="anchor" href="#adapters" aria-label="Link to this section">#</a></h2>
 <p>SQLite3 ships in the framework; PostgreSQL is enabled by requiring the
 adapter and <code>crystal-pg</code> in the project&#39;s shard:</p>
 <pre><code class="hljs language-crystal"><span class="hljs-keyword">require</span> <span class="hljs-string">&quot;altair/record/adapters/postgresql&quot;</span></code></pre><p>The same application code runs on either — the adapter interface is the
 only thing that changes.</p>
-<h2>Performance defaults</h2>
+<h2 id="performance-defaults">Performance defaults<a class="anchor" href="#performance-defaults" aria-label="Link to this section">#</a></h2>
 <p>Altair ships performance-sane defaults, all overridable through <code>config</code>:</p>
 <ul>
 <li>The server resizes Crystal&#39;s execution context to the available workers
@@ -315,13 +356,62 @@ environment variable to your CPU limit inside containers; disable with
 <code>db_max_pool_size 10</code> — avoiding connection-creation bursts and
 reconnect churn under load. Tune with the <code>config.db_*</code> properties.</li>
 </ul>
-<div class="docs-pager"><div class="pager-progress">Page 7 of 16</div><div class="pager-links"><a class="pager-card" href="views.html"><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span><span><span class="label">Previous</span><span class="pager-title">Views</span></span></a><a class="pager-card right" href="sessions.html"><span><span class="label">Next</span><span class="pager-title">Sessions and auth</span></span><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></a></div></div></article></div>
+<div class="docs-footer-meta"><span>Found a mistake? <a href="https://github.com/Arab-Open-Source/Altair/blob/main/website/pages/docs/record.md" rel="noopener">Edit this page on GitHub</a>.</span></div><div class="docs-pager"><div class="pager-progress">Page 7 of 16</div><div class="pager-links"><a class="pager-card" href="views.html"><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span><span><span class="label">Previous</span><span class="pager-title">Views</span></span></a><a class="pager-card right" href="sessions.html"><span><span class="label">Next</span><span class="pager-title">Sessions and auth</span></span><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></a></div></div></article><aside class="docs-toc" aria-label="On this page"><p class="toc-title">On this page</p><ul><li><a href="#connecting">Connecting</a></li><li><a href="#models">Models</a></li><li class="toc-h3"><a href="#crud-and-finders">CRUD and finders</a></li><li class="toc-h3"><a href="#querying-relations">Querying relations</a></li><li class="toc-h3"><a href="#bulk-inserts-dirty-tracking-and-enum-columns">Bulk inserts, dirty tracking and enum columns</a></li><li><a href="#migrations">Migrations</a></li><li><a href="#validations">Validations</a></li><li><a href="#callbacks">Callbacks</a></li><li><a href="#associations">Associations</a></li><li class="toc-h3"><a href="#loading-and-counting-without-n1">Loading and counting without N+1</a></li><li class="toc-h3"><a href="#scopes">Scopes</a></li><li><a href="#joins">Joins</a></li><li><a href="#ordering-reloading">Ordering &amp; reloading</a></li><li><a href="#custom-primary-keys">Custom primary keys</a></li><li><a href="#hasmany-through">has_many :through</a></li><li><a href="#polymorphic-associations">Polymorphic associations</a></li><li><a href="#transactions">Transactions</a></li><li><a href="#adapters">Adapters</a></li><li><a href="#performance-defaults">Performance defaults</a></li></ul></aside></div>
   </main>
 
   <footer class="site-footer">
-    <p><span class="footer-brand">Altair</span> — batteries-included web framework for Crystal.</p>
-    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a> &middot; <a href="../docs/features.html">What is implemented</a></p>
+    <div class="footer-inner">
+      <div class="footer-brand-block">
+        <a class="brand" href="../">
+          <img class="brand-logo" src="../assets/img/logo.png" alt="Altair logo" width="30" height="30">
+          Altair
+        </a>
+        <p class="footer-tagline">Batteries-included web framework for Crystal. Routing, controllers, views, an ORM, generators and a CLI — with sane defaults.</p>
+      </div>
+      <nav class="footer-col" aria-label="Getting started">
+        <h5>Start</h5>
+        <ul>
+          <li><a href="../docs/install.html">Install</a></li>
+          <li><a href="../docs/usage.html">Usage</a></li>
+          <li><a href="../docs/update.html">Updating</a></li>
+        </ul>
+      </nav>
+      <nav class="footer-col" aria-label="Guides">
+        <h5>Guides</h5>
+        <ul>
+          <li><a href="../docs/routing.html">Routing</a></li>
+          <li><a href="../docs/record.html">Record (ORM)</a></li>
+          <li><a href="../docs/security.html">Security</a></li>
+          <li><a href="../docs/testing.html">Testing</a></li>
+        </ul>
+      </nav>
+      <nav class="footer-col" aria-label="Project">
+        <h5>Project</h5>
+        <ul>
+          <li><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a></li>
+          <li><a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></li>
+          <li><a href="../docs/benchmarks.html">Benchmarks</a></li>
+          <li><a href="../docs/features.html">What is implemented</a></li>
+        </ul>
+      </nav>
+    </div>
+    <div class="footer-bottom">
+      <span>Altair — the web framework for Crystal. MIT licensed.</span>
+    </div>
   </footer>
+
+  <div class="search-modal" id="search-modal" role="dialog" aria-modal="true" aria-label="Search documentation" hidden>
+    <div class="search-backdrop" data-search-close></div>
+    <div class="search-panel">
+      <div class="search-input-row">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="search" id="search-input" placeholder="Search guides, references, commands..." autocomplete="off" spellcheck="false" aria-label="Search documentation" aria-controls="search-results" aria-expanded="false">
+        <kbd>esc</kbd>
+      </div>
+      <div class="search-results" id="search-results" role="listbox" aria-label="Search results"></div>
+      <div class="search-hint">Navigate with arrow keys, Enter to open.</div>
+    </div>
+  </div>
 
   <script src="../assets/js/docs.js" defer></script>
 </body>

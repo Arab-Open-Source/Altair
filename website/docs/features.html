@@ -1,20 +1,45 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="The current state of the Altair framework, phase by phase.">
+  <meta name="theme-color" content="#152033" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0e1624" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Altair">
+  <meta property="og:title" content="What is implemented — Altair">
+  <meta property="og:description" content="The current state of the Altair framework, phase by phase.">
+  <meta property="og:image" content="../assets/img/logo.png">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="What is implemented — Altair">
+  <meta name="twitter:description" content="The current state of the Altair framework, phase by phase.">
+  <link rel="canonical" href="https://arab-open-source.github.io/Altair/docs/features.html">
   <title>What is implemented — Altair</title>
   <link rel="icon" href="../favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../assets/css/main.css">
   <link rel="stylesheet" href="../assets/css/docs.css">
   <link rel="stylesheet" href="../assets/css/highlight.css">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    (function () {
+      try {
+        var saved = localStorage.getItem("altair-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (e) { /* private mode: stay light */ }
+    })();
+  </script>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
   <header class="site-header">
     <nav class="site-nav" aria-label="Main">
       <a class="brand" href="../">
-        <img class="brand-logo" src="../assets/img/logo.png" alt="" width="30" height="30">
+        <img class="brand-logo" src="../assets/img/logo.png" alt="Altair logo" width="30" height="30">
         Altair
       </a>
       <div class="nav-links">
@@ -26,22 +51,38 @@
         <a href="../docs/benchmarks.html">Benchmarks</a>
         <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
       </div>
+      <div class="nav-actions">
+        <button type="button" class="search-trigger" id="search-trigger" aria-haspopup="dialog" aria-label="Search documentation">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span class="search-label">Search</span>
+          <kbd>Ctrl K</kbd>
+        </button>
+        <button type="button" class="icon-btn theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+          <svg class="sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <button type="button" class="icon-btn nav-toggle" id="nav-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="docs-sidebar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      </div>
     </nav>
   </header>
 
-  <main class="site-main">
-    <div class="docs-layout"><nav class="docs-sidebar" aria-label="Docs"><h4>Getting started</h4><ul><li><a href="install.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>Install</a></li><li><a href="usage.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>Usage</a></li><li><a href="update.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg></span>Updating</a></li></ul><h4>Guides</h4><ul><li><a href="routing.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="12" r="3"/><path d="M8.5 8.5L13.5 9.5"/><path d="M8.5 15.5L13.5 14.5"/></svg></span>Routing</a></li><li><a href="controllers.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></span>Controllers</a></li><li><a href="views.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>Views</a></li><li><a href="record.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>Record (ORM)</a></li><li><a href="sessions.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg></span>Sessions and auth</a></li><li><a href="configuration.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4"/><path d="M12 19v4"/><path d="M4.22 4.22l2.83 2.83"/><path d="M16.97 16.97l2.83 2.83"/><path d="M1 12h4"/><path d="M19 12h4"/><path d="M4.22 19.78l2.83-2.83"/><path d="M16.97 7.03l2.83-2.83"/></svg></span>Configuration</a></li><li><a href="security.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>Security</a></li><li><a href="uploads.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>Uploads</a></li><li><a href="console.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>Console</a></li><li><a href="testing.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>Testing</a></li></ul><h4>Reference</h4><ul><li><a href="features.html" class="is-active" aria-current="page"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>What is implemented</a></li><li><a href="cli.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>CLI reference</a></li><li><a href="benchmarks.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>Benchmarks</a></li></ul></nav><article class="docs-content"><div class="reading-progress" aria-hidden="true"><div class="reading-progress-bar"></div></div><nav class="breadcrumbs" aria-label="Breadcrumb"><a href="index.html">Docs</a><span class="sep">/</span><span>Reference</span><span class="sep">/</span><span aria-current="page">What is implemented</span></nav><div class="docs-page-header"><span class="docs-page-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><h1>What is implemented</h1></div>
+  <div class="nav-scrim" id="nav-scrim" aria-hidden="true"></div>
+
+  <main class="site-main" id="main-content">
+    <div class="docs-layout"><nav class="docs-sidebar" id="docs-sidebar" aria-label="Docs"><h4>Getting started</h4><ul><li><a href="install.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>Install</a></li><li><a href="usage.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>Usage</a></li><li><a href="update.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg></span>Updating</a></li></ul><h4>Guides</h4><ul><li><a href="routing.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="12" r="3"/><path d="M8.5 8.5L13.5 9.5"/><path d="M8.5 15.5L13.5 14.5"/></svg></span>Routing</a></li><li><a href="controllers.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></span>Controllers</a></li><li><a href="views.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>Views</a></li><li><a href="record.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>Record (ORM)</a></li><li><a href="sessions.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg></span>Sessions and auth</a></li><li><a href="configuration.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4"/><path d="M12 19v4"/><path d="M4.22 4.22l2.83 2.83"/><path d="M16.97 16.97l2.83 2.83"/><path d="M1 12h4"/><path d="M19 12h4"/><path d="M4.22 19.78l2.83-2.83"/><path d="M16.97 7.03l2.83-2.83"/></svg></span>Configuration</a></li><li><a href="security.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>Security</a></li><li><a href="uploads.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>Uploads</a></li><li><a href="console.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>Console</a></li><li><a href="testing.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>Testing</a></li></ul><h4>Reference</h4><ul><li><a href="features.html" class="is-active" aria-current="page"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>What is implemented</a></li><li><a href="cli.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>CLI reference</a></li><li><a href="benchmarks.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>Benchmarks</a></li></ul></nav><article class="docs-content"><div class="reading-progress" aria-hidden="true"><div class="reading-progress-bar"></div></div><nav class="breadcrumbs" aria-label="Breadcrumb"><a href="index.html">Docs</a><span class="sep">/</span><span>Reference</span><span class="sep">/</span><span aria-current="page">What is implemented</span></nav><div class="docs-page-header"><span class="docs-page-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><h1>What is implemented</h1></div>
 <p>Altair is built in phases, each ending with something working and visible. Everything below is implemented, tested and shipped. Each area has a guide: <a href="../docs/routing.html">Routing</a>, <a href="../docs/controllers.html">Controllers</a>, <a href="../docs/views.html">Views</a>, <a href="../docs/record.html">Record</a>, <a href="../docs/sessions.html">Sessions and auth</a>, <a href="../docs/configuration.html">Configuration</a>, <a href="../docs/security.html">Security</a> and <a href="../docs/uploads.html">Uploads</a>.</p>
-<h2>Phase 0 — Foundation</h2>
+<h2 id="phase-0-foundation">Phase 0 — Foundation<a class="anchor" href="#phase-0-foundation" aria-label="Link to this section">#</a></h2>
 <p>The core request/response loop: <code>Altair::Application</code>, request handling, error pages and configuration.</p>
-<h2>Phase 1 — Router</h2>
+<h2 id="phase-1-router">Phase 1 — Router<a class="anchor" href="#phase-1-router" aria-label="Link to this section">#</a></h2>
 <ul>
 <li>Segment-based routing (not regex)</li>
 <li><code>resources</code> blocks with <code>member</code>, <code>collection</code> and nested resources</li>
 <li>Constraints and implicit format suffix</li>
 <li><code>redirect</code>, glob segments and singular <code>resource</code></li>
 </ul>
-<h2>Phase 2 — Controllers</h2>
+<h2 id="phase-2-controllers">Phase 2 — Controllers<a class="anchor" href="#phase-2-controllers" aria-label="Link to this section">#</a></h2>
 <p>A type-checked controller base with actions, parameters and rendering hooks. A wrong method on a dispatch is a compile error, not a runtime 500. The controller layer gained a hardening wave:</p>
 <ul>
 <li><code>render json:</code> serializes any JSON-able object, <code>redirect_back</code> with open-redirect protection</li>
@@ -53,21 +94,21 @@
 <li><code>stream</code> opens chunked bodies for large responses and server-sent events</li>
 <li>A segment-based route index buckets routes by their first segment so matching only tests viable candidates</li>
 </ul>
-<h2>Phase 3 — Views</h2>
+<h2 id="phase-3-views">Phase 3 — Views<a class="anchor" href="#phase-3-views" aria-label="Link to this section">#</a></h2>
 <ul>
 <li>ECR templates</li>
 <li>Auto-escaping by default — XSS-safe out of the box</li>
 <li>Layouts with <code>yield</code>, partials (<code>render &quot;form&quot;</code>)</li>
 <li>Helpers: <code>link_to</code>, <code>content_tag</code>, a basic form builder, and an htmx layer</li>
 </ul>
-<h2>Phase 4 — Record (ORM)</h2>
+<h2 id="phase-4-record-orm">Phase 4 — Record (ORM)<a class="anchor" href="#phase-4-record-orm" aria-label="Link to this section">#</a></h2>
 <p>Three vertical waves:</p>
 <ul>
 <li><strong>Wave 1:</strong> adapter interface + SQLite3, connection pool, migrations DSL + runner, auto-regenerated <code>db/schema.cr</code></li>
 <li><strong>Wave 2:</strong> CRUD + finders (<code>find_by_*</code>), validations (<code>valid?</code> + errors), timestamps and callbacks</li>
 <li><strong>Wave 3:</strong> associations (<code>belongs_to</code>, <code>has_many</code>, <code>has_one</code>) with batched eager loading via <code>Relation#includes</code>, and <code>dependent:</code> handling</li>
 </ul>
-<h2>Phase 5 — CLI + Generators</h2>
+<h2 id="phase-5-cli-generators">Phase 5 — CLI + Generators<a class="anchor" href="#phase-5-cli-generators" aria-label="Link to this section">#</a></h2>
 <ul>
 <li><code>altair new</code> generates a standard project layout</li>
 <li><code>altair g model|migration|controller|scaffold</code> generates ready-to-edit files</li>
@@ -76,7 +117,7 @@
 <li><code>altair update</code> checks GitHub for a newer release, verifies the checksum and swaps the binary atomically</li>
 <li>Prebuilt binaries for Linux, macOS and Windows (amd64 + arm64) published with checksums; verified one-command installers</li>
 </ul>
-<h2>Phase 6 — Hardening</h2>
+<h2 id="phase-6-hardening">Phase 6 — Hardening<a class="anchor" href="#phase-6-hardening" aria-label="Link to this section">#</a></h2>
 <p>Sessions, authentication, file-driven configuration, multipart uploads and a
 security middleware set, shipped in waves:</p>
 <ul>
@@ -103,7 +144,7 @@ parameter bag (scalar fields as params, files as
   opt-in <code>Cors</code> (<code>config.cors.origins</code> enables it; preflight answered
   directly)</li>
 </ul>
-<h2>Phase 7 — Post-release</h2>
+<h2 id="phase-7-post-release">Phase 7 — Post-release<a class="anchor" href="#phase-7-post-release" aria-label="Link to this section">#</a></h2>
 <p>Four features shipped, demonstrated end to end in <code>examples/blog</code>:</p>
 <ul>
 <li><strong>Testing utilities</strong> — <code>Altair::Test.boot(App)</code> binds an ephemeral port
@@ -139,7 +180,7 @@ exponential backoff inside a per-job budget, <code>altair jobs:work</code> runs
 the worker with graceful shutdown, <code>altair jobs:stats</code> prints status
 counts, and test mode collects enqueues for synchronous draining</li>
 </ul>
-<h2>Performance hardening</h2>
+<h2 id="performance-hardening">Performance hardening<a class="anchor" href="#performance-hardening" aria-label="Link to this section">#</a></h2>
 <ul>
 <li><code>find_each</code> streams bounded batches that keep the scoped <code>where</code> filters and <code>includes</code> preloaders</li>
 <li><code>Relation#count</code> / <code>size</code> run <code>COUNT(*)</code> without materializing rows</li>
@@ -153,13 +194,13 @@ quoted statements, halving the write-path allocations (PostgreSQL:
 <code>Item.create</code> 2,033 → 964 B/op on the frozen-GC harness) — see
 <a href="../docs/benchmarks.html">Benchmarks</a> for the end-to-end effect</li>
 </ul>
-<h2>Testing and quality</h2>
+<h2 id="testing-and-quality">Testing and quality<a class="anchor" href="#testing-and-quality" aria-label="Link to this section">#</a></h2>
 <ul>
 <li>992 specs passing (15 pending: 7 Redis rate-limit + 1 Redis middleware + 6 PostgreSQL concurrency contract; the full PostgreSQL contract suite runs when <code>ALTAIR_TEST_PG_URL</code> is set)</li>
 <li>Formatter clean, linter silent on framework sources</li>
 <li>Smart error pages: 404 with route suggestions, 405 with <code>_method</code> explanation, detailed 500 diagnostics in debug mode only</li>
 </ul>
-<h3>Rich query DSL completion + advanced associations (closing Phase 7 wave)</h3>
+<h3 id="rich-query-dsl-completion-advanced-associations-closing-phase-7-wave">Rich query DSL completion + advanced associations (closing Phase 7 wave)<a class="anchor" href="#rich-query-dsl-completion-advanced-associations-closing-phase-7-wave" aria-label="Link to this section">#</a></h3>
 <ul>
 <li><strong>Joins</strong> — <code>Post.all.joins(:comments).where(&quot;comments.body&quot;, &quot;altair&quot;)</code>
 emits a real INNER JOIN with table-qualified <code>where</code>; <code>has_many</code> joins
@@ -175,7 +216,7 @@ loading and <code>dependent: :destroy/:nullify</code>;
 <code>t.references :x, polymorphic: true</code> migration helper generates the
 id/type pair plus composite index</li>
 </ul>
-<h3>ORM hardening (Wave 0)</h3>
+<h3 id="orm-hardening-wave-0">ORM hardening (Wave 0)<a class="anchor" href="#orm-hardening-wave-0" aria-label="Link to this section">#</a></h3>
 <ul>
 <li><strong><code>IN (...)</code> chunking</strong> — eager loading splits oversized id lists at 500 binds,
 so large collections never trip SQLite&#39;s variable limit</li>
@@ -188,15 +229,15 @@ re-reads attributes from the database</li>
 <li><strong>Atomic writes</strong> — <code>db/schema.cr</code> written via tmp+rename;
 <code>db:migrate</code> acquires PG advisory lock against concurrent races</li>
 </ul>
-<h3>Phase 8 — Database ergonomics</h3>
+<h3 id="phase-8-database-ergonomics">Phase 8 — Database ergonomics<a class="anchor" href="#phase-8-database-ergonomics" aria-label="Link to this section">#</a></h3>
 <p>Completed — <code>altair new -d postgresql</code> wires the <code>pg</code> shard, <code>postgres://</code> URLs and the adapter require; <code>bin/altair db:create</code> / <code>db:drop</code> manage every env in <code>config/database.yml</code>; <code>ENV[&quot;DATABASE_URL&quot;]</code> overrides at boot and in those commands.</p>
-<h3>v0.4.0 — ORM completion wave</h3>
+<h3 id="v040-orm-completion-wave">v0.4.0 — ORM completion wave<a class="anchor" href="#v040-orm-completion-wave" aria-label="Link to this section">#</a></h3>
 <ul>
 <li><strong>Query DSL</strong>: <code>where_not</code>, <code>or_where</code>, <code>:like</code> / <code>:in</code> / <code>:null</code> / <code>:not_null</code> operators; finders <code>first</code> / <code>last</code> / <code>take</code> / <code>ids</code> / <code>pick</code> / <code>exists?</code> / <code>any?</code> / <code>none?</code>; bulk <code>update_all</code> / <code>delete_all</code></li>
 <li><strong>Lifecycle</strong>: <code>after_commit</code> / <code>after_rollback</code> hooks; direct-write <code>touch</code> / <code>increment!</code> / <code>decrement!</code></li>
 <li><strong>Associations &amp; validations</strong>: <code>counter_cache</code>, batched <code>dependent: :destroy</code>, conditional validations (<code>if:</code> / <code>unless:</code> / <code>allow_nil:</code>) and <code>case_sensitive: false</code> uniqueness</li>
 </ul>
-<h3>Phase 10 — Router &amp; future features</h3>
+<h3 id="phase-10-router-future-features">Phase 10 — Router &amp; future features<a class="anchor" href="#phase-10-router-future-features" aria-label="Link to this section">#</a></h3>
 <ul>
 <li><strong>Dynamic redirect</strong>: <code>redirect &quot;/t/:id&quot;, to: &quot;/tweets/:id&quot;</code> interpolates route params into Location headers</li>
 <li><strong>Cache layer</strong>: MemoryStore (dev) + RedisStore (production); <code>Altair.cache.fetch</code> with TTL expiry</li>
@@ -208,20 +249,69 @@ re-reads attributes from the database</li>
 <li><strong>Structured logs</strong>: <code>config.structured_logs = true</code> emits one JSON object per request</li>
 <li><strong>Redis client</strong>: Pure-Crystal <code>Altair::Redis::Client</code> built from scratch — RESP2, connection pool, pub/sub, pipeline, transactions. No external Redis shard needed.</li>
 </ul>
-<h3>Phase 9 — CLI ergonomics</h3>
+<h3 id="phase-9-cli-ergonomics">Phase 9 — CLI ergonomics<a class="anchor" href="#phase-9-cli-ergonomics" aria-label="Link to this section">#</a></h3>
 <p>Planned — <code>altair g job</code> and <code>destroy</code> generators, per-environment database helpers, server flags, and project diagnostics.</p>
-<h2>What is planned next</h2>
+<h2 id="what-is-planned-next">What is planned next<a class="anchor" href="#what-is-planned-next" aria-label="Link to this section">#</a></h2>
 <ul>
 <li><strong>Phase 12 candidate:</strong> multi-tenancy</li>
 <li>Email sending</li>
 </ul>
-<div class="docs-pager"><div class="pager-progress">Page 14 of 16</div><div class="pager-links"><a class="pager-card" href="testing.html"><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span><span><span class="label">Previous</span><span class="pager-title">Testing</span></span></a><a class="pager-card right" href="cli.html"><span><span class="label">Next</span><span class="pager-title">CLI reference</span></span><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></a></div></div></article></div>
+<div class="docs-footer-meta"><span>Found a mistake? <a href="https://github.com/Arab-Open-Source/Altair/blob/main/website/pages/docs/features.md" rel="noopener">Edit this page on GitHub</a>.</span></div><div class="docs-pager"><div class="pager-progress">Page 14 of 16</div><div class="pager-links"><a class="pager-card" href="testing.html"><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span><span><span class="label">Previous</span><span class="pager-title">Testing</span></span></a><a class="pager-card right" href="cli.html"><span><span class="label">Next</span><span class="pager-title">CLI reference</span></span><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></a></div></div></article><aside class="docs-toc" aria-label="On this page"><p class="toc-title">On this page</p><ul><li><a href="#phase-0-foundation">Phase 0 — Foundation</a></li><li><a href="#phase-1-router">Phase 1 — Router</a></li><li><a href="#phase-2-controllers">Phase 2 — Controllers</a></li><li><a href="#phase-3-views">Phase 3 — Views</a></li><li><a href="#phase-4-record-orm">Phase 4 — Record (ORM)</a></li><li><a href="#phase-5-cli-generators">Phase 5 — CLI + Generators</a></li><li><a href="#phase-6-hardening">Phase 6 — Hardening</a></li><li><a href="#phase-7-post-release">Phase 7 — Post-release</a></li><li><a href="#performance-hardening">Performance hardening</a></li><li><a href="#testing-and-quality">Testing and quality</a></li><li class="toc-h3"><a href="#rich-query-dsl-completion-advanced-associations-closing-phase-7-wave">Rich query DSL completion + advanced associations (closing Phase 7 wave)</a></li><li class="toc-h3"><a href="#orm-hardening-wave-0">ORM hardening (Wave 0)</a></li><li class="toc-h3"><a href="#phase-8-database-ergonomics">Phase 8 — Database ergonomics</a></li><li class="toc-h3"><a href="#v040-orm-completion-wave">v0.4.0 — ORM completion wave</a></li><li class="toc-h3"><a href="#phase-10-router-future-features">Phase 10 — Router &amp; future features</a></li><li class="toc-h3"><a href="#phase-9-cli-ergonomics">Phase 9 — CLI ergonomics</a></li><li><a href="#what-is-planned-next">What is planned next</a></li></ul></aside></div>
   </main>
 
   <footer class="site-footer">
-    <p><span class="footer-brand">Altair</span> — batteries-included web framework for Crystal.</p>
-    <p><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a> &middot; <a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a> &middot; <a href="../docs/features.html">What is implemented</a></p>
+    <div class="footer-inner">
+      <div class="footer-brand-block">
+        <a class="brand" href="../">
+          <img class="brand-logo" src="../assets/img/logo.png" alt="Altair logo" width="30" height="30">
+          Altair
+        </a>
+        <p class="footer-tagline">Batteries-included web framework for Crystal. Routing, controllers, views, an ORM, generators and a CLI — with sane defaults.</p>
+      </div>
+      <nav class="footer-col" aria-label="Getting started">
+        <h5>Start</h5>
+        <ul>
+          <li><a href="../docs/install.html">Install</a></li>
+          <li><a href="../docs/usage.html">Usage</a></li>
+          <li><a href="../docs/update.html">Updating</a></li>
+        </ul>
+      </nav>
+      <nav class="footer-col" aria-label="Guides">
+        <h5>Guides</h5>
+        <ul>
+          <li><a href="../docs/routing.html">Routing</a></li>
+          <li><a href="../docs/record.html">Record (ORM)</a></li>
+          <li><a href="../docs/security.html">Security</a></li>
+          <li><a href="../docs/testing.html">Testing</a></li>
+        </ul>
+      </nav>
+      <nav class="footer-col" aria-label="Project">
+        <h5>Project</h5>
+        <ul>
+          <li><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a></li>
+          <li><a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></li>
+          <li><a href="../docs/benchmarks.html">Benchmarks</a></li>
+          <li><a href="../docs/features.html">What is implemented</a></li>
+        </ul>
+      </nav>
+    </div>
+    <div class="footer-bottom">
+      <span>Altair — the web framework for Crystal. MIT licensed.</span>
+    </div>
   </footer>
+
+  <div class="search-modal" id="search-modal" role="dialog" aria-modal="true" aria-label="Search documentation" hidden>
+    <div class="search-backdrop" data-search-close></div>
+    <div class="search-panel">
+      <div class="search-input-row">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="search" id="search-input" placeholder="Search guides, references, commands..." autocomplete="off" spellcheck="false" aria-label="Search documentation" aria-controls="search-results" aria-expanded="false">
+        <kbd>esc</kbd>
+      </div>
+      <div class="search-results" id="search-results" role="listbox" aria-label="Search results"></div>
+      <div class="search-hint">Navigate with arrow keys, Enter to open.</div>
+    </div>
+  </div>
 
   <script src="../assets/js/docs.js" defer></script>
 </body>

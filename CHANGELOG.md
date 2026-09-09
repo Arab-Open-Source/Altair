@@ -5,6 +5,22 @@ All notable changes to Altair will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Documentation site redesign** (`website/`) with an identity derived from
+  the project logo (ink navy + crystal coral, Space Grotesk display type):
+  split hero with a tabbed quick-start terminal, hierarchical bento feature
+  grid, benchmark strip and a four-column footer on the homepage; three-column
+  docs layout with a scrollspy "On this page" rail, heading anchor links,
+  "Edit this page on GitHub" links, canonical + Open Graph SEO tags, and a
+  `search-index.json` powering a Ctrl K / Cmd K offline search modal.
+- **Docs dark mode** — light/dark themes persisted to `localStorage` with
+  `prefers-color-scheme` fallback and a no-flash pre-paint init script; code
+  blocks, tables and callouts restyled for both themes, plus a mobile drawer
+  navigation and print stylesheet.
+
 ## [0.4.2] — 2026-08-24
 
 ### Added
