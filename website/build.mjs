@@ -107,10 +107,18 @@ function slugify(text) {
 }
 
 // Add ids + anchor links to h2/h3 headings; return {html, toc}.
+// Headings inside links (e.g. card titles like <a><h3>..</h3></a>) are
+// skipped: an injected anchor would nest <a> inside <a>, which is invalid
+// HTML that browsers split apart, breaking the card layout.
 function enhanceHeadings(html) {
   const toc = [];
   const seen = new Map();
-  const out = html.replace(/<h([23])>([\s\S]*?)<\/h\1>/g, (match, level, inner) => {
+  const links = [];
+  const masked = html.replace(/<a\b[^>]*>[\s\S]*?<\/a>/g, (m) => {
+    links.push(m);
+    return `@@LINK${links.length - 1}@@`;
+  });
+  const out = masked.replace(/<h([23])>([\s\S]*?)<\/h\1>/g, (match, level, inner) => {
     const plain = inner.replace(/<[^>]*>/g, "").trim();
     if (!plain) return match;
     let slug = slugify(plain) || "section";
@@ -120,7 +128,7 @@ function enhanceHeadings(html) {
     toc.push({ level: Number(level), id: slug, text: plain });
     return `<h${level} id="${slug}">${inner}<a class="anchor" href="#${slug}" aria-label="Link to this section">#</a></h${level}>`;
   });
-  return { html: out, toc };
+  return { html: out.replace(/@@LINK(\d+)@@/g, (_, i) => links[Number(i)]), toc };
 }
 
 function renderToc(toc) {

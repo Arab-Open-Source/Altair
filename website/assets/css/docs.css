@@ -225,7 +225,7 @@ code {
   flex: 1;
   max-width: 48%;
   padding: 0.9rem 1.1rem;
-  background: #ffffff;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);

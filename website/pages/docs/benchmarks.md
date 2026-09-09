@@ -24,6 +24,32 @@ framework-limited, so per-request cost is what is measured.
 
 All six runs completed with **zero failed requests**.
 
+## Session 2026-09-09 — isolated databases
+
+The harness was re-run with the same unified settings (200-connection
+budget, 1,000 VUs for 60 s, discarded warm-up, Altair first with a 60 s
+cooldown between frameworks), but each framework ran against its **own**
+PostgreSQL container, so checkpoints and WAL can no longer leak between
+runs. Isolation verified: zero failed requests, each database holding only
+its own framework's table.
+
+| Workload | Framework | req/s | avg | p95 | p99 | p99.9 | max |
+|---|---|---:|---:|---:|---:|---:|---:|
+| **Write** `POST /items` | Fiber | 9,186 | 108.3 ms | 159.5 ms | 175.5 ms | 199.8 ms | 274.1 ms |
+| | **Altair** | **9,035** | **109.5 ms** | 181.0 ms | 274.0 ms | 1,032.3 ms | 1,142.4 ms |
+| | Express | 4,199 | 235.5 ms | 313.3 ms | 5,010.5 ms | 6,925.4 ms | 7,028.9 ms |
+| **Read** `GET /items/:id` | Fiber | 12,994 | 73.5 ms | 109.2 ms | 136.1 ms | 178.0 ms | 313.8 ms |
+| | **Altair** | **9,361** | **104.4 ms** | 225.8 ms | 462.4 ms | 855.7 ms | 1,408.8 ms |
+| | Express | 7,011 | 141.7 ms | 208.3 ms | 265.5 ms | 676.4 ms | 1,164.5 ms |
+
+Ordering matches the baseline on both workloads, and Fiber's write tail
+shows what isolation buys (p99.9 2,502.9 → 199.8 ms vs the shared-DB
+session). Caveats: the smaller per-DB slice (2 CPUs) caps the fastest
+reader, and absolute 1000-VU numbers move with host state — the tables
+above stay the reference. The read-path fix itself is proven by the
+same-day controlled A/B on Altair at 300 VUs: read p99.9 −53%, max −66%,
+throughput +32% with no write regression.
+
 ## What the numbers say
 
 - **Altair is ~1.8–1.9x faster than Express** on throughput in both
