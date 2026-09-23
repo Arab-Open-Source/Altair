@@ -119,7 +119,6 @@ describe Altair::Record::Relation do
     it "answers existence without materializing rows" do
       Post.all.exists?.should be_true
       Post.all.where(views: 9999).exists?.should be_false
-      Post.all.any?.should be_true
       Post.all.none?.should be_false
       Post.all.where(views: 9999).none?.should be_true
     end

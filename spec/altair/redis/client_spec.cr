@@ -12,13 +12,9 @@ require "../../../src/altair/redis/transaction"
 require "../../../src/altair/redis/subscriber"
 
 def with_redis(& : Altair::Redis::Client -> Nil)
-  url = ENV.fetch("ALTAIR_REDIS_URL", nil)
-  unless url
-    # Without ALTAIR_REDIS_URL these specs cannot run — the caller should
-    # check ENV before calling. Docker: docker compose up -d redis
-    raise "ALTAIR_REDIS_URL not set — run docker compose up -d redis first"
-  end
-  client = Altair::Redis::Client.new(URI.parse(url))
+  url = ENV["ALTAIR_REDIS_URL"]?
+  pending! "set ALTAIR_REDIS_URL to run the Redis client specs (docker compose up -d redis)" unless url
+  client = Altair::Redis::Client.new(URI.parse(url.not_nil!))
   client.flushdb
   begin
     yield client

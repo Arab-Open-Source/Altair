@@ -42,7 +42,7 @@ end
 describe "rate limit middleware" do
   it "allows up to the limit then answers 429 with Retry-After" do
     with_rl_app do |port|
-      codes = 4.times.map { Altair::Test.get(port, "/api/items").status_code }.to_a
+      codes = Array.new(4) { Altair::Test.get(port, "/api/items").status_code }
       codes.should eq([200, 200, 200, 429])
     end
   end
@@ -141,7 +141,7 @@ describe "rate limit middleware" do
         rl.limit 2, per: 1.minute
       end
     }) do |port|
-      codes = 3.times.map { Altair::Test.get(port, "/api/items").status_code }.to_a
+      codes = Array.new(3) { Altair::Test.get(port, "/api/items").status_code }
       codes.should eq([200, 200, 429])
     end
   end

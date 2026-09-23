@@ -22,7 +22,7 @@ describe Altair::RateLimit::RedisStore do
       t = 90_000.0
       2.times { |i| store.hit("ns", 2, 1.minute, now: t + i * 0.01) }
       fresh = other.hit("ns", 2, 1.minute, now: t + 0.02)
-      fresh.allowed.should be_true
+      fresh.allowed?.should be_true
       fresh.remaining.should eq(1)
     ensure
       store.clear

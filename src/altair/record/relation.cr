@@ -240,8 +240,8 @@ module Altair
       # ```
       # Post.all.where(:views, :in, [3, 12])
       # ```
-      # An empty list matches nothing without touching the database's
-      # variable limit.
+      # An empty list matches nothing; oversized lists fold into `OR`
+      # groups so the query stays under the database's bind limit.
       def where(column : Symbol | String, operator : Symbol, values : Array(Model::Value)) : self
         raise ArgumentError.new(":in is the only list operator") unless operator == :in
         clause, binds = membership_condition(quoted_qualified(column.to_s), values)
@@ -623,8 +623,25 @@ module Altair
         # violate the declared return type.
         binds = [] of Model::Value
         values.each { |value| binds << value }
-        marks = binds.map { placeholder }.join(", ")
-        {"#{qualified} IN (#{marks})", binds}
+        # SQLite tolerates `IN ()` as always-false; PostgreSQL rejects
+        # it, so empty lists become a constant-false condition.
+        return {"1 = 0", binds} if binds.empty?
+        # Placeholder indices must track the local accumulation:
+        # `placeholder` reads `@binds.size`, which only grows after the
+        # caller appends `binds`, so naively mapping over the values
+        # would emit `$1, $1, ...` on PostgreSQL. Oversized lists fold
+        # into OR groups to stay under the driver's bind ceiling.
+        adapter = T.connection.adapter
+        base = @binds.size
+        clauses = [] of String
+        offset = 0
+        binds.each_slice(Model::PRELOAD_MAX_BINDS) do |slice|
+          marks = slice.each_index.map { |index| adapter.placeholder(base + offset + index) }.join(", ")
+          clauses << "#{qualified} IN (#{marks})"
+          offset += slice.size
+        end
+        clause = clauses.size == 1 ? clauses.first : "(#{clauses.join(" OR ")})"
+        {clause, binds}
       end
 
       # Folds an OR group into the most recent condition — `(last OR

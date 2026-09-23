@@ -22,7 +22,7 @@ class Altair::Middleware::RateLimit < Altair::Middleware
 
     hit = store_for(rl).hit(client_key(request), rule.limit, rule.period)
     stamp(response, rule, hit)
-    return if hit.allowed
+    return if hit.allowed?
 
     retry_after = hit.reset_in.ceil.to_i.clamp(1..)
     response.headers["Retry-After"] = retry_after.to_s

@@ -16,6 +16,24 @@
 require "../spec_helper"
 require "pg"
 
+# Spec-local stand-ins for the patched crystal-pg types the gated contract
+# references. Stock crystal-pg has neither PQ::ProtocolError nor
+# Connection#prepared_name; both ship only with the patched lib/ sources.
+{% unless PQ.has_constant?("ProtocolError") %}
+  module PQ
+    class ProtocolError < Exception
+    end
+  end
+{% end %}
+
+{% unless PQ::Connection.has_method?("prepared_name") %}
+  class PQ::Connection
+    def prepared_name(sql : String) : String
+      raise "prepared_name requires the patched crystal-pg in lib/"
+    end
+  end
+{% end %}
+
 # Spec-local window onto the wrapped PQ::Connection (protected getter):
 # needed to inject deterministic protocol faults without touching sockets.
 module PG
@@ -51,7 +69,8 @@ def proto_cause_chain_has?(error : Exception, klass : Class) : Bool
   current : Exception? = error
   loop do
     return true if klass === current
-    return false unless (current = current.try(&.cause))
+    current = current.try(&.cause)
+    return false unless current
   end
 end
 
@@ -65,13 +84,11 @@ describe "PostgreSQL wire protocol under concurrency" do
       results = Channel(Exception?).new(fibers)
       fibers.times do |i|
         spawn(name: "proto-A-#{i}") do
-          begin
-            per_fiber.times { |j| db.exec("INSERT INTO #{PROTO_TABLE} (f) VALUES ($1)", i * 100 + j) }
-            db.query_one("SELECT max(id) FROM #{PROTO_TABLE}", as: Int64)
-            results.send(nil)
-          rescue e
-            results.send(e)
-          end
+          per_fiber.times { |j| db.exec("INSERT INTO #{PROTO_TABLE} (f) VALUES ($1)", i * 100 + j) }
+          db.query_one("SELECT max(id) FROM #{PROTO_TABLE}", as: Int64)
+          results.send(nil)
+        rescue e
+          results.send(e)
         end
       end
       fibers.times do
@@ -135,16 +152,14 @@ describe "PostgreSQL wire protocol under concurrency" do
       results = Channel(Exception?).new(fibers)
       fibers.times do |i|
         spawn(name: "proto-C-#{i}") do
-          begin
-            sql = "SELECT $1::bigint + #{i}" # distinct text => distinct prepared name
-            reps.times do
-              got = db.scalar(sql, 1000).as(Int64)
-              raise "statement bleed: sent #{i}, got #{got}" unless got == (1000 + i).to_i64
-            end
-            results.send(nil)
-          rescue e
-            results.send(e)
+          sql = "SELECT $1::bigint + #{i}" # distinct text => distinct prepared name
+          reps.times do
+            got = db.scalar(sql, 1000).as(Int64)
+            raise "statement bleed: sent #{i}, got #{got}" unless got == (1000 + i).to_i64
           end
+          results.send(nil)
+        rescue e
+          results.send(e)
         end
       end
       fibers.times do
@@ -171,25 +186,23 @@ describe "PostgreSQL wire protocol under concurrency" do
       drain_errors = Channel(Exception?).new(streams)
       streams.times do |i|
         spawn(name: "proto-D-#{i}") do
-          begin
-            last_id = 0
-            n = 0
-            db.query("SELECT id FROM #{PROTO_TABLE} WHERE f >= $1 ORDER BY id", i % 5) do |rs|
-              rs.each do
-                got = rs.read(Int64)
-                raise "frame disorder: id regressed" unless got > last_id
-                last_id = got
-                n += 1
-                # Yield mid-stream so other fibers run their own exchange
-                # against sibling connections while this cursor is open.
-                sleep 0.milliseconds if (n % 97).zero?
-              end
+          last_id = 0
+          n = 0
+          db.query("SELECT id FROM #{PROTO_TABLE} WHERE f >= $1 ORDER BY id", i % 5) do |rs|
+            rs.each do
+              got = rs.read(Int64)
+              raise "frame disorder: id regressed" unless got > last_id
+              last_id = got
+              n += 1
+              # Yield mid-stream so other fibers run their own exchange
+              # against sibling connections while this cursor is open.
+              sleep 0.milliseconds if (n % 97).zero?
             end
-            raise "stream #{i} drained nothing" if n.zero?
-            drain_errors.send(nil)
-          rescue e
-            drain_errors.send(e)
           end
+          raise "stream #{i} drained nothing" if n.zero?
+          drain_errors.send(nil)
+        rescue e
+          drain_errors.send(e)
         end
       end
       streams.times do
@@ -218,17 +231,15 @@ describe "PostgreSQL wire protocol under concurrency" do
       done = Channel(Nil).new(fibers)
       fibers.times do |i|
         spawn(name: "proto-E-#{i}") do
-          begin
-            per_fiber.times do
-              v = db.scalar("SELECT $1::bigint * 2", i & 1023).as(Int64)
-              raise "wrong arithmetic #{v}" if v != ((i & 1023) * 2).to_i64
-            end
-            failures.send(nil)
-          rescue e
-            failures.send(e)
-          ensure
-            done.send(nil)
+          per_fiber.times do
+            v = db.scalar("SELECT $1::bigint * 2", i & 1023).as(Int64)
+            raise "wrong arithmetic #{v}" if v != ((i & 1023) * 2).to_i64
           end
+          failures.send(nil)
+        rescue e
+          failures.send(e)
+        ensure
+          done.send(nil)
         end
       end
       fibers.times { done.receive }
@@ -262,7 +273,7 @@ describe "PostgreSQL wire protocol under concurrency" do
 
       raw = db.pool.checkout.as(PG::Connection)
       err = expect_raises(DB::ConnectionLost) do
-        raw.build_prepared_statement("SELECT 44").query { |rs| rs.move_next }
+        raw.build_prepared_statement("SELECT 44").query(&.move_next)
       end
       err.cause.should_not be_nil, "ConnectionLost without a cause"
       proto_cause_chain_has?(err, PQ::ProtocolError).should be_true
@@ -279,7 +290,7 @@ describe "PostgreSQL wire protocol under concurrency" do
       rescue e : DB::PoolRetryAttemptsExceeded
         refused_ok = true
         e.cause.should_not be_nil
-      rescue e : DB::ConnectionRefused
+      rescue DB::ConnectionRefused
         refused_ok = true
       end
       refused_ok.should be_true

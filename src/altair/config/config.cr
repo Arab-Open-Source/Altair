@@ -406,7 +406,7 @@ module Altair
       # requests-per-second) among the matchers, or nil when free.
       def rule_for(path : String) : Altair::RateLimit::Rule?
         matching = @rules.select(&.matches?(path))
-        return nil if matching.empty?
+        return if matching.empty?
         matching.min_by(&.tightness)
       end
 

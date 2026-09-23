@@ -13,10 +13,10 @@ def run_store_contract(factory : Proc(Altair::RateLimit::Store)) : Nil
       t = 10_000.0
       5.times do |i|
         hit = store.hit("k", 5, 2.seconds, now: t + i * 0.01)
-        hit.allowed.should be_true
+        hit.allowed?.should be_true
       end
       hit = store.hit("k", 5, 2.seconds, now: t + 0.1)
-      hit.allowed.should be_false
+      hit.allowed?.should be_false
       hit.remaining.should eq(0)
     ensure
       store.close if store.responds_to?(:close)
@@ -52,11 +52,11 @@ def run_store_contract(factory : Proc(Altair::RateLimit::Store)) : Nil
       # The previous window still weighs nearly full this early into the
       # new one: 10 * (1 - 0.025) ≈ 9.75 — the crossing hit barely fits,
       # and its weight immediately chokes the next one.
-      crossed.allowed.should be_true
+      crossed.allowed?.should be_true
       crossed.remaining.should eq(0)
 
       denied = store.hit("w", 10, period, now: boundary + 0.2)
-      denied.allowed.should be_false
+      denied.allowed?.should be_false
     ensure
       store.close if store.responds_to?(:close)
     end
@@ -69,9 +69,9 @@ def run_store_contract(factory : Proc(Altair::RateLimit::Store)) : Nil
       period = 1.second
       3.times { |i| store.hit("age", 3, period, now: t + i * 0.01) }
       denied = store.hit("age", 3, period, now: t + 0.5)
-      denied.allowed.should be_false
+      denied.allowed?.should be_false
       fresh = store.hit("age", 3, period, now: t + 2.5)
-      fresh.allowed.should be_true
+      fresh.allowed?.should be_true
       fresh.remaining.should eq(2)
     ensure
       store.close if store.responds_to?(:close)
@@ -97,7 +97,7 @@ def run_store_contract(factory : Proc(Altair::RateLimit::Store)) : Nil
       t = 60_000.0
       2.times { |i| store.hit("a", 2, 1.minute, now: t + i * 0.01) }
       other = store.hit("b", 2, 1.minute, now: t + 0.02)
-      other.allowed.should be_true
+      other.allowed?.should be_true
       other.remaining.should eq(1)
     ensure
       store.close if store.responds_to?(:close)
@@ -111,7 +111,7 @@ def run_store_contract(factory : Proc(Altair::RateLimit::Store)) : Nil
       2.times { |i| store.hit("c", 2, 1.minute, now: t + i * 0.01) }
       store.clear
       hit = store.hit("c", 2, 1.minute, now: t + 0.03)
-      hit.allowed.should be_true
+      hit.allowed?.should be_true
       hit.remaining.should eq(1)
     ensure
       store.close if store.responds_to?(:close)
@@ -143,10 +143,10 @@ describe Altair::RateLimit::MemoryStore do
     store = Altair::RateLimit::MemoryStore.new
     allowed = 0
     160.times do
-      allowed += 1 if store.hit("race", 50, 1.hour).allowed
+      allowed += 1 if store.hit("race", 50, 1.hour).allowed?
     end
     allowed.should eq(50)
-    store.hit("race", 50, 1.hour).allowed.should be_false
+    store.hit("race", 50, 1.hour).allowed?.should be_false
     store.close
   end
 end

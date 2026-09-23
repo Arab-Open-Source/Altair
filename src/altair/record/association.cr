@@ -95,7 +95,6 @@ module Altair
             pairs.each do |type, group|
               klass = Altair::Record.resolve_klass(type)
               ids = group.map(&.[1]).uniq
-              placeholders = ids.each_index.map { |index| connection.adapter.placeholder(index) }
               rows_for_type = klass.select_all(ids)
               rows_for_type.each do |row|
                 loaded[type][row.__pk.not_nil!] = row.as(Altair::Record::Model)
@@ -322,23 +321,25 @@ module Altair
           private def self.__load_{{ assoc.id }}(records : Array({{ @type.id }})) : Array({{ model.id }})
             ids = records.compact_map(&.id)
             return [] of {{ model.id }} if ids.empty?
-            placeholders = ids.each_index.map { |index| connection.adapter.placeholder(index) }
             rows = [] of {{ model.id }}
             grouped = Hash(Int64, Array({{ model.id }})).new { |h, k| h[k] = [] of {{ model.id }} }
             target_table = {{ model.id }}.table_name
             join_table = {{ through_node.stringify }}
             source_fk = {{ "#{source_node}_id".id.stringify }}
             through_fk = Altair::Inflector.singularize(TABLE_NAME) + "_id"
-            sql2 = "SELECT DISTINCT #{connection.adapter.quote_identifier(target_table)}.*, #{connection.adapter.quote_identifier(join_table)}.#{connection.adapter.quote_identifier(through_fk)} FROM #{connection.adapter.quote_identifier(target_table)} " \
-                   "INNER JOIN #{connection.adapter.quote_identifier(join_table)} ON #{connection.adapter.quote_identifier(target_table)}.#{connection.adapter.quote_identifier("id")} = #{connection.adapter.quote_identifier(join_table)}.#{connection.adapter.quote_identifier(source_fk)} " \
-                   "WHERE #{connection.adapter.quote_identifier(join_table)}.#{connection.adapter.quote_identifier(through_fk)} IN (#{placeholders.join(", ")}) " \
-                   "ORDER BY #{connection.adapter.quote_identifier(target_table)}.#{connection.adapter.quote_identifier("id")}"
-            connection.query(sql2, values: ids) do |rs|
-              rs.each do
-                model = {{ model.id }}.from_row(rs)
-                owner_id = rs.read(Int64)
-                grouped[owner_id] << model
-                rows << model
+            Altair::Record::Model.each_preload_chunk(ids) do |chunk|
+              placeholders = chunk.each_index.map { |index| connection.adapter.placeholder(index) }
+              sql2 = "SELECT DISTINCT #{connection.adapter.quote_identifier(target_table)}.*, #{connection.adapter.quote_identifier(join_table)}.#{connection.adapter.quote_identifier(through_fk)} FROM #{connection.adapter.quote_identifier(target_table)} " \
+                     "INNER JOIN #{connection.adapter.quote_identifier(join_table)} ON #{connection.adapter.quote_identifier(target_table)}.#{connection.adapter.quote_identifier("id")} = #{connection.adapter.quote_identifier(join_table)}.#{connection.adapter.quote_identifier(source_fk)} " \
+                     "WHERE #{connection.adapter.quote_identifier(join_table)}.#{connection.adapter.quote_identifier(through_fk)} IN (#{placeholders.join(", ")}) " \
+                     "ORDER BY #{connection.adapter.quote_identifier(target_table)}.#{connection.adapter.quote_identifier("id")}"
+              connection.query(sql2, values: chunk) do |rs|
+                rs.each do
+                  model = {{ model.id }}.from_row(rs)
+                  owner_id = rs.read(Int64)
+                  grouped[owner_id] << model
+                  rows << model
+                end
               end
             end
             records.each do |record|
@@ -418,13 +419,15 @@ module Altair
               end
             end
             {% else %}
-            placeholders = ids.each_index.map { |index| connection.adapter.placeholder(index) }
-            connection.query(
-              "#{{{ model.id }}.select_sql} WHERE #{connection.adapter.quote_identifier({{ fk.stringify }})} " \
-              "IN (#{placeholders.join(", ")}) ORDER BY #{connection.adapter.quote_identifier("id")}",
-              values: ids
-            ) do |rs|
-              rs.each { rows << {{ model.id }}.from_row(rs) }
+            Altair::Record::Model.each_preload_chunk(ids) do |chunk|
+              placeholders = chunk.each_index.map { |index| connection.adapter.placeholder(index) }
+              connection.query(
+                "#{{{ model.id }}.select_sql} WHERE #{connection.adapter.quote_identifier({{ fk.stringify }})} " \
+                "IN (#{placeholders.join(", ")}) ORDER BY #{connection.adapter.quote_identifier("id")}",
+                values: chunk
+              ) do |rs|
+                rs.each { rows << {{ model.id }}.from_row(rs) }
+              end
             end
             grouped = rows.group_by(&.{{ fk.id }})
             {% end %}
@@ -556,14 +559,16 @@ module Altair
         private def self.__load_{{ assoc.id }}(records : Array({{ @type.id }})) : Array({{ model.id }})
           ids = records.compact_map(&.id)
           return [] of {{ model.id }} if ids.empty?
-          placeholders = ids.each_index.map { |index| connection.adapter.placeholder(index) }
           rows = [] of {{ model.id }}
-          connection.query(
-            "#{{{ model.id }}.select_sql} WHERE #{connection.adapter.quote_identifier({{ fk.stringify }})} " \
-            "IN (#{placeholders.join(", ")}) ORDER BY #{connection.adapter.quote_identifier("id")}",
-            values: ids
-          ) do |rs|
-            rs.each { rows << {{ model.id }}.from_row(rs) }
+          Altair::Record::Model.each_preload_chunk(ids) do |chunk|
+            placeholders = chunk.each_index.map { |index| connection.adapter.placeholder(index) }
+            connection.query(
+              "#{{{ model.id }}.select_sql} WHERE #{connection.adapter.quote_identifier({{ fk.stringify }})} " \
+              "IN (#{placeholders.join(", ")}) ORDER BY #{connection.adapter.quote_identifier("id")}",
+              values: chunk
+            ) do |rs|
+              rs.each { rows << {{ model.id }}.from_row(rs) }
+            end
           end
           grouped = rows.group_by(&.{{ fk.id }})
           records.each { |record| record.__set_preloaded_{{ assoc.id }}(grouped[record.id]?.try(&.first)) }

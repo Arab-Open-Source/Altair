@@ -908,21 +908,23 @@ module Altair
         "id"
       end
 
-      # Loads every record whose primary key appears in `ids`, in one
-      # batched query. The polymorphic loader's typed entry point: calling
-      # through a concrete subclass keeps `from_row`'s id accessors
-      # compile-time visible.
+      # Loads every record whose primary key appears in `ids`, batching
+      # oversized lists into consecutive queries under
+      # `PRELOAD_MAX_BINDS`. The polymorphic loader's typed entry point:
+      # calling through a concrete subclass keeps `from_row`'s id
+      # accessors compile-time visible.
       def self.select_all(ids : Array(Int64 | Int32)) : Array(self)
         return [] of self if ids.empty?
-        normalized = ids.map(&.to_i64)
         rows = [] of self
-        placeholders = normalized.each_index.map { |index| connection.adapter.placeholder(index) }
-        connection.query(
-          "#{select_sql} WHERE #{connection.adapter.quote_identifier(primary_key_name)} " \
-          "IN (#{placeholders.join(", ")})",
-          values: normalized
-        ) do |rs|
-          rs.each { rows << from_row(rs) }
+        each_preload_chunk(ids) do |chunk|
+          placeholders = chunk.each_index.map { |index| connection.adapter.placeholder(index) }
+          connection.query(
+            "#{select_sql} WHERE #{connection.adapter.quote_identifier(primary_key_name)} " \
+            "IN (#{placeholders.join(", ")})",
+            values: chunk
+          ) do |rs|
+            rs.each { rows << from_row(rs) }
+          end
         end
         rows
       end

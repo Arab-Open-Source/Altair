@@ -12,7 +12,7 @@ module Altair
     # The verdict of one counted request against one rule.
     struct Hit
       # Whether the request is within the limit.
-      getter allowed : Bool
+      getter? allowed : Bool
 
       # How much of the budget remains after this hit (floored at zero).
       getter remaining : Int32
