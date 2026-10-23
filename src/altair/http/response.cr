@@ -31,6 +31,10 @@ module Altair
       # The response headers.
       getter headers : ::HTTP::Headers
 
+      # The underlying stdlib response, for IO-level middleware (response
+      # compression swaps the output stream before the chain renders).
+      getter raw : ::HTTP::Server::Response
+
       # The cookies to be sent with this response. Any cookie added here is
       # written into the `Set-Cookie` header when the response closes.
       def cookies : ::HTTP::Cookies
@@ -45,6 +49,7 @@ module Altair
 
       def initialize(@response : ::HTTP::Server::Response)
         @headers = @response.headers
+        @raw = @response
       end
 
       # Sends `data` as a JSON response, setting the `Content-Type` header

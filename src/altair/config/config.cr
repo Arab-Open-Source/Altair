@@ -231,6 +231,8 @@ module Altair
       ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::SecurityHeaders.new(app) },
       ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::Cors.new(app) },
       ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::Static.new(app) },
+      ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::ConditionalGet.new(app) },
+      ->(app : Altair::Application) : Altair::Middleware { Altair::Middleware::Compression.new(app) },
     ]
 
     # The header carrying the request identifier assigned by the
@@ -262,6 +264,45 @@ module Altair
     # end
     # ```
     getter rate_limit : RateLimit = RateLimit.new
+
+    # Automatic ETag settings driving the `ConditionalGet` middleware. Off
+    # by default; enabling it fingerprints successful GET/HEAD bodies (up to
+    # `max_buffer_size` bytes) with SHA-256 and answers matching
+    # `If-None-Match` requests with a bodyless 304.
+    #
+    # ```
+    # config.conditional_get.enabled = true
+    # ```
+    getter conditional_get : ConditionalGet = ConditionalGet.new
+
+    # Response compression settings driving the `Compression` middleware.
+    # Off by default; enabling it negotiates `Accept-Encoding` and compresses
+    # responses with gzip or deflate.
+    #
+    # ```
+    # config.compression.enabled = true
+    # config.compression.level = 6
+    # ```
+    getter compression : Compression = Compression.new
+
+    # Settings bag for the `ConditionalGet` middleware.
+    class ConditionalGet
+      # Whether responses are fingerprinted and conditional requests honored.
+      property? enabled : Bool = false
+
+      # Upper bound on buffered response bodies, in bytes. Larger bodies pass
+      # through uncompressed and without an ETag.
+      property max_buffer_size : Int32 = 1_048_576
+    end
+
+    # Settings bag for the `Compression` middleware.
+    class Compression
+      # Whether responses are compressed for clients that accept it.
+      property? enabled : Bool = false
+
+      # Deflate/gzip level, 0-9. `nil` uses the library default (6).
+      property level : Int32? = nil
+    end
 
     # Global debug flag, inherited from the active environment's settings.
     property? debug : Bool = false

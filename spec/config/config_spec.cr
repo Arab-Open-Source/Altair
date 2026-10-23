@@ -64,6 +64,6 @@ describe Altair::Config do
     config.security_headers["X-Frame-Options"].should eq("SAMEORIGIN")
     config.cors.origins.should be_empty
     config.cors.credentials?.should be_false
-    config.middleware.size.should eq(6)
+    config.middleware.size.should eq(8)
   end
 end

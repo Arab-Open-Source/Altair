@@ -499,6 +499,39 @@ module Altair
       responder.answer
     end
 
+    # Whether the client's cached representation is still valid, judged
+    # against the supplied validators. When it is, a bodyless
+    # `304 Not Modified` is answered immediately and `true` returned, so an
+    # action can bail out before rendering:
+    #
+    # ```
+    # def show : Nil
+    #   @post = Post.find!(params["id"])
+    #   return if fresh?(etag: %(W/"#{@post.updated_at.to_unix}"), last_modified: @post.updated_at)
+    #   render json: @post
+    # end
+    # ```
+    def fresh?(etag : String? = nil, last_modified : Time? = nil) : Bool
+      if etag && Altair::HTTP::ETag.matches?(@request.headers["If-None-Match"]?, etag)
+        @response.headers["ETag"] = etag
+        @response.head(::HTTP::Status::NOT_MODIFIED)
+        return true
+      end
+      if last_modified && (ims = @request.headers["If-Modified-Since"]?) &&
+         (seen = ::HTTP.parse_time(ims)) && last_modified <= seen
+        @response.headers["Last-Modified"] = ::HTTP.format_time(last_modified)
+        @response.head(::HTTP::Status::NOT_MODIFIED)
+        return true
+      end
+      false
+    end
+
+    # The inverse of `fresh?`: true when the client's copy is out of date
+    # (or it sent no validators) and the full representation must render.
+    def stale?(etag : String? = nil, last_modified : Time? = nil) : Bool
+      !fresh?(etag: etag, last_modified: last_modified)
+    end
+
     # Streams the response body chunk by chunk: writes to the yielded `IO`
     # reach the client as they happen, over chunked transfer encoding.
     # Sets the content type before the first chunk:
