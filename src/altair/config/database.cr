@@ -18,6 +18,7 @@ module Altair
     # ```yaml
     # production:
     #   url: postgresql://user:pass@localhost/blog_production
+    #   replica_url: postgresql://user:pass@replica-1/blog_production
     #   pool: 10
     #   initial_pool: 4
     #   max_idle_pool: 4
@@ -37,6 +38,9 @@ module Altair
 
         if url = section["url"]?
           config.db_url = url.as_s?
+        end
+        if replica = section["replica_url"]?
+          config.db_replica_url = replica.as_s?
         end
         config.db_max_pool_size = section["pool"].as_i if section["pool"]?
         config.db_initial_pool_size = section["initial_pool"].as_i if section["initial_pool"]?

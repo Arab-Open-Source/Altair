@@ -22,6 +22,7 @@ module Altair
       # SQLite, `postgres://` and `postgresql://` use the PostgreSQL
       # adapter, which a project loads by requiring
       # `altair/record/adapters/postgresql` (and declaring `crystal-pg`).
+      # `config.db_replica_url` opens a second pool for read routing.
       def self.for(app : Altair::Application) : Connection
         url = app.config.db_url
         raise Altair::ConfigurationError.new(
@@ -33,18 +34,7 @@ module Altair
           max_idle_pool_size: app.config.db_max_idle_pool_size,
           checkout_timeout: app.config.db_checkout_timeout
         )
-        adapter = if url.starts_with?("postgres") || url.starts_with?("postgresql")
-                    {% if Altair::Record::Adapters.has_constant?("PostgreSQL") %}
-                      Adapters::PostgreSQL.instance
-                    {% else %}
-                      raise Altair::ConfigurationError.new(
-                        "The PostgreSQL adapter is not loaded — require \"altair/record/adapters/postgresql\" " \
-                        "and add crystal-pg to your dependencies"
-                      )
-                    {% end %}
-                  else
-                    Adapters::SQLite3.instance
-                  end
+        adapter = adapter_for(url)
         connection_url = url
         if url.starts_with?("postgres") || url.starts_with?("postgresql")
           uri = URI.parse(url)
@@ -54,7 +44,26 @@ module Altair
           uri.query = params.to_s
           connection_url = uri.to_s
         end
-        new(adapter, connection_url, pool_options, app.config.db_query_timeout)
+        replica = app.config.db_replica_url.try do |replica_url|
+          replica_adapter = adapter_for(replica_url)
+          replica_adapter.connect(replica_url, pool_options)
+        end
+        new(adapter, connection_url, pool_options, app.config.db_query_timeout, replica)
+      end
+
+      private def self.adapter_for(url : String) : Adapter
+        if url.starts_with?("postgres") || url.starts_with?("postgresql")
+          {% if Altair::Record::Adapters.has_constant?("PostgreSQL") %}
+            Adapters::PostgreSQL.instance
+          {% else %}
+            raise Altair::ConfigurationError.new(
+              "The PostgreSQL adapter is not loaded — require \"altair/record/adapters/postgresql\" " \
+              "and add crystal-pg to your dependencies"
+            )
+          {% end %}
+        else
+          Adapters::SQLite3.instance
+        end
       end
 
       # The adapter in use.
@@ -97,8 +106,38 @@ module Altair
       # every fiber on every thread would otherwise contend on.
       @active_transactions = Atomic(Int32).new(0)
 
-      def initialize(@adapter : Adapter, url : String, pool_options : DB::Pool::Options, @query_timeout : Time::Span)
+      def initialize(@adapter : Adapter, url : String, pool_options : DB::Pool::Options, @query_timeout : Time::Span, @replica : DB::Database? = nil)
         @database = @adapter.connect(url, pool_options)
+      end
+
+      # The read-replica pool, when `config.db_replica_url` is set. Plain
+      # SELECT statements route here; writes and transactional reads stay
+      # on the primary.
+      getter replica : DB::Database?
+
+      # Fibers that have written (or opened a transaction) read from the
+      # primary for their lifetime — one request in a web app — so a
+      # handler never reads a stale copy of its own writes. A bounded LRU
+      # keyed by fiber evicts finished request fibers without a cleanup
+      # pass.
+      @sticky_writes = Support::LRUCache(Fiber, Bool).new(1024)
+
+      # The pool plain SELECT statements run against: the replica when one
+      # is configured and the calling fiber is neither inside a transaction
+      # nor pinned by an earlier write; the primary otherwise.
+      private def read_database : DB::Database
+        replica = @replica
+        if replica && @active_transactions.get == 0 && !@sticky_writes.get(Fiber.current)
+          replica
+        else
+          @database
+        end
+      end
+
+      # Whether plain SELECTs currently route to the replica. Exposed for
+      # observability and spec assertions.
+      def replica_routed? : Bool
+        !@replica.nil? && @active_transactions.get == 0 && !@sticky_writes.get(Fiber.current)
       end
 
       # Returns the SQL template for `key`, building it with the block on
@@ -141,6 +180,8 @@ module Altair
       # query or event handler is registered the connection takes its
       # zero-cost path and never reads the clock.
       def exec(sql : String, *db_args, args : Enumerable? = nil) : DB::ExecResult
+        # The fiber has written: its later reads stay on the primary.
+        @sticky_writes.put(Fiber.current, true)
         if measure?
           measured_statement(sql, QueryEvent::Operation.from_sql(sql)) do |conn, meter|
             result = uninitialized DB::ExecResult
@@ -182,7 +223,7 @@ module Altair
             end
           end
         else
-          @database.query(sql, *args, args: values) do |rs|
+          read_database.query(sql, *args, args: values) do |rs|
             block.call(rs)
           end
         end
@@ -211,7 +252,7 @@ module Altair
             @database.query_one(sql, *args) { |rs| block.call(rs) }
           end
         else
-          @database.query_one(sql, *args) { |rs| block.call(rs) }
+          read_database.query_one(sql, *args) { |rs| block.call(rs) }
         end
       end
 
@@ -250,6 +291,9 @@ module Altair
       # each get an isolated transaction.
       def transaction(&block : Proc(Nil)) : Nil
         fiber = Fiber.current
+        # Transactions read and write the primary; the fiber's later reads
+        # stay there too.
+        @sticky_writes.put(fiber, true)
         if active?(fiber)
           savepoint_transaction(fiber) { block.call }
         elsif Altair::Record.checkout_hooks?
@@ -339,6 +383,7 @@ module Altair
 
       # Closes the pool. Tests call this to release file handles.
       def close : Nil
+        @replica.try(&.close)
         @database.close
       end
 
@@ -376,6 +421,9 @@ module Altair
         started = Time.instant
         success = true
         result = uninitialized U
+        # Reads route to the replica when one is configured; writes stay on
+        # the primary.
+        target = op == QueryEvent::Operation::Query ? read_database : @database
         begin
           if conn = active_connection
             # The statement-specific runner records SQL and decode spans at
@@ -390,10 +438,10 @@ module Altair
               nil
             }
             callback = ->(run : Proc(DB::Connection, Nil)) {
-              @database.retry do
+              target.retry do
                 checked = uninitialized DB::Connection
                 begin
-                  checked = @database.checkout
+                  checked = target.checkout
                 rescue ex
                   meter.checkout = Time.instant - checkout_started
                   raise ex

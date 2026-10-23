@@ -125,6 +125,12 @@ class Altair::Record::Schema
       created_at: {type: :datetime, null: true, primary: false},
       updated_at: {type: :datetime, null: true, primary: false},
     },
+    replica_notes: {
+      id:         {type: :integer, null: false, primary: true},
+      body:       {type: :string, null: true, primary: false},
+      created_at: {type: :datetime, null: true, primary: false},
+      updated_at: {type: :datetime, null: true, primary: false},
+    },
   }
 end
 

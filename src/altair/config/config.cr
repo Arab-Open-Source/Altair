@@ -160,6 +160,14 @@ module Altair
     # use; set it per environment for isolated test databases.
     property db_url : String? = nil
 
+    # Optional read-replica URL. When set, plain SELECT statements run
+    # against this pool instead of the primary — as long as the calling
+    # fiber is outside a transaction and has not written yet. Any write
+    # (`exec`) or transaction on the fiber pins its reads to the primary
+    # for the fiber's lifetime (one request in a web app), so a handler
+    # never reads a stale copy of its own writes.
+    property db_replica_url : String? = nil
+
     # The maximum number of pooled database connections. Each request may
     # check one out at a time; extra checks wait for a free connection.
     property db_max_pool_size : Int32 = 10
