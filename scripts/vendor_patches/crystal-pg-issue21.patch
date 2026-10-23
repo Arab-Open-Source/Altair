@@ -1,0 +1,325 @@
+--- a/src/pq/connection.cr
++++ b/src/pq/connection.cr
+@@ -11,6 +11,8 @@
+ module PQ
+   record Notification, pid : Int32, channel : String, payload : String
+ 
++  private PREPARED_NAME_CAP = 512
++
+   # :nodoc:
+   class Connection
+     getter soc : UNIXSocket | TCPSocket | OpenSSL::SSL::Socket::Client
+@@ -20,6 +22,11 @@
+     property notification_handler = Proc(Notification, Void).new { }
+     @mutex = Mutex.new
+     @established = false
++    @lock_owner : Fiber? = nil
++    @lock_count = 0
++    @prepared_names = {} of String => String
++    @registered_names = Set(String).new
++    @prepared_counter = 0
+ 
+     def initialize(@conninfo : ConnInfo)
+       begin
+@@ -93,8 +100,59 @@
+       end
+     end
+ 
++    # Reentrant per-connection lock. An extended-query exchange
++    # (Parse/Bind/Describe/Execute/Sync plus its reply frames) must never
++    # interleave with another fiber's frames on the same socket, and a single
++    # statement's reads span several call sites (statement, result set), so
++    # the lock has to be reentrant per fiber rather than a plain Mutex.
+     def synchronize(&)
+-      @mutex.synchronize { yield }
++      if @lock_owner == Fiber.current
++        @lock_count += 1
++        begin
++          yield
++        ensure
++          @lock_count -= 1
++        end
++      else
++        @mutex.synchronize do
++          @lock_owner = Fiber.current
++          @lock_count = 1
++          begin
++            yield
++          ensure
++            @lock_owner = nil
++          end
++        end
++      end
++    end
++
++    # Stable named-statement name for *sql* on this physical connection.
++    # Distinct SQL text always maps to a distinct name, so two statements can
++    # never bind into each other's portal.
++    def prepared_name(sql : String) : String
++      synchronize do
++        name = @prepared_names[sql]?
++        return name if name
++
++        if @prepared_counter >= PREPARED_NAME_CAP
++          # Name space exhausted: reset both sides. The next Parse of a reused
++          # name redefines the server-side statement, so no DEALLOCATE needed.
++          @prepared_names.clear
++          @registered_names.clear
++          @prepared_counter = 0
++        end
++        name = "altair_#{@prepared_counter += 1}"
++        @prepared_names[sql] = name
++        name
++      end
++    end
++
++    def registered?(name : String) : Bool
++      @registered_names.includes?(name)
++    end
++
++    def mark_registered(name : String) : Nil
++      @registered_names << name
+     end
+ 
+     private def write_i32(i : Int32)
+@@ -476,7 +534,9 @@
+ 
+     def expect_frame(frame_class, type = nil)
+       f = type ? read(type) : read
+-      raise "Expected #{frame_class} but got #{f}" unless frame_class === f
++      unless frame_class === f
++        raise ProtocolError.new("Expected #{frame_class} but got #{f}")
++      end
+       frame_class.cast(f)
+     end
+ 
+@@ -500,10 +560,11 @@
+       soc.flush
+     end
+ 
+-    def send_parse_message(query)
++    def send_parse_message(query, name = "")
+       write_chr 'P'
+-      write_i32 query.bytesize + 4 + 1 + 2 + 1
+-      write_null # prepared statment name
++      write_i32 query.bytesize + 4 + 1 + name.bytesize + 2 + 1
++      soc << name
++      write_null # statement name terminator
+       soc << query
+       write_i16 0 # don't give any param types
+       write_null
+@@ -515,16 +576,17 @@
+     # however it is a parameter so that people who want to use the protocol
+     # directly can choose text results. The addition of this param though is
+     # experimental, and may go away in future releases.
+-    def send_bind_message(params, result_format = 1_i16)
++    def send_bind_message(params, statement_name = "", result_format = 1_i16)
+       nparams = params.size
+       total_size = params.reduce(0) do |acc, p|
+         acc + 4 + (p.size == -1 ? 0 : p.size)
+       end
+ 
+       write_chr 'B'
+-      write_i32 4 + 1 + 1 + 2 + (2*nparams) + 2 + total_size + 2 + 2
++      write_i32 4 + 1 + 1 + statement_name.bytesize + 2 + (2*nparams) + 2 + total_size + 2 + 2
+       write_null        # unnamed destination portal
+-      write_null        # unnamed prepared statment
++      soc << statement_name
++      write_null        # prepared statement name terminator
+       write_i16 nparams # number of params format codes to follow
+       params.each { |p| write_i16 p.format }
+       write_i16 nparams # number of params to follow
+--- a/src/pg/statement.cr
++++ b/src/pg/statement.cr
+@@ -10,24 +10,31 @@
+   protected def perform_query(args : Enumerable) : ResultSet
+     params = args.map { |arg| PQ::Param.encode(arg) }
+     conn = self.conn
+-    conn.send_parse_message(command)
+-    conn.send_bind_message params
+-    conn.send_describe_portal_message
+-    conn.send_execute_message
+-    conn.send_sync_message
+-    conn.expect_frame PQ::Frame::ParseComplete
+-    conn.expect_frame PQ::Frame::BindComplete
+-    frame = conn.read
+-    case frame
+-    when PQ::Frame::RowDescription
+-      fields = frame.fields
+-    when PQ::Frame::NoData
+-      fields = nil
+-    else
+-      raise "expected RowDescription or NoData, got #{frame}"
++    conn.synchronize do
++      name = conn.prepared_name(command)
++      registered = conn.registered?(name)
++      conn.send_parse_message(command, name) unless registered
++      conn.send_bind_message params, name
++      conn.send_describe_portal_message
++      conn.send_execute_message
++      conn.send_sync_message
++      unless registered
++        conn.expect_frame PQ::Frame::ParseComplete
++        conn.mark_registered(name)
++      end
++      conn.expect_frame PQ::Frame::BindComplete
++      frame = conn.read
++      case frame
++      when PQ::Frame::RowDescription
++        fields = frame.fields
++      when PQ::Frame::NoData
++        fields = nil
++      else
++        raise PQ::ProtocolError.new("expected RowDescription or NoData, got #{frame}")
++      end
++      ResultSet.new(self, fields)
+     end
+-    ResultSet.new(self, fields)
+-  rescue e : IO::Error
++  rescue e : IO::Error | PQ::ProtocolError
+     raise DB::ConnectionLost.new(connection, cause: e)
+   end
+ 
+--- a/src/pg/result_set.cr
++++ b/src/pg/result_set.cr
+@@ -23,41 +23,43 @@
+   end
+ 
+   def move_next : Bool
+-    return false if @end
++    conn.synchronize do
++      return false if @end
+ 
+-    fields = @fields
++      fields = @fields
+ 
+-    # `move_next` might be called before consuming all rows,
+-    # in that case we need to skip columns
+-    if fields && @column_index > -1 && @column_index < fields.size
+-      while @column_index < fields.size
+-        skip
++      # `move_next` might be called before consuming all rows,
++      # in that case we need to skip columns
++      if fields && @column_index > -1 && @column_index < fields.size
++        while @column_index < fields.size
++          skip
++        end
+       end
+-    end
+ 
+-    unless fields
+-      @end = true
+-      frame = conn.expect_frame PQ::Frame::CommandComplete | PQ::Frame::EmptyQueryResponse
+-      if frame.is_a?(PQ::Frame::CommandComplete)
+-        @rows_affected = frame.rows_affected
+-      end
++      unless fields
++        @end = true
++        frame = conn.expect_frame PQ::Frame::CommandComplete | PQ::Frame::EmptyQueryResponse
++        if frame.is_a?(PQ::Frame::CommandComplete)
++          @rows_affected = frame.rows_affected
++        end
+ 
+-      conn.expect_frame PQ::Frame::ReadyForQuery
+-      return false
+-    end
++        conn.expect_frame PQ::Frame::ReadyForQuery
++        return false
++      end
+ 
+-    if conn.read_next_row_start
+-      # We ignore these (redundant information)
+-      conn.read_i32 # size
+-      conn.read_i16 # ncols
+-      @column_index = 0
+-      true
+-    else
+-      conn.expect_frame PQ::Frame::ReadyForQuery
+-      @end = true
+-      false
++      if conn.read_next_row_start
++        # We ignore these (redundant information)
++        conn.read_i32 # size
++        conn.read_i16 # ncols
++        @column_index = 0
++        true
++      else
++        conn.expect_frame PQ::Frame::ReadyForQuery
++        @end = true
++        false
++      end
+     end
+-  rescue e : IO::Error
++  rescue e : IO::Error | PQ::ProtocolError
+     raise DB::ConnectionLost.new(statement.connection, cause: e)
+   rescue ex
+     @end = true
+@@ -81,16 +83,18 @@
+   end
+ 
+   def read
+-    col_bytesize = conn.read_i32
+-    if col_bytesize == -1
+-      @column_index += 1
+-      return nil
+-    end
++    conn.synchronize do
++      col_bytesize = conn.read_i32
++      if col_bytesize == -1
++        @column_index += 1
++        return nil
++      end
+ 
+-    safe_read(col_bytesize) do |io|
+-      decoder.decode(io, col_bytesize, oid)
++      safe_read(col_bytesize) do |io|
++        decoder.decode(io, col_bytesize, oid)
++      end
+     end
+-  rescue e : IO::Error
++  rescue e : IO::Error | PQ::ProtocolError
+     raise DB::ConnectionLost.new(statement.connection, cause: e)
+   end
+ 
+@@ -139,16 +143,18 @@
+   end
+ 
+   private def read_array(t : T.class, &) : T forall T
+-    col_bytesize = conn.read_i32
+-    if col_bytesize == -1
+-      @column_index += 1
+-      yield
+-    end
++    conn.synchronize do
++      col_bytesize = conn.read_i32
++      if col_bytesize == -1
++        @column_index += 1
++        yield
++      end
+ 
+-    safe_read(col_bytesize) do |io|
+-      Decoders.decode_array(io, col_bytesize, T)
++      safe_read(col_bytesize) do |io|
++        Decoders.decode_array(io, col_bytesize, T)
++      end
+     end
+-  rescue e : IO::Error
++  rescue e : IO::Error | PQ::ProtocolError
+     raise DB::ConnectionLost.new(statement.connection, cause: e)
+   end
+ 
+--- a/src/pq/error.cr
++++ b/src/pq/error.cr
+@@ -2,6 +2,12 @@
+   class ConnectionError < Exception
+   end
+ 
++  # Raised when the wire stream no longer matches the extended-query state
++  # machine. Marks the physical connection as unusable; consumers must turn
++  # this into a DB::ConnectionLost so the pool discards the connection.
++  class ProtocolError < Exception
++  end
++
+   class PQError < Exception
+     getter fields : Array(Frame::ErrorResponse::Field)
+ 
