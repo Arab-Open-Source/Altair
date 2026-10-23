@@ -62,6 +62,10 @@ module Altair
           false
         end
 
+        def supports_upsert? : Bool
+          true
+        end
+
         def column_type_sql(logical_type : Symbol) : String
           case logical_type
           when :string, :text then "TEXT"

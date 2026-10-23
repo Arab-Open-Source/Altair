@@ -10,6 +10,12 @@ require "atomic"
 module Altair
   module Record
     class Connection
+      # Upper bound on cached SQL templates per connection. Template keys are
+      # interned statement shapes (an interned literal plus a column list),
+      # so real applications never approach this; the bound exists so a
+      # pathological dynamic key cannot grow the cache without limit.
+      SQL_TEMPLATE_CACHE_CAPACITY = 256
+
       # Returns the application's connection, opened lazily from
       # `config.db_url` on first use. Raises when no URL is configured.
       # The adapter is picked from the URL scheme: `sqlite3://` uses
@@ -80,7 +86,8 @@ module Altair
       # they live on the connection: when the shared connection is replaced
       # (the adapter contract suite swaps sqlite and PostgreSQL between
       # phases), a fresh instance starts with an empty cache and rebuilds.
-      @sql_templates = {} of String => String
+      # A bounded LRU keeps a pathological caller from growing it forever.
+      @sql_templates = Support::LRUCache(String, String).new(SQL_TEMPLATE_CACHE_CAPACITY)
       @sql_templates_lock = Mutex.new
 
       # The number of fibers currently inside a transaction. Read without
@@ -99,11 +106,17 @@ module Altair
       # path is a hash lookup by an interned literal key; the block (and the
       # build lock) runs only on a miss.
       def sql_template(key : String, & : -> String) : String
-        if template = @sql_templates[key]?
+        if template = @sql_templates.get(key)
           template
         else
           @sql_templates_lock.synchronize do
-            @sql_templates[key] ||= yield
+            if template = @sql_templates.peek(key)
+              template
+            else
+              built = yield
+              @sql_templates.put(key, built)
+              built
+            end
           end
         end
       end
@@ -111,7 +124,12 @@ module Altair
       # Returns the cached template for `key`, raising when it was never
       # built on this connection.
       def sql_template(key : String) : String
-        @sql_templates[key]
+        @sql_templates.get(key) || raise Altair::Error.new("sql template #{key.inspect} was never built on this connection")
+      end
+
+      # Hit/miss/eviction counters for the SQL template cache, for metrics.
+      def sql_template_metrics
+        @sql_templates.metrics
       end
 
       # Executes a statement with bound parameters, notifying the

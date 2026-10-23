@@ -26,6 +26,25 @@ module Altair
       @head : Node(K, V)?
       @tail : Node(K, V)?
       @mutex : Mutex
+      getter hits : Int64 = 0
+      getter misses : Int64 = 0
+      getter evictions : Int64 = 0
+
+      # Snapshot of the cache health counters.
+      def metrics : NamedTuple(hits: Int64, misses: Int64, evictions: Int64, size: Int32)
+        @mutex.synchronize do
+          {hits: @hits, misses: @misses, evictions: @evictions, size: @map.size}
+        end
+      end
+
+      # Resets the hit/miss/eviction counters, keeping the entries.
+      def reset_metrics : Nil
+        @mutex.synchronize do
+          @hits = 0
+          @misses = 0
+          @evictions = 0
+        end
+      end
 
       # The current number of cached entries.
       def size : Int32
@@ -42,6 +61,22 @@ module Altair
       # Returns the cached value for *key*, moving it to the most-recently
       # used position, or `nil` when absent.
       def get(key : K) : V?
+        @mutex.synchronize do
+          if node = @map[key]?
+            @hits += 1
+            move_to_front(node)
+            node.value
+          else
+            @misses += 1
+            nil
+          end
+        end
+      end
+
+      # Returns the cached value for *key* without touching the hit/miss
+      # counters — the re-check inside a build lock. Still moves the entry
+      # to the most-recently-used position.
+      def peek(key : K) : V?
         @mutex.synchronize do
           if node = @map[key]?
             move_to_front(node)
@@ -110,6 +145,7 @@ module Altair
             @tail = nil
           end
           @map.delete(lru.key)
+          @evictions += 1
         end
       end
     end

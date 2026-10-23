@@ -40,11 +40,10 @@ end
 
 # Whether the backend allows several concurrent writers across connections.
 # SQLite is single-writer, so true concurrency is only possible on a server
-# database (PostgreSQL).
+# database (PostgreSQL). Global hook state is isolated centrally by
+# `spec_helper` — see the adapter-contract suite.
 private def parallel_writers?(conn : Altair::Record::Connection) : Bool
-  # Opt-in like the adapter-contract concurrency examples — see there.
-  !conn.adapter.class.name.includes?("SQLite") &&
-    !!ENV["ALTAIR_TEST_PG_CONCURRENCY"]?
+  !conn.adapter.class.name.includes?("SQLite")
 end
 
 describe Altair::Record::Connection do
@@ -469,6 +468,30 @@ describe Altair::Record::Connection do
       ensure
         second.close
       end
+    end
+
+    it "tracks hits and misses on the template cache" do
+      conn = spec_connection
+      before = conn.sql_template_metrics
+      conn.sql_template("spec#metrics") { "SELECT 1" }
+      conn.sql_template("spec#metrics") { "SELECT 1" }
+      conn.sql_template("spec#metrics") { "SELECT 1" }
+      after = conn.sql_template_metrics
+      (after[:misses] - before[:misses]).should eq(1)
+      (after[:hits] - before[:hits]).should eq(2)
+    end
+
+    it "evicts the least-recently-used template at capacity" do
+      conn = spec_connection
+      cache = Altair::Support::LRUCache(String, String).new(2)
+      cache.put("a", "1")
+      cache.put("b", "2")
+      cache.get("a")      # a is now most recently used
+      cache.put("c", "3") # evicts b
+      cache.get("b").should be_nil
+      cache.get("a").should eq("1")
+      cache.get("c").should eq("3")
+      cache.metrics[:evictions].should eq(1)
     end
   end
 end

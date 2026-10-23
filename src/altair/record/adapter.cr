@@ -38,6 +38,20 @@ module Altair
         false
       end
 
+      # Whether the engine supports `SELECT ... FOR UPDATE` row locks
+      # (`Relation#lock`). `false` by default; SQLite has no row locks, so
+      # only the PostgreSQL adapter overrides this.
+      def supports_select_for_update? : Bool
+        false
+      end
+
+      # Whether the engine supports `INSERT ... ON CONFLICT DO UPDATE`
+      # (`Model#upsert`). SQLite gained the clause in 3.24 and PostgreSQL
+      # has had it since 9.5, so both adapters override this to `true`.
+      def supports_upsert? : Bool
+        false
+      end
+
       # The SQL type for a logical column type (`:string`, `:integer`,
       # `:boolean`, ...).
       abstract def column_type_sql(logical_type : Symbol) : String

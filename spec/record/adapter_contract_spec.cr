@@ -20,13 +20,11 @@ end
 
 # Whether the backend allows several concurrent writers across connections.
 # SQLite is single-writer, so true concurrency is only possible on a server
-# database (PostgreSQL).
+# database (PostgreSQL). Global hook state is isolated centrally by
+# `spec_helper` (snapshot/restore around every example), so the concurrency
+# examples no longer need their own opt-in gate.
 private def parallel_writers? : Bool
-  # Concurrency contract examples additionally require
-  # ALTAIR_TEST_PG_CONCURRENCY: they depend on pristine global hook state
-  # and are opt-in until the suite isolates that state properly.
-  !Altair::Record.connection.adapter.class.name.includes?("SQLite") &&
-    !!ENV["ALTAIR_TEST_PG_CONCURRENCY"]?
+  !Altair::Record.connection.adapter.class.name.includes?("SQLite")
 end
 
 # Runs the shared behaviour battery as one describe with the given setup

@@ -34,6 +34,17 @@ module Altair
         end
       end
 
+      # Clears the armed state and forgets the registration, so the next
+      # `enable` re-registers the query hook. The spec suite's handler
+      # snapshot/restore wipes the registries wholesale; without this reset
+      # the detector would believe its hook is still attached.
+      def self.reset! : Nil
+        @@lock.synchronize do
+          @@enabled = false
+          @@registered = false
+        end
+      end
+
       # Starts a fresh counting window for the calling fiber's request.
       def self.begin_request : Nil
         return unless @@enabled

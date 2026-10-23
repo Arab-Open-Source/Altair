@@ -23,6 +23,7 @@ module Altair
       @orders = [] of String
       @limit : Int32?
       @offset : Int32?
+      @lock_for_update = false
 
       # Iterates the records, running the query on first access.
       def each(& : T ->) : Nil
@@ -46,7 +47,29 @@ module Altair
         @orders.concat(other.@orders)
         @limit = other.@limit if other.@limit
         @offset = other.@offset if other.@offset
+        @lock_for_update = true if other.@lock_for_update
         other.@preloaders.each { |preloader| @preloaders << preloader }
+        self
+      end
+
+      # Marks the relation to take row locks when it runs — the query gains
+      # `FOR UPDATE`, so concurrent transactions block on the matched rows
+      # until the enclosing transaction commits. Pessimistic locking is the
+      # race-free counterpart of check-then-write sequences:
+      #
+      # ```
+      # Post.transaction do
+      #   post = Post.where(slug: slug).lock.first
+      #   post.update(views: post.views + 1)
+      # end
+      # ```
+      # Only meaningful inside a transaction. Engines without row locks raise
+      # at call time.
+      def lock : self
+        unless T.connection.adapter.supports_select_for_update?
+          raise ArgumentError.new("#{T.connection.adapter.class.name} does not support SELECT ... FOR UPDATE")
+        end
+        @lock_for_update = true
         self
       end
 
@@ -560,6 +583,7 @@ module Altair
         if @limit || @offset
           parts << T.connection.adapter.limit_offset_clause(@limit, @offset)
         end
+        parts << "FOR UPDATE" if @lock_for_update
         parts.empty? ? "" : " " + parts.join(" ")
       end
 

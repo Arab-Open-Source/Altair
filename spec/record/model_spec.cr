@@ -222,6 +222,45 @@ describe Altair::Record::Model do
     it "returns false for an unsaved record" do
       Post.new.delete.should be_false
     end
+
+    it "reuses the cached delete template" do
+      first = Post.create(title: "One")
+      first.delete
+      before = Altair::Record.sql_template_metrics[:hits]
+      second = Post.create(title: "Two")
+      second.delete
+      Altair::Record.sql_template_metrics[:hits].should be > before
+    end
+  end
+
+  describe "sql template coverage" do
+    it "caches the update template per dirty-column shape" do
+      post = Post.create(title: "Draft", views: 0)
+      post.update(title: "Edited")
+      before = Altair::Record.sql_template_metrics[:hits]
+      other = Post.create(title: "Second", views: 0)
+      other.update(title: "Edited too")
+      Altair::Record.sql_template_metrics[:hits].should be > before
+      other.reload.title.should eq("Edited too")
+    end
+
+    it "caches the touch template" do
+      post = Post.create(title: "Touched")
+      post.touch
+      before = Altair::Record.sql_template_metrics[:hits]
+      other = Post.create(title: "Touched2")
+      other.touch
+      Altair::Record.sql_template_metrics[:hits].should be > before
+    end
+
+    it "caches the counter-bump template" do
+      post = Post.create(title: "Counted", views: 0)
+      post.increment!(:views)
+      before = Altair::Record.sql_template_metrics[:hits]
+      post.increment!(:views)
+      Altair::Record.sql_template_metrics[:hits].should be > before
+      post.reload.views.should eq(2)
+    end
   end
 
   describe "timestamps" do

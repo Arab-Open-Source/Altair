@@ -118,6 +118,13 @@ class Altair::Record::Schema
       notable_id:   {type: :integer, null: true, primary: false},
       notable_type: {type: :string, null: true, primary: false},
     },
+    concurrency_items: {
+      id:         {type: :integer, null: false, primary: true},
+      slug:       {type: :string, null: false, primary: false},
+      views:      {type: :integer, null: false, primary: false},
+      created_at: {type: :datetime, null: true, primary: false},
+      updated_at: {type: :datetime, null: true, primary: false},
+    },
   }
 end
 

@@ -216,6 +216,28 @@ module Altair
       @@query_handlers.clear
       @@query_event_handlers.clear
       @@checkout_handlers.clear
+      NDetector.reset!
+    end
+
+    # Captures the three global handler registries. `spec_helper` takes a
+    # snapshot before every example and restores it after, so a spec file's
+    # registrations can never leak into later files.
+    def self.handlers_snapshot : Tuple(Array(Proc(String, Time::Span, Nil)), Array(Proc(QueryEvent, Nil)), Array(Proc(Proc(Nil), Nil)))
+      {@@query_handlers.dup, @@query_event_handlers.dup, @@checkout_handlers.dup}
+    end
+
+    # Restores a snapshot taken by `.handlers_snapshot`.
+    def self.restore_handlers(snapshot : Tuple(Array(Proc(String, Time::Span, Nil)), Array(Proc(QueryEvent, Nil)), Array(Proc(Proc(Nil), Nil)))) : Nil
+      @@query_handlers = snapshot[0].dup
+      @@query_event_handlers = snapshot[1].dup
+      @@checkout_handlers = snapshot[2].dup
+      NDetector.reset!
+    end
+
+    # SQL template cache health (hits/misses/evictions/size) from the active
+    # connection, for observability endpoints and spec assertions.
+    def self.sql_template_metrics
+      connection.sql_template_metrics
     end
 
     # Closes the pooled connection (used by specs and runner scripts). The
