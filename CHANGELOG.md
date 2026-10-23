@@ -35,6 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SQL template metrics** — the per-connection template cache is now a
   bounded LRU (`Support::LRUCache`) with hit/miss/eviction counters
   exposed through `Altair::Record.sql_template_metrics`.
+- **Read replicas** (`config.db_replica_url`, `replica_url` in
+  `database.yml`) — a second pool serves plain SELECTs; any write or
+  transaction pins the request fiber's reads to the primary for its
+  lifetime, so a handler never reads a stale copy of its own writes.
+  `examples/read_replica` demonstrates the routing with two SQLite files.
 - **MT-scheduler characterization note**
   (`docs/architecture/crystal-mt-fiber-stalls.md`) — the evidence matrix
   and upstream-tracking checklist behind issue #20.
