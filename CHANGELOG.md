@@ -9,6 +9,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Pessimistic locking** (`Relation#lock`) — appends `FOR UPDATE` to the
+  scoped SELECT so concurrent transactions serialize on the matched rows
+  inside a transaction. Engines without row locks (SQLite) raise at call
+  time; `Adapter#supports_select_for_update?` carries the capability.
+- **Atomic upsert** (`Model#upsert`) — one `INSERT ... ON CONFLICT
+  (target) DO UPDATE` (or `DO NOTHING` with an empty `update_columns`)
+  closing the check-then-insert race `validates_uniqueness_of` cannot
+  close by itself. The record is refreshed afterwards, so `id` reflects
+  the stored row either way.
+- **Unique-index-backed uniqueness** — a database unique-constraint
+  violation during `save` now surfaces as a validation error on the
+  offending column (`"has already been taken"`) instead of a raised
+  exception, on both SQLite and PostgreSQL message shapes.
+- **Conditional GET** (`Altair::Middleware::ConditionalGet`) — opt-in
+  automatic ETag middleware: successful GET/HEAD bodies up to
+  `config.conditional_get.max_buffer_size` are SHA-256 fingerprinted and
+  answered with a strong `ETag`; matching `If-None-Match` requests get a
+  bodyless 304. Controller helpers `fresh?` / `stale?` (ETag and
+  `Last-Modified` validators) short-circuit before rendering.
+- **Response compression** (`Altair::Middleware::Compression`) — opt-in
+  gzip/deflate negotiation over `Accept-Encoding`, wrapping the response
+  output before the chain renders. `config.compression` carries
+  `enabled` and `level`; off by default.
+- **SQL template metrics** — the per-connection template cache is now a
+  bounded LRU (`Support::LRUCache`) with hit/miss/eviction counters
+  exposed through `Altair::Record.sql_template_metrics`.
+- **MT-scheduler characterization note**
+  (`docs/architecture/crystal-mt-fiber-stalls.md`) — the evidence matrix
+  and upstream-tracking checklist behind issue #20.
+
+### Changed
+
+- **SQL template coverage** — `update_row`, `touch`, `increment!` /
+  `decrement!` and `delete` now build their statements once per shape and
+  reuse the cached template, matching the finders and inserts.
+- **Spec-suite state isolation** — `spec_helper` snapshots the global
+  instrumentation registries (`Record.on_query` / `on_checkout` /
+  `on_query_event`) around every example and restores them after, so a
+  spec file's registrations can no longer leak into later files. The
+  PostgreSQL concurrency contract examples no longer need the
+  `ALTAIR_TEST_PG_CONCURRENCY` opt-in.
+
+### Fixed
+
+- **`touch` wrote every row** — the direct UPDATE built by `touch` /
+  `touch(:column)` carried no `WHERE` clause and reassigned the primary
+  key, corrupting other rows once more than one existed. It now updates
+  `WHERE pk = ?`.
+- **PostgreSQL wire desync under concurrency** (issue #21) — vendored
+  crystal-pg 0.30.0 / crystal-db 0.14.0 patched (see
+  `scripts/vendor_patches/` and `scripts/apply_vendor_patches.sh`, run
+  after every `shards install`): a reentrant per-connection lock keeps an
+  extended-query exchange from interleaving with another fiber's frames;
+  statements use stable named prepared statements (`altair_N`, skipping
+  the Parse round trip once registered); a frame-unsynced connection
+  raises `PQ::ProtocolError` and is discarded by the pool as
+  `DB::ConnectionLost` instead of being recycled dirty; and
+  `PoolRetryAttemptsExceeded` carries its original cause. The gated
+  wire-protocol contract (`spec/record/postgresql_protocol_spec.cr`)
+  pins all of it.
+
 - **Documentation site redesign** (`website/`) with an identity derived from
   the project logo (ink navy + crystal coral, Space Grotesk display type):
   split hero with a tabbed quick-start terminal, hierarchical bento feature
