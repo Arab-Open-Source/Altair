@@ -10,6 +10,28 @@ require "../src/altair"
 
 Altair.env = Altair::Env::Test
 
+# Global-state isolation between spec files. Files execute alphabetically,
+# and the framework's instrumentation hooks (`Record.on_query`,
+# `on_checkout`, `on_query_event`) are process-global registries — a
+# registration without cleanup kept firing in every later file. Snapshot
+# the registries before each example and restore them after, so
+# registrations stay scoped to the example that made them. Files that need
+# hooks across several examples register inside `before_each` instead.
+private module SpecHandlerState
+  class_property snapshot : Tuple(Array(Proc(String, Time::Span, Nil)), Array(Proc(Altair::Record::QueryEvent, Nil)), Array(Proc(Proc(Nil), Nil)))?
+end
+
+Spec.before_each do
+  SpecHandlerState.snapshot = Altair::Record.handlers_snapshot
+end
+
+Spec.after_each do
+  if snapshot = SpecHandlerState.snapshot
+    Altair::Record.restore_handlers(snapshot)
+    SpecHandlerState.snapshot = nil
+  end
+end
+
 class SpecApp < Altair::Application
   config.name = "SpecApp"
   config.db_url = "sqlite3://./spec/record/test.db"
