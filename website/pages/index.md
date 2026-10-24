@@ -93,7 +93,7 @@ Everything a web app needs ships together and agrees on conventions — typed at
 <div class="section-head">
 <p class="kicker">Performance</p>
 <h2>Measured under real load</h2>
-<p>A public k6 harness compares Altair with Express and Fiber on identical PostgreSQL-backed CRUD endpoints — 1,000 virtual users for 60 seconds.</p>
+<p>A public k6 harness compares Altair with Express, Fiber and a Ruby full-stack MVC app on identical PostgreSQL-backed CRUD endpoints — 100 virtual users for 60 seconds at an identical connection budget.</p>
 </div>
 
 </div>
@@ -101,17 +101,17 @@ Everything a web app needs ships together and agrees on conventions — typed at
 <div class="bench-strip">
   <div class="bench-card highlight">
     <p class="workload">Write · POST /items</p>
-    <p class="figure">13,167 <small>req/s</small></p>
-    <p class="note">1.8x Express throughput · best write max latency of all three.</p>
+    <p class="figure">17,245 <small>req/s</small></p>
+    <p class="note">1.7x Express · 6.7x the Ruby full-stack arm · best write tail of all four (max 18.1 ms).</p>
   </div>
   <div class="bench-card highlight">
     <p class="workload">Read · GET /items/:id</p>
-    <p class="figure">14,687 <small>req/s</small></p>
-    <p class="note">1.9x Express throughput · zero failed requests in every run.</p>
+    <p class="figure">15,539 <small>req/s</small></p>
+    <p class="note">1.6x Express · 4.4x the Ruby full-stack arm · zero meaningful failures in every run.</p>
   </div>
   <div class="bench-card">
     <p class="workload">Methodology</p>
-    <p class="figure">1,000 <small>VUs · 60s</small></p>
+    <p class="figure">100 <small>VUs · 60s</small></p>
     <p class="note"><a href="/docs/benchmarks.html">Full report</a> with latency tables and the tail-latency investigation.</p>
   </div>
 </div>

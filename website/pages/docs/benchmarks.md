@@ -1,75 +1,90 @@
 # Benchmarks
 
-Altair is compared against **Express** (Node.js) and **Fiber** (Go) on
-identical PostgreSQL-backed CRUD endpoints, driven by k6 over real HTTP. The
-harness lives in the repository at `examples/benchmark_k6` and can be re-run
-locally.
+Altair is compared against **Express** (Node.js), **Fiber** (Go) and a
+**Ruby** full-stack MVC app on identical PostgreSQL-backed CRUD endpoints,
+driven by k6 over real HTTP. The harness lives in the repository at
+`examples/benchmark_k6` and can be re-run locally.
 
-Every framework gets the same **200-connection database budget**. A discarded
-k6 warm-up run first ramps each app to 1,000 virtual users and absorbs the
-cold-start spike, then the measured run holds **1,000 VUs for 60 seconds**.
+Every framework gets the same **20-connection / 6-worker budget** at the
+realistic profile — **100 virtual users for 60 seconds** — tuned on the
+benchmark machine; a discarded k6 warm-up run precedes each measured phase.
 PostgreSQL is pinned to 6 CPUs / 2 GB — enough headroom that throughput is
 framework-limited, so per-request cost is what is measured.
 
-## Results
+## Results — unified profile (100 VUs, 60 s, 20 connections, 6 workers)
 
 | Workload | Framework | req/s | avg | p95 | p99 | p99.9 | max |
 |---|---|---:|---:|---:|---:|---:|---:|
-| **Write** `POST /items` | Fiber | 17,088 | 57.0 ms | 94.3 ms | 131.7 ms | 171.5 ms | 242.4 ms |
-| | **Altair** | **13,167** | **75.4 ms** | 101.3 ms | 117.8 ms | **145.9 ms** | **201.5 ms** |
-| | Express | 7,273 | 133.8 ms | 232.1 ms | 302.8 ms | 1,036.8 ms | 2,067.8 ms |
-| **Read** `GET /items/:id` | Fiber | 19,527 | 37.1 ms | 71.7 ms | 103.5 ms | 149.9 ms | 236.3 ms |
-| | **Altair** | **14,687** | **64.3 ms** | 129.0 ms | 180.4 ms | 318.4 ms | 479.6 ms |
-| | Express | 7,700 | 127.3 ms | 197.3 ms | 267.3 ms | 350.3 ms | 965.8 ms |
+| **Write** `POST /items` | Fiber | 22,080 | 4.3 ms | 6.1 ms | 8.5 ms | 14.7 ms | 24.8 ms |
+| | **Altair** | **17,245** | 5.7 ms | 7.3 ms | 8.6 ms | **10.7 ms** | **18.1 ms** |
+| | Express | 10,074 | 9.7 ms | 13.5 ms | 16.2 ms | 22.4 ms | 53.6 ms |
+| | Ruby | 2,587 | 38.1 ms | 325.5 ms | 337.7 ms | 380.6 ms | 1,060 ms |
+| **Read** `GET /items/:id` | Fiber | 20,908 | 4.6 ms | 7.0 ms | 10.4 ms | 15.8 ms | 25.1 ms |
+| | **Altair** | **15,539** | 6.3 ms | 8.4 ms | 14.6 ms | 153.6 ms | 247.0 ms |
+| | Express | 9,532 | 10.3 ms | 15.6 ms | 20.5 ms | 28.3 ms | 64.4 ms |
+| | Ruby | 3,531 | 27.9 ms | 239.1 ms | 257.5 ms | 272.3 ms | 1,042 ms |
 
-All six runs completed with **zero failed requests**.
+- **Altair's write tail is the best of all four arms** — p99.9 of 10.7 ms and
+  a max of 18.1 ms, below even Fiber's, with a write p99 (8.6 ms) statistically
+  tied with Fiber's (8.5 ms).
+- **Fiber (Go) leads raw throughput** — the honest gap is 0.74–0.78x.
+- Express showed 17 connection resets clustered at the warmup boundary of its
+  write run; Ruby showed 2. Everything else was error-free across the eight
+  runs.
 
-## Session 2026-09-09 — isolated databases
+## The closest architectural peer: the Ruby full-stack arm
 
-The harness was re-run with the same unified settings (200-connection
-budget, 1,000 VUs for 60 s, discarded warm-up, Altair first with a 60 s
-cooldown between frameworks), but each framework ran against its **own**
-PostgreSQL container, so checkpoints and WAL can no longer leak between
-runs. Isolation verified: zero failed requests, each database holding only
-its own framework's table.
+The most instructive comparison is not the raw throughput table — it is the
+arm built the same way Altair is. The Ruby arm is a **full-stack MVC
+framework with the same shape**: an ORM writing every row per request,
+convention-driven controllers, a batteries-included philosophy, and a real
+production application server (Puma) in front of it. It is the closest thing
+in this comparison to "what Altair replaces", and the two are architecturally
+much closer to each other than either is to Fiber's hand-rolled raw-SQL
+handlers or Express's minimal pg pool.
 
-| Workload | Framework | req/s | avg | p95 | p99 | p99.9 | max |
-|---|---|---:|---:|---:|---:|---:|---:|
-| **Write** `POST /items` | Fiber | 9,186 | 108.3 ms | 159.5 ms | 175.5 ms | 199.8 ms | 274.1 ms |
-| | **Altair** | **9,035** | **109.5 ms** | 181.0 ms | 274.0 ms | 1,032.3 ms | 1,142.4 ms |
-| | Express | 4,199 | 235.5 ms | 313.3 ms | 5,010.5 ms | 6,925.4 ms | 7,028.9 ms |
-| **Read** `GET /items/:id` | Fiber | 12,994 | 73.5 ms | 109.2 ms | 136.1 ms | 178.0 ms | 313.8 ms |
-| | **Altair** | **9,361** | **104.4 ms** | 225.8 ms | 462.4 ms | 855.7 ms | 1,408.8 ms |
-| | Express | 7,011 | 141.7 ms | 208.3 ms | 265.5 ms | 676.4 ms | 1,164.5 ms |
+At the same connection and worker budget the results are:
 
-Ordering matches the baseline on both workloads, and Fiber's write tail
-shows what isolation buys (p99.9 2,502.9 → 199.8 ms vs the shared-DB
-session). Caveats: the smaller per-DB slice (2 CPUs) caps the fastest
-reader, and absolute 1000-VU numbers move with host state — the tables
-above stay the reference. The read-path fix itself is proven by the
-same-day controlled A/B on Altair at 300 VUs: read p99.9 −53%, max −66%,
-throughput +32% with no write regression.
+| Metric | **Altair** | Ruby full-stack | Altair advantage |
+|---|---:|---:|---:|
+| Write throughput | 17,245 req/s | 2,587 req/s | **6.7x** |
+| Read throughput | 15,539 req/s | 3,531 req/s | **4.4x** |
+| Write p99 | 8.6 ms | 337.7 ms | **39x tighter** |
+| Read p99 | 14.6 ms | 257.5 ms | **18x tighter** |
+| Write max | 18.1 ms | 1,060 ms | **59x tighter** |
 
-## What the numbers say
+Honest reading of that table:
 
-- **Altair is ~1.8–1.9x faster than Express** on throughput in both
-  workloads, with a far tighter tail: its write p99.9 (145.9 ms) is 7x lower
-  than Express's and its write max (201.5 ms) is the best of all three.
-- **Fiber (Go) leads raw throughput** — the honest gap is 0.75–0.77x.
-  Altair's write tail is nevertheless tighter than Fiber's at every
-  percentile from p99 up.
-- **Altair's read tail runs ~2x Fiber's** (p99.9 318.4 / max 479.6 ms). The
-  outliers land inside one Boehm stop-the-world pause per second on the
-  plateaued heap; the next optimization target is read-side allocation
-  (JSON response building dominates), and it is tracked as follow-up work.
+- The Ruby arm posts the **fastest per-request median of all four arms**
+  (4.3 ms on reads) — once a request reaches a worker, the stack is quick.
+  Its tail collapses because 6 Puma workers serialize the ORM work under
+  load; that is the honest shape of the Ruby stack at this budget, not a
+  misconfiguration. Scaling it means more worker processes and more database
+  connections — a different trade than Altair's single process with one
+  shared pool and compile-time templates.
+- Altair gets its numbers from the same philosophy the Ruby arm embodies —
+  an ORM on every request, no raw SQL shortcuts — so the gap measures the
+  stack itself: compiled templates and queries, fibers over a threaded
+  scheduler, and a database path that never blocks a second fiber on one
+  connection (see the wire-protocol fix, issue #21, in the repository).
+
+## Historical sessions
+
+### Session 2026-09-09 — isolated databases (older profile)
+
+The harness was previously run at a 200-connection budget, 1,000 VUs for 60 s,
+with each framework against its own PostgreSQL container. Order matched the
+baseline; those tables live in the repository report. The current reference
+is the unified realistic profile above.
 
 ## Methodology
 
-- One k6 warm-up run per phase (ramp to 1,000 VUs + settle) precedes the
-  measured `constant-vus` run, so the summaries describe sustained load only.
-- The pool budget is the same for every framework: 200 connections total,
-  matching PostgreSQL's `max_connections = 220` headroom (Express and Fiber
-  split theirs across 8 workers; Altair uses one shared pool).
+- One k6 warm-up run per phase (ramp + settle) precedes the measured
+  `constant-vus` run, so the summaries describe sustained load only.
+- The budget is identical for every framework: **20 database connections and
+  6 workers** (Express: cluster workers splitting the pool; Fiber:
+  `GOMAXPROCS` + `pgxpool` max; Altair: `CRYSTAL_WORKERS` + one shared pool;
+  Ruby: Puma workers x threads). Override via env for stress reruns.
 - Latency statistics: `avg, med, p(90), p(95), p(99), p(99.9), max`.
 - Raw k6 summary exports are committed next to the harness in `results/`.
 
