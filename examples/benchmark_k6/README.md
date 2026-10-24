@@ -296,12 +296,18 @@ BENCH_ACTIVE=200 ./scripts/bench.sh altair
 - **PostgreSQL 17** (`postgres:17-alpine`) via compose, pinned to **6 CPUs /
   2 GB**, published on `127.0.0.1:55433` with `max_connections=220`, and a
   dedicated table per framework (`items_express`, `items_fiber`,
-  `items_altair`). The 6-CPU allocation keeps PostgreSQL clear of the
+  `items_altair`, `items_ruby`). The 6-CPU allocation keeps PostgreSQL clear of the
   framework ceiling — earlier runs with 2 CPUs capped the whole benchmark at
   ~8.4k req/s regardless of framework or pool size.
-- The three applications run **natively on the host** (no container overhead),
-  one per port, each limited to the same 200-connection budget. Express and
-  Fiber each run 8 OS processes; Altair runs one process with one shared pool.
+- The applications run **natively on the host** (no container overhead),
+  one per port, each limited to the same connection budget and worker count
+  (`BENCH_POOL` / `BENCH_WORKERS`, defaulting to 20 / 6 — the realistic
+  profile tuned on this machine; override via env for stress reruns).
+  Express runs a cluster of `BENCH_WORKERS` processes, Fiber maps
+  `BENCH_WORKERS` to `GOMAXPROCS`, Altair maps it to `CRYSTAL_WORKERS`, and
+  the Ruby arm maps it to Puma workers. The Ruby arm's app lives under
+  `app/ruby/`, gitignored by repo policy — generate it locally before
+  running `scripts/bench.sh ruby`.
 
   | Framework | Port | Tuning |
   |---|---|---|
