@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Altair Benchmark Report - v0.4.3</title>
+<style>
+  @page { size: 794px 1123px; margin: 0; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #f6f7f9;
+    font-family: "Inter", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #152033;
+  }
+  @media screen {
+    html { background: #f6f7f9; }
+    body { transform-origin: top center; zoom: 0.9; }
+  }
+  .poster {
+    width: 794px; height: 1123px;
+    background: #f6f7f9;
+    position: relative;
+    display: flex; flex-direction: column;
+    box-sizing: border-box;
+    padding: 34px 40px 0 40px;
+  }
+
+  /* Header */
+  .header { display: flex; align-items: center; gap: 14px; }
+  .header img { width: 46px; height: 46px; }
+  .header .titles { flex: 1; }
+  .header .kicker {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 2.4px;
+    text-transform: uppercase; color: #b93e32; margin: 0 0 2px 0;
+  }
+  .header h1 {
+    font-size: 27px; font-weight: 800; letter-spacing: -0.4px;
+    margin: 0; color: #152033;
+  }
+  .header .meta { text-align: right; font-size: 10.5px; color: #64748b; line-height: 1.55; }
+  .header .meta strong { color: #152033; font-weight: 700; }
+
+  /* Methodology chips */
+  .chips { display: flex; gap: 8px; margin: 18px 0 20px 0; flex-wrap: nowrap; }
+  .chip {
+    flex: 1; text-align: center;
+    background: #ffffff; border: 1px solid #e2e6ec; border-radius: 8px;
+    padding: 7px 4px;
+  }
+  .chip .k { font-size: 8.5px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #8a94a6; }
+  .chip .v { font-size: 13.5px; font-weight: 800; color: #152033; margin-top: 1px; }
+
+  /* Section titles */
+  .sec { font-size: 11px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #b93e32; margin: 0 0 9px 0; }
+
+  /* Comparison table */
+  .vs { width: 100%; border-collapse: collapse; background: #ffffff; border: 1px solid #e2e6ec; border-radius: 10px; overflow: hidden; }
+  .vs th, .vs td { padding: 8px 10px; font-size: 12.5px; }
+  .vs thead th {
+    background: #eef0f4; font-size: 9px; font-weight: 800; letter-spacing: 1.2px;
+    text-transform: uppercase; color: #64748b; text-align: right;
+  }
+  .vs thead th:first-child { text-align: left; }
+  .vs td { text-align: right; border-top: 1px solid #eef0f4; color: #334155; }
+  .vs td:first-child { text-align: left; }
+  .fw { display: flex; align-items: center; gap: 9px; font-weight: 700; color: #152033; }
+  .fw img { width: 19px; height: 19px; }
+  .fw .lang { font-weight: 500; color: #8a94a6; font-size: 11px; }
+  .row-altair td { background: #fbedea; }
+  .row-altair td:first-child { box-shadow: inset 3px 0 0 #d95043; }
+  .row-altair .fw { color: #b93e32; }
+  td.best { font-weight: 800; color: #152033; }
+  td.best::after { content: " \2605"; color: #d95043; font-size: 10px; }
+
+  /* Chart */
+  .chart { background: #ffffff; border: 1px solid #e2e6ec; border-radius: 10px; padding: 18px 20px 16px 20px; }
+  .chart .group { margin-bottom: 16px; }
+  .chart .group:last-child { margin-bottom: 2px; }
+  .chart .glabel { font-size: 10px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #64748b; margin-bottom: 6px; }
+  .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .bar-row .name { width: 108px; display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: #334155; flex: none; }
+  .bar-row .name img { width: 13px; height: 13px; }
+  .bar-row .track { flex: 1; height: 18px; background: #eef0f4; border-radius: 4px; overflow: hidden; }
+  .bar-row .fill { height: 100%; border-radius: 4px; background: #aeb8c6; }
+  .bar-row.alt .fill { background: linear-gradient(90deg, #d95043, #b93e32); }
+  .bar-row .val { width: 58px; text-align: right; font-size: 11.5px; font-weight: 800; color: #152033; flex: none; }
+  .bar-row.alt .val { color: #b93e32; }
+
+  /* Highlight cards */
+  .cards { display: flex; gap: 10px; }
+  .card {
+    flex: 1; background: #ffffff; border: 1px solid #e2e6ec; border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .card .big { font-family: "Inter", "Segoe UI", Roboto, Arial, sans-serif; font-size: 21px; font-weight: 800; color: #b93e32; letter-spacing: -0.3px; margin: 2px 0 3px 0; }
+  .card .cap { font-size: 10.5px; color: #64748b; line-height: 1.45; }
+
+  /* Notes */
+  .notes { background: #ffffff; border: 1px solid #e2e6ec; border-radius: 10px; padding: 11px 16px; }
+  .notes ul { margin: 0; padding-left: 16px; }
+  .notes li { font-size: 11px; color: #475569; line-height: 1.6; }
+  .notes li strong { color: #152033; }
+
+  /* Reproduce */
+  .repro {
+    background: #152033; color: #e8edf4;
+    border-radius: 10px; padding: 12px 16px;
+    font-family: "JetBrains Mono", "Fira Code", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px;
+  }
+  .repro .ps1 { color: #d95043; font-weight: 800; margin-right: 8px; }
+  .repro-note { font-size: 10.5px; color: #8a94a6; margin: 7px 2px 0 2px; }
+
+  /* Footer */
+  .footer {
+    margin-top: auto;
+    border-top: 1px solid #e2e6ec;
+    padding: 12px 0 26px 0;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 9.5px; color: #8a94a6;
+  }
+  .footer strong { color: #475569; font-weight: 700; }
+  .spacer-14 { height: 14px; }
+  .spacer-18 { height: 18px; }
+</style>
+</head>
+<body>
+<div class="poster">
+
+  <div class="header">
+    <img src="assets/altair-logo.png" alt="Altair logo">
+    <div class="titles">
+      <p class="kicker">Benchmark Report</p>
+      <h1>Altair vs Express &middot; Fiber &middot; Ruby</h1>
+    </div>
+    <div class="meta">
+      <strong>v0.4.3</strong> &middot; Crystal 1.22.1<br>
+      October 24, 2026<br>
+      arab-open-source.github.io/Altair
+    </div>
+  </div>
+
+  <div class="chips">
+    <div class="chip"><div class="k">Virtual users</div><div class="v">100</div></div>
+    <div class="chip"><div class="k">Duration</div><div class="v">60 s</div></div>
+    <div class="chip"><div class="k">DB budget</div><div class="v">20 conns</div></div>
+    <div class="chip"><div class="k">Workers</div><div class="v">6</div></div>
+    <div class="chip"><div class="k">Database</div><div class="v">PostgreSQL</div></div>
+    <div class="chip"><div class="k">Driver</div><div class="v">k6</div></div>
+  </div>
+
+  <p class="sec">Head-to-head</p>
+  <table class="vs">
+    <thead>
+      <tr>
+        <th>Framework</th>
+        <th>Write req/s</th><th>Write p99</th><th>Write max</th>
+        <th>Read req/s</th><th>Read p99</th><th>Read max</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="row-altair">
+        <td><span class="fw"><img src="assets/crystal.svg" alt="Crystal">Altair <span class="lang">Crystal</span></span></td>
+        <td>17,245</td><td>8.6 ms</td><td class="best">18.1 ms</td>
+        <td>15,539</td><td>14.6 ms</td><td>247.0 ms</td>
+      </tr>
+      <tr>
+        <td><span class="fw"><img src="assets/go.svg" alt="Go">Fiber <span class="lang">Go</span></span></td>
+        <td>22,080</td><td>8.5 ms</td><td>24.8 ms</td>
+        <td>20,908</td><td>10.4 ms</td><td>25.1 ms</td>
+      </tr>
+      <tr>
+        <td><span class="fw"><img src="assets/nodejs.svg" alt="Node.js">Express <span class="lang">Node.js</span></span></td>
+        <td>10,074</td><td>16.2 ms</td><td>53.6 ms</td>
+        <td>9,532</td><td>20.5 ms</td><td>64.4 ms</td>
+      </tr>
+      <tr>
+        <td><span class="fw"><img src="assets/ruby.svg" alt="Ruby">Ruby full-stack <span class="lang">Puma + ORM</span></span></td>
+        <td>2,587</td><td>337.7 ms</td><td>1,060 ms</td>
+        <td>3,531</td><td>257.5 ms</td><td>1,042 ms</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="spacer-18"></div>
+
+  <p class="sec">Throughput</p>
+  <div class="chart">
+    <div class="group">
+      <div class="glabel">Write &middot; POST /items</div>
+      <div class="bar-row alt"><span class="name"><img src="assets/crystal.svg" alt="">Altair</span><div class="track"><div class="fill" style="width: 78%"></div></div><span class="val">17,245</span></div>
+      <div class="bar-row"><span class="name"><img src="assets/go.svg" alt="">Fiber</span><div class="track"><div class="fill" style="width: 100%"></div></div><span class="val">22,080</span></div>
+      <div class="bar-row"><span class="name"><img src="assets/nodejs.svg" alt="">Express</span><div class="track"><div class="fill" style="width: 46%"></div></div><span class="val">10,074</span></div>
+      <div class="bar-row"><span class="name"><img src="assets/ruby.svg" alt="">Ruby</span><div class="track"><div class="fill" style="width: 12%"></div></div><span class="val">2,587</span></div>
+    </div>
+    <div class="group">
+      <div class="glabel">Read &middot; GET /items/:id</div>
+      <div class="bar-row alt"><span class="name"><img src="assets/crystal.svg" alt="">Altair</span><div class="track"><div class="fill" style="width: 74%"></div></div><span class="val">15,539</span></div>
+      <div class="bar-row"><span class="name"><img src="assets/go.svg" alt="">Fiber</span><div class="track"><div class="fill" style="width: 100%"></div></div><span class="val">20,908</span></div>
+      <div class="bar-row"><span class="name"><img src="assets/nodejs.svg" alt="">Express</span><div class="track"><div class="fill" style="width: 46%"></div></div><span class="val">9,532</span></div>
+      <div class="bar-row"><span class="name"><img src="assets/ruby.svg" alt="">Ruby</span><div class="track"><div class="fill" style="width: 17%"></div></div><span class="val">3,531</span></div>
+    </div>
+  </div>
+
+  <div class="spacer-18"></div>
+
+  <p class="sec">Highlights</p>
+  <div class="cards">
+    <div class="card">
+      <div class="big">18.1 ms</div>
+      <div class="cap">Best write max of all four arms &mdash; and the tightest p99.9 (10.7 ms), below even Go.</div>
+    </div>
+    <div class="card">
+      <div class="big">6.7&times;</div>
+      <div class="cap">Faster writes than the Ruby full-stack arm &mdash; the closest architectural peer (4.4&times; on reads).</div>
+    </div>
+    <div class="card">
+      <div class="big">1.7&times;</div>
+      <div class="cap">Faster than Express on writes, 1.6&times; on reads &mdash; with a 3x tighter write p99.</div>
+    </div>
+  </div>
+
+  <div class="spacer-14"></div>
+
+  <div class="notes">
+    <ul>
+      <li><strong>Fiber (Go) leads raw throughput</strong>; Altair holds second place with a statistically tied write p99 (8.6 vs 8.5 ms).</li>
+      <li><strong>Zero meaningful failures</strong> across all eight runs (17 warmup-boundary resets on Express, 2 on Ruby).</li>
+      <li>Altair's read tail carries one Boehm stop-the-world GC pause &mdash; the tracked next optimization target.</li>
+    </ul>
+  </div>
+
+  <div class="spacer-14"></div>
+
+  <p class="sec">Reproduce</p>
+  <div class="repro">
+    <span class="ps1">$</span> cd examples/benchmark_k6 &amp;&amp; scripts/bench.sh altair | fiber | express | ruby
+  </div>
+  <p class="repro-note">Defaults: 100 VUs, 60 s per phase, discarded warm-up, 20-connection / 6-worker budget for every framework. Raw k6 exports land in results/.</p>
+
+  <div class="footer">
+    <span><strong>Harness:</strong> examples/benchmark_k6 &mdash; k6 summary exports committed under results/</span>
+    <span><strong>Methodology &amp; full report:</strong> examples/benchmark_k6/README.md</span>
+  </div>
+
+</div>
+</body>
+</html>
