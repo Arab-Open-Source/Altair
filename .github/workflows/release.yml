@@ -130,4 +130,6 @@ jobs:
           files: dist/*
           fail_on_unmatched_files: true
           overwrite_files: true
-          generate_release_notes: true
+          # The release body is the tag's annotated message (git notes-style);
+          # generated notes would replace it with a bare commit list.
+          generate_release_notes: false
