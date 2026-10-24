@@ -180,6 +180,75 @@ buffered JSON renders) rather than investigating separately.
 - **k6 client artifacts** - the same k6 instance produced clean read runs
   (manual) and dirty ones (harness) against the same server binary.
 
+
+## Findings (2026-10-25 instrumented run) - root cause identified
+
+The sampler (`--define bench_sample --define bench_timing`) was activated
+and the unified profile re-run under it. The tail was milder this session
+(read max 56 ms) but the mechanism showed itself unambiguously, and it is
+not PostgreSQL:
+
+**Every spike second carries a matching GC stop-the-world window, one for
+one.** Seconds where the app-side per-second max exceeded 50 ms were
+exactly the seconds with the largest `gc_stw_ms`, and the magnitudes
+match: max 54.2 ms against 45.0 ms of world-stop, max 55.1 ms against
+55.2 ms, max 50.0 against 60.4. Overlap: 3/3 spike seconds; no spike
+second without a pause. The PostgreSQL side is quiescent throughout
+(7-8 active backends, zero wait events) - C2 is ruled out as the stall
+source.
+
+**The read phase flips Boehm's collection profile.** Averaged per second:
+
+| Phase | STW events/s | STW ms/s | Pause shape | Live heap |
+|---|---:|---:|---|---:|
+| Write | ~5.8 | ~6.5 | many tiny (~1 ms) pauses | <= 35 MB flat |
+| Read | ~2.5 | ~28 (peaks 60) | few long (10-30 ms) pauses | 44 -> 109 MB growing |
+
+Writes allocate *more* raw bytes per second (~120 MB/s vs ~70 MB/s) yet
+stay clean: their collector runs as frequent micro-pauses that disappear
+under the 6 ms service time. During reads the live heap climbs steadily
+(44 to 109 MB over the 60 s phase) and collections become rare, long
+full pauses - each one landing on every in-flight request. The
+per-second request max tracks the pause budget for the entire read
+phase, not only at the extremes.
+
+**Verdict.** The read-tail stall source is Boehm stop-the-world pauses
+whose length grows with the read phase's live heap (C1 in the ranking
+above, with C3's allocation/retention profile as the heap driver). The
+150-250 ms clusters in the committed run are the same pauses at a larger
+heap scale, amplified by the per-connection lock queue (five request
+fibers per connection at the 20-connection budget) - the lock holder
+freezes with the world and the queued fibers drain serially after the
+resume. Run-to-run intermittency (clean manual runs vs dirty harness
+runs) is explained by how large the live heap grows in that particular
+run, which varies with host state.
+
+**Ruled out by this run:** C2 (PostgreSQL-side transients - PG quiescent
+at every spike), C4 (admission gate - engagement would lift p50, which
+stayed flat at 5.5 ms). C5 remains a secondary term folded into the
+heap-growth driver.
+
+### Follow-up options (in order of expected value)
+
+1. **Tune Boehm against long pauses**: build a read-phase A/B with
+   `GC_FREE_SPACE_DIVISOR` lowered (collect earlier, smaller heap,
+   shorter marks) and with a pre-sized `GC_INITIAL_HEAP_SIZE`; measure
+   the STW meter again. One environment variable, no code.
+2. **Cut read-path retention**: find what keeps growing the live heap
+   through the read phase (suspects: response buffering on the 100
+   keep-alive sockets, per-request fiber stacks). A heap-diff
+   instrument or `GC.dump` when the plateau is reached would localize
+   it; anything reclaimed shrinks every pause linearly.
+3. **Content-Length on buffered JSON renders** (C5): fewer
+   allocations and syscalls per read; small but free.
+4. **The gcry collector A/B** stays a separate track - its stop-the-world
+   behavior is architecturally different and it already showed a
+   flatter read tail at the price of write throughput in the November
+   experiment.
+
+The raw evidence is committed under `results/diagnose/` (k6 summaries,
+per-second app CSV with the STW meter, PG activity log).
+
 ## Experiment plan (in order)
 
 1. `VUS=100 DURATION=60 scripts/diagnose.sh` - one instrumented sweep

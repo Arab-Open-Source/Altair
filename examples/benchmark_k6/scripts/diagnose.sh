@@ -16,8 +16,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-VUS="${VUS:-1000}"
+VUS="${VUS:-100}"
 DURATION="${DURATION:-60}"
+# Same unified profile as scripts/bench.sh (overridable).
+BENCH_POOL="${BENCH_POOL:-20}"
+BENCH_WORKERS="${BENCH_WORKERS:-6}"
+BENCH_ACTIVE="${BENCH_ACTIVE:-20}"
 TREND_STATS="avg,med,p(90),p(95),p(99),p(99.9),max"
 
 DB_URL="postgres://bench:bench@127.0.0.1:55433/bench"
@@ -60,7 +64,10 @@ until PG -tAc "select 1" >/dev/null 2>&1; do sleep 1; done
 
 if [ "${SKIP_BUILD:-0}" != "1" ]; then
   echo "== building altair with the sampler (sam) =="
-  ( cd app/altair && crystal build --release --no-debug --define bench_sample \
+  # bench_sample wires the sampler in; bench_timing activates it (per-request
+  # metering + the CSV writer fiber).
+  ( cd app/altair && crystal build --release --no-debug \
+      --define bench_sample --define bench_timing \
       -o /tmp/bench_altair_sampled src/bench.cr )
 fi
 
@@ -68,8 +75,8 @@ fi
 for p in 4101 4102 4103; do stop_port "$p"; done
 
 echo "== starting sampled altair on :$PORT =="
-setsid env PORT="$PORT" DATABASE_URL="$DB_URL" BENCH_POOL=200 BENCH_ACTIVE=200 \
-  BENCH_INITIAL_POOL=200 BENCH_MAX_IDLE=200 CRYSTAL_WORKERS=8 \
+setsid env PORT="$PORT" ALTAIR_ENV=production DATABASE_URL="$DB_URL" BENCH_POOL="$BENCH_POOL" BENCH_ACTIVE="$BENCH_ACTIVE" \
+  BENCH_INITIAL_POOL="$BENCH_POOL" BENCH_MAX_IDLE="$BENCH_POOL" CRYSTAL_WORKERS="$BENCH_WORKERS" \
   BENCH_SAMPLE="$APP_CSV" \
   /tmp/bench_altair_sampled > "$LOG" 2>&1 < /dev/null &
 for _ in $(seq 1 30); do
