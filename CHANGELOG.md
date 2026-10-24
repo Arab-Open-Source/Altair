@@ -5,7 +5,7 @@ All notable changes to Altair will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.3] - 2026-10-24
 
 ### Added
 
@@ -43,6 +43,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **MT-scheduler characterization note**
   (`docs/architecture/crystal-mt-fiber-stalls.md`) — the evidence matrix
   and upstream-tracking checklist behind issue #20.
+- **Benchmark harness, four-arm comparison** — `examples/benchmark_k6` now
+  benchmarks Altair against Express, Fiber and a Ruby full-stack app under a
+  unified connection/worker budget (`BENCH_POOL` / `BENCH_WORKERS`, realistic
+  100-VU profile), with a mixed 80/20 read-write scenario, a rotating A/B
+  sweep script and a rotating-order methodology. Full report in
+  `examples/benchmark_k6/README.md`; the website benchmark pages carry the
+  committed numbers.
 
 ### Changed
 
@@ -73,7 +80,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `DB::ConnectionLost` instead of being recycled dirty; and
   `PoolRetryAttemptsExceeded` carries its original cause. The gated
   wire-protocol contract (`spec/record/postgresql_protocol_spec.cr`)
-  pins all of it.
+  pins all of it. CI applies the patches automatically after
+  `shards install` (the spec suite runs against a real PostgreSQL service).
+
+### Website
 
 - **Documentation site redesign** (`website/`) with an identity derived from
   the project logo (ink navy + crystal coral, Space Grotesk display type):

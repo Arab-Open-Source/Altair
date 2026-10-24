@@ -20,7 +20,6 @@ node_modules/
 examples/benchmark_k6/app/altair/lib/
 examples/rails-vs-altair/app/altair/lib/
 examples/hello_bench/altair/lib/
-examples/boehm_vs_gcry/app/lib
 # The cloned Kemal source used for cross-framework study (Wave 0+)
 /kemal/
 /dist/

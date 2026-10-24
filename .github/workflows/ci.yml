@@ -38,6 +38,11 @@ jobs:
         uses: crystal-lang/install-crystal@v1
       - name: Install shards
         run: shards install
+      - name: Apply vendored driver patches
+        # shards install restores pristine upstream crystal-pg / crystal-db;
+        # the PostgreSQL wire-protocol contract specs (run below against the
+        # postgres service) pin the patched behavior and fail without it.
+        run: scripts/apply_vendor_patches.sh
       - name: Format check
         run: crystal tool format --check src spec examples
       - name: Lint
