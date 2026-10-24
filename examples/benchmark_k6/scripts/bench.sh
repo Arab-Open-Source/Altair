@@ -4,11 +4,16 @@
 #
 # usage: scripts/bench.sh express|fiber|altair
 #
-# Fairness contract: every framework gets the SAME total connection budget
-# against PostgreSQL's max_connections (220). Express splits BENCH_POOL across
-# its 8 cluster workers (=25 each), Fiber uses BENCH_POOL directly, and Altair
-# shares one pool of BENCH_POOL. All three run 200 here so upgrade is measured
-# against an equal cap, not against an under-sized pool.
+# Fairness contract: every framework gets the SAME connection budget and the
+# SAME worker count. Express splits BENCH_POOL across its BENCH_WORKERS
+# cluster workers, Fiber maps BENCH_WORKERS to GOMAXPROCS and BENCH_POOL to
+# its maxOpenConns, and Altair shares one pool of BENCH_POOL over
+# CRYSTAL_WORKERS threads. Defaults are the low-saturation realistic profile
+# tuned on this machine (20 connections, 6 workers at 100 VUs); override via
+# env, e.g. `BENCH_POOL=200 BENCH_WORKERS=8 VUS=2000 scripts/bench.sh altair`.
+BENCH_POOL="${BENCH_POOL:-20}"
+BENCH_WORKERS="${BENCH_WORKERS:-6}"
+BENCH_ACTIVE="${BENCH_ACTIVE:-20}"
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -20,12 +25,11 @@ ulimit -n 65535
 # comparable across frameworks: p99 and p99.9 expose the multi-second outliers.
 TREND_STATS="avg,med,p(90),p(95),p(99),p(99.9),max"
 
-# Load profile: defaults retain the original stress profile (2000 VUs, 90s).
-# The committed comparison uses the lower-saturation 1000-VU/60s profile.
-# Override
-# for a lower-saturation rerun, e.g. `VUS=1000 DURATION=90 ./scripts/bench.sh ..`
-VUS="${VUS:-2000}"
-DURATION="${DURATION:-90}"
+# Load profile: the realistic low-saturation profile tuned on this machine
+# (100 VUs, 60s) — override for stress reruns, e.g.
+# `VUS=2000 DURATION=90 ./scripts/bench.sh altair`.
+VUS="${VUS:-100}"
+DURATION="${DURATION:-60}"
 
 DB_URL="postgres://bench:bench@127.0.0.1:55433/bench"
 mkdir -p results
@@ -54,25 +58,25 @@ stop_port() {
 start_target() {
   case "$FRAMEWORK" in
     express)
-      # Pool 200 splits to 25 connections per cluster worker (8 workers).
-      setsid env PORT=4101 DATABASE_URL="$DB_URL" BENCH_POOL=200 BENCH_WORKERS=8 BENCH_TABLE=items_express \
+      # The total pool splits across the cluster workers.
+      setsid env PORT=4101 DATABASE_URL="$DB_URL" BENCH_POOL="$BENCH_POOL" BENCH_WORKERS="$BENCH_WORKERS" BENCH_TABLE=items_express \
         node app/express/src/server.js > "$LOG" 2>&1 < /dev/null &
       ;;
     fiber)
-      setsid env PORT=4102 DATABASE_URL="$DB_URL" BENCH_POOL=200 BENCH_WORKERS=8 BENCH_TABLE=items_fiber \
+      setsid env PORT=4102 DATABASE_URL="$DB_URL" BENCH_POOL="$BENCH_POOL" BENCH_WORKERS="$BENCH_WORKERS" BENCH_TABLE=items_fiber \
         /tmp/bench_fiber > "$LOG" 2>&1 < /dev/null &
       ;;
     altair)
-      # Altair is one process with one shared pool, sized to the same ceiling
-      # Express and Fiber get via their 8 workers (200 total, at PostgreSQL's
-      # max_connections=220). The pool is seeded warm so connection setup is
-      # not part of the steady-state cost. Admission control (BENCH_ACTIVE)
-      # parks the ~1780 excess VUs on a FIFO gate *outside* the pool, so the
-      # tail stays bounded under 2000 VUs. 0 = off (classic pool-only).
-      : "${BENCH_ACTIVE:=200}"
-      setsid env PORT=4103 DATABASE_URL="$DB_URL" BENCH_POOL=200 BENCH_ACTIVE="$BENCH_ACTIVE" \
-        BENCH_INITIAL_POOL=200 BENCH_MAX_IDLE=200 \
-        CRYSTAL_WORKERS=8 /tmp/bench_altair > "$LOG" 2>&1 < /dev/null &
+      # One process, one shared pool, seeded warm so connection setup is not
+      # part of the steady-state cost. Admission control (BENCH_ACTIVE) parks
+      # excess VUs on a FIFO gate outside the pool so the tail stays bounded
+      # under heavy load; 0 = off (classic pool-only).
+      # ALTAIR_ENV=production keeps the Development-only N+1 detector off the
+      # hot path (it would otherwise register on_query and force every
+      # statement through measured_statement), matching how a real deploy runs.
+      setsid env PORT=4103 ALTAIR_ENV=production DATABASE_URL="$DB_URL" BENCH_POOL="$BENCH_POOL" BENCH_ACTIVE="$BENCH_ACTIVE" \
+        BENCH_INITIAL_POOL="$BENCH_POOL" BENCH_MAX_IDLE="$BENCH_POOL" \
+        CRYSTAL_WORKERS="$BENCH_WORKERS" /tmp/bench_altair > "$LOG" 2>&1 < /dev/null &
       ;;
   esac
 }
