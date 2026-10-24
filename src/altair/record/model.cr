@@ -1007,7 +1007,7 @@ module Altair
         # A unique index is the only race-free arbiter of uniqueness; when
         # the database rejects the write, surface it as a validation error
         # on the offending columns instead of a raised exception.
-        if (names = unique_violation_columns(e))
+        if names = unique_violation_columns(e)
           names.each do |name|
             errors.add(error_attribute_for(name), "has already been taken")
           end
@@ -1026,7 +1026,7 @@ module Altair
         message = e.message || ""
         case message
         when /UNIQUE constraint failed: (.+)$/m
-          $1.split(',').map { |part| part.strip.split('.').last }
+          $1.split(',').map(&.strip.split('.').last)
         when /duplicate key value violates unique constraint "([^"]+)"/
           parse_unique_constraint_name($1)
         when /index_#{self.class.table_name}_on_(\w+)/

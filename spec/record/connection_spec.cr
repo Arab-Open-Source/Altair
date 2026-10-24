@@ -482,7 +482,6 @@ describe Altair::Record::Connection do
     end
 
     it "evicts the least-recently-used template at capacity" do
-      conn = spec_connection
       cache = Altair::Support::LRUCache(String, String).new(2)
       cache.put("a", "1")
       cache.put("b", "2")

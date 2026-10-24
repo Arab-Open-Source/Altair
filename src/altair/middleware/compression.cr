@@ -27,12 +27,11 @@ class Altair::Middleware::Compression < Altair::Middleware
   end
 
   private def negotiate(accept_encoding : String?) : String?
-    return nil unless accept_encoding
-    return nil if accept_encoding =~ /\bgzip\s*;\s*q\s*=\s*0(?:\.0+)?\b/
+    return unless accept_encoding
+    return if accept_encoding =~ /\bgzip\s*;\s*q\s*=\s*0(?:\.0+)?\b/
     return "gzip" if accept_encoding =~ /\bgzip\b/
-    return nil if accept_encoding =~ /\bdeflate\s*;\s*q\s*=\s*0(?:\.0+)?\b/
-    return "deflate" if accept_encoding =~ /\bdeflate\b/
-    nil
+    return if accept_encoding =~ /\bdeflate\s*;\s*q\s*=\s*0(?:\.0+)?\b/
+    "deflate" if accept_encoding =~ /\bdeflate\b/
   end
 
   private def wrap(output : IO, encoding : String) : IO

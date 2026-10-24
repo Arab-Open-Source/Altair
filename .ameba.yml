@@ -8,6 +8,10 @@
 # macros.
 Excluded:
   - "**/*.ecr"
+  # Vendored shard sources (framework `lib/` trees inside examples) follow
+  # upstream style; linting them produced noise unrelated to this codebase.
+  - "examples/benchmark_k6/app/altair/lib"
+  - "examples/read_replica/lib"
 
 Lint/WhitespaceAroundMacroExpression:
   Enabled: false

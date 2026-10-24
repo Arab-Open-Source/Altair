@@ -13,7 +13,7 @@ class Altair::Middleware::ConditionalGet < Altair::Middleware
   # Writes through to the sink once the buffer exceeds its cap; until then
   # the body accumulates so the finished response can be fingerprinted.
   private class BoundedBuffer < IO
-    getter overflowed = false
+    getter? overflowed = false
     getter buffer : IO::Memory
 
     def initialize(@sink : IO, @max_size : Int32)
@@ -49,7 +49,7 @@ class Altair::Middleware::ConditionalGet < Altair::Middleware
     chain.call
     raw.output = sink
 
-    if buffer.overflowed
+    if buffer.overflowed?
       # The bytes already streamed through; nothing left to decide.
       return
     end
