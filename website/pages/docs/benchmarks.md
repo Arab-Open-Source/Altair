@@ -15,14 +15,14 @@ framework-limited, so per-request cost is what is measured.
 
 | Workload | Framework | req/s | avg | p95 | p99 | p99.9 | max |
 |---|---|---:|---:|---:|---:|---:|---:|
-| **Write** `POST /items` | Fiber | 22,080 | 4.3 ms | 6.1 ms | 8.5 ms | 14.7 ms | 24.8 ms |
-| | **Altair** | **17,245** | 5.7 ms | 7.3 ms | 8.6 ms | **10.7 ms** | **18.1 ms** |
-| | Express | 10,074 | 9.7 ms | 13.5 ms | 16.2 ms | 22.4 ms | 53.6 ms |
-| | Ruby | 2,587 | 38.1 ms | 325.5 ms | 337.7 ms | 380.6 ms | 1,060 ms |
-| **Read** `GET /items/:id` | Fiber | 20,908 | 4.6 ms | 7.0 ms | 10.4 ms | 15.8 ms | 25.1 ms |
-| | **Altair** | **15,539** | 6.3 ms | 8.4 ms | 14.6 ms | 153.6 ms | 247.0 ms |
-| | Express | 9,532 | 10.3 ms | 15.6 ms | 20.5 ms | 28.3 ms | 64.4 ms |
-| | Ruby | 3,531 | 27.9 ms | 239.1 ms | 257.5 ms | 272.3 ms | 1,042 ms |
+| **Write** `POST /items` | <img src="/assets/img/logos/go.svg" width="16" alt="Go"> Fiber | 22,080 | 4.3 ms | 6.1 ms | 8.5 ms | 14.7 ms | 24.8 ms |
+| | <img src="/assets/img/logos/crystal.svg" width="16" alt="Crystal"> **Altair** | **17,245** | 5.7 ms | 7.3 ms | 8.6 ms | **10.7 ms** | **18.1 ms** |
+| | <img src="/assets/img/logos/nodejs.svg" width="16" alt="Node.js"> Express | 10,074 | 9.7 ms | 13.5 ms | 16.2 ms | 22.4 ms | 53.6 ms |
+| | <img src="/assets/img/logos/ruby.svg" width="16" alt="Ruby"> Ruby full-stack | 2,587 | 38.1 ms | 325.5 ms | 337.7 ms | 380.6 ms | 1,060 ms |
+| **Read** `GET /items/:id` | <img src="/assets/img/logos/go.svg" width="16" alt="Go"> Fiber | 20,908 | 4.6 ms | 7.0 ms | 10.4 ms | 15.8 ms | 25.1 ms |
+| | <img src="/assets/img/logos/crystal.svg" width="16" alt="Crystal"> **Altair** | **15,539** | 6.3 ms | 8.4 ms | 14.6 ms | 153.6 ms | 247.0 ms |
+| | <img src="/assets/img/logos/nodejs.svg" width="16" alt="Node.js"> Express | 9,532 | 10.3 ms | 15.6 ms | 20.5 ms | 28.3 ms | 64.4 ms |
+| | <img src="/assets/img/logos/ruby.svg" width="16" alt="Ruby"> Ruby full-stack | 3,531 | 27.9 ms | 239.1 ms | 257.5 ms | 272.3 ms | 1,042 ms |
 
 - **Altair's write tail is the best of all four arms** — p99.9 of 10.7 ms and
   a max of 18.1 ms, below even Fiber's, with a write p99 (8.6 ms) statistically
@@ -31,6 +31,8 @@ framework-limited, so per-request cost is what is measured.
 - Express showed 17 connection resets clustered at the warmup boundary of its
   write run; Ruby showed 2. Everything else was error-free across the eight
   runs.
+
+<img src="/assets/img/logos/crystal.svg" width="40" alt="Crystal" style="vertical-align:middle"> &nbsp;<strong>vs</strong>&nbsp; <img src="/assets/img/logos/ruby.svg" width="36" alt="Ruby" style="vertical-align:middle">
 
 ## The closest architectural peer: the Ruby full-stack arm
 

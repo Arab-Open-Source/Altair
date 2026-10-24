@@ -157,21 +157,39 @@
 <p>A public k6 harness compares Altair with Express, Fiber and a Ruby full-stack MVC app on identical PostgreSQL-backed CRUD endpoints — 100 virtual users for 60 seconds at an identical connection budget.</p>
 </div></div><div class="bench-strip">
   <div class="bench-card highlight">
-    <p class="workload">Write · POST /items</p>
+    <div class="bench-head"><img class="bench-logo" src="assets/img/logos/crystal.svg" alt="Crystal"><span class="bench-name">Altair</span></div>
+    <p class="workload">Write &middot; POST /items</p>
     <p class="figure">17,245 <small>req/s</small></p>
-    <p class="note">1.7x Express · 6.7x the Ruby full-stack arm · best write tail of all four (max 18.1 ms).</p>
+    <p class="note">1.7x Express &middot; 6.7x the Ruby full-stack arm &middot; best write tail of all four (max 18.1 ms).</p>
   </div>
   <div class="bench-card highlight">
-    <p class="workload">Read · GET /items/:id</p>
+    <div class="bench-head"><img class="bench-logo" src="assets/img/logos/crystal.svg" alt="Crystal"><span class="bench-name">Altair</span></div>
+    <p class="workload">Read &middot; GET /items/:id</p>
     <p class="figure">15,539 <small>req/s</small></p>
-    <p class="note">1.6x Express · 4.4x the Ruby full-stack arm · zero meaningful failures in every run.</p>
+    <p class="note">1.6x Express &middot; 4.4x the Ruby full-stack arm &middot; zero meaningful failures in every run.</p>
   </div>
   <div class="bench-card">
     <p class="workload">Methodology</p>
-    <p class="figure">100 <small>VUs · 60s</small></p>
-    <p class="note"><a href="docs/benchmarks.html">Full report</a> with latency tables and the tail-latency investigation.</p>
+    <p class="figure">100 <small>VUs &middot; 60s</small></p>
+    <p class="note"><a href="docs/benchmarks.html">Full report</a> with latency tables, framework logos and the tail-latency investigation.</p>
   </div>
-</div><div class="content-narrow"><div class="section-head">
+</div><div class="content-narrow">
+  <div class="vs-wrap">
+  <table class="vs-table">
+    <thead>
+      <tr><th>Framework</th><th>Write req/s</th><th>Write p99</th><th>Write max</th><th>Read req/s</th><th>Read p99</th></tr>
+    </thead>
+    <tbody>
+      <tr class="vs-altair"><td><span class="vs-fw"><img src="assets/img/logos/crystal.svg" alt="Crystal logo">Altair</span></td><td>17,245</td><td>8.6 ms</td><td><strong>18.1 ms</strong></td><td>15,539</td><td>14.6 ms</td></tr>
+      <tr><td><span class="vs-fw"><img src="assets/img/logos/go.svg" alt="Go logo">Fiber (Go)</span></td><td><strong>22,080</strong></td><td><strong>8.5 ms</strong></td><td>24.8 ms</td><td><strong>20,908</strong></td><td><strong>10.4 ms</strong></td></tr>
+      <tr><td><span class="vs-fw"><img src="assets/img/logos/nodejs.svg" alt="Node.js logo">Express</span></td><td>10,074</td><td>16.2 ms</td><td>53.6 ms</td><td>9,532</td><td>20.5 ms</td></tr>
+      <tr><td><span class="vs-fw"><img src="assets/img/logos/ruby.svg" alt="Ruby logo">Ruby full-stack</span></td><td>2,587</td><td>337.7 ms</td><td>1,060 ms</td><td>3,531</td><td>257.5 ms</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="vs-caption">100 virtual users, 60 seconds, one 20-connection / 6-worker budget for every framework. Altair holds second place on throughput with the best write tail of all four arms; the closest architectural peer — the Ruby full-stack arm — trails 6.7x on writes and 4.4x on reads.</p>
+</div><div class="content-narrow">
+<div class="section-head">
 <p class="kicker">Start here</p>
 <h2>Documentation</h2>
 <p>Install once, scaffold in seconds, and learn the framework guide by guide.</p>

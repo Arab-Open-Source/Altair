@@ -847,3 +847,82 @@ img { max-width: 100%; height: auto; }
   .docs-layout { display: block; }
   pre { white-space: pre-wrap; }
 }
+
+/* Framework comparison — logos, highlight row, responsive scroll. */
+.bench-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.35rem;
+}
+.bench-head .bench-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+.bench-logo {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+[data-theme="dark"] .bench-logo {
+  filter: brightness(1.6) saturate(0.9);
+}
+
+.vs-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  -webkit-overflow-scrolling: touch;
+}
+.vs-table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+.vs-table th, .vs-table td {
+  padding: 0.62rem 0.9rem;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.vs-table th:first-child, .vs-table td:first-child { text-align: left; }
+.vs-table thead th {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--faint);
+  background: color-mix(in srgb, var(--border) 30%, transparent);
+}
+.vs-table tbody tr:last-child td { border-bottom: none; }
+.vs-table .vs-fw {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.vs-table .vs-fw img { width: 20px; height: 20px; flex: none; }
+.vs-table tr.vs-altair td {
+  background: linear-gradient(90deg, var(--coral-soft), transparent 70%);
+}
+.vs-table tr.vs-altair .vs-fw {
+  font-weight: 800;
+  color: var(--coral-deep);
+}
+[data-theme="dark"] .vs-table tr.vs-altair .vs-fw { color: var(--coral); }
+.vs-table td .vs-unit { color: var(--muted); font-size: 0.8em; }
+.vs-caption {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0.5rem 0 0;
+}
+
+@media (max-width: 640px) {
+  .bench-card .figure { font-size: 1.6rem; }
+  .bench-logo, .vs-table .vs-fw img { width: 18px; height: 18px; }
+}

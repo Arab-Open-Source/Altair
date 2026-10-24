@@ -48,10 +48,13 @@ def proto_pool(pool_size : Int32, checkout_timeout : Float64 = 15.0,
                initial : Int32? = nil) : DB::Database
   base = ENV["ALTAIR_TEST_PG_URL"].not_nil!
   sep = base.includes?("?") ? "&" : "?"
+  # A generous retry budget: connection creation under a 500-fiber burst on a
+  # small CI runner can fail once; the pool should re-attempt, not give up.
   DB.open("#{base}#{sep}initial_pool_size=#{initial || pool_size}" \
           "&max_pool_size=#{pool_size}" \
           "&max_idle_pool_size=#{pool_size}" \
-          "&checkout_timeout=#{checkout_timeout}")
+          "&checkout_timeout=#{checkout_timeout}" \
+          "&retry_attempts=10")
 end
 
 def proto_setup(db : DB::Database) : Nil
@@ -243,15 +246,21 @@ describe "PostgreSQL wire protocol under concurrency" do
         end
       end
       fibers.times { done.receive }
-      bad = [] of Exception
-      fibers.times do
-        e = failures.receive
-        bad << e.not_nil! if e
+      begin
+        bad = [] of Exception
+        fibers.times do
+          e = failures.receive
+          bad << e.not_nil! if e
+        end
+        bad.empty?.should be_true, "protocol/pool failures under oversubscription: #{bad.map(&.to_s)[0, 3]}"
+        stats = db.pool.stats.open_connections
+        stats.should be <= 50
+      ensure
+        # The pool holds 50 physical connections; an unhandled assertion must
+        # not leak them into the next example (a fresh pool would hit the
+        # server's connection ceiling and fail with ConnectionRefused).
+        proto_teardown(db)
       end
-      bad.empty?.should be_true, "protocol/pool failures under oversubscription: #{bad.map(&.to_s)[0, 3]}"
-      stats = db.pool.stats.open_connections
-      stats.should be <= 50
-      proto_teardown(db)
     end
 
     it "propagates the original cause when retries are exhausted (F)" do
