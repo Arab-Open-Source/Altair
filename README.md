@@ -166,30 +166,33 @@ now shows the limiter live.
 
 Altair ships a public load-test harness —
 [`examples/benchmark_k6`](examples/benchmark_k6) — that compares it with
-**Express** (Node.js) and **Fiber** (Go) on identical PostgreSQL-backed CRUD
-endpoints, driven by k6 over real HTTP. Each framework gets the same
-200-connection database budget; a discarded warm-up run first ramps it to
-1,000 virtual users, and the measured run then holds **1,000 VUs for 60
-seconds**. The committed results:
+**Express** (Node.js), **Fiber** (Go) and a **Ruby** (Puma + ActiveRecord) app
+on identical PostgreSQL-backed CRUD endpoints, driven by k6 over real HTTP.
+Every framework gets the same **20-connection / 6-worker budget** at the
+realistic profile (**100 VUs, 60 seconds**); a discarded warm-up run precedes
+each measured phase. The committed results:
 
 | Workload | Framework | req/s | avg | p95 | p99 | p99.9 | max |
 |---|---|---:|---:|---:|---:|---:|---:|
-| **Write** `POST /items` | Fiber | 17,088 | 57.0 ms | 94.3 ms | 131.7 ms | 171.5 ms | 242.4 ms |
-| | **Altair** | **13,167** | **75.4 ms** | 101.3 ms | 117.8 ms | **145.9 ms** | **201.5 ms** |
-| | Express | 7,273 | 133.8 ms | 232.1 ms | 302.8 ms | 1,036.8 ms | 2,067.8 ms |
-| **Read** `GET /items/:id` | Fiber | 19,527 | 37.1 ms | 71.7 ms | 103.5 ms | 149.9 ms | 236.3 ms |
-| | **Altair** | **14,687** | **64.3 ms** | 129.0 ms | 180.4 ms | 318.4 ms | 479.6 ms |
-| | Express | 7,700 | 127.3 ms | 197.3 ms | 267.3 ms | 350.3 ms | 965.8 ms |
+| **Write** `POST /items` | Fiber | 22,080 | 4.3 ms | 6.1 ms | 8.5 ms | 14.7 ms | 24.8 ms |
+| | **Altair** | **17,245** | 5.7 ms | 7.3 ms | 8.6 ms | **10.7 ms** | **18.1 ms** |
+| | Express | 10,074 | 9.7 ms | 13.5 ms | 16.2 ms | 22.4 ms | 53.6 ms |
+| | Ruby | 2,587 | 38.1 ms | 325.5 ms | 337.7 ms | 380.6 ms | 1,060 ms |
+| **Read** `GET /items/:id` | Fiber | 20,908 | 4.6 ms | 7.0 ms | 10.4 ms | 15.8 ms | 25.1 ms |
+| | **Altair** | **15,539** | 6.3 ms | 8.4 ms | 14.6 ms | 153.6 ms | 247.0 ms |
+| | Express | 9,532 | 10.3 ms | 15.6 ms | 20.5 ms | 28.3 ms | 64.4 ms |
+| | Ruby | 3,531 | 27.9 ms | 239.1 ms | 257.5 ms | 272.3 ms | 1,042 ms |
 
 Highlights:
 
-- **Altair is ~1.8–1.9x faster than Express on throughput** in both
-  workloads, with a far tighter tail — its write p99.9 (145.9 ms) is 7x lower
-  than Express's, and its write max (201.5 ms) is the best of all three.
-- **Zero failed requests** across all six runs.
-- Honest picture: Fiber (Go) leads on raw throughput, and Altair's read tail
-  (~2x Fiber's) is driven by a per-second Boehm stop-the-world GC pause on
-  the read path — the next optimization target, tracked in the
+- **Altair is ~1.6–1.7x faster than Express on throughput** in both workloads,
+  and its **write tail is the best of all four arms** — p99.9 of 10.7 ms and a
+  max of 18.1 ms, below even Fiber's.
+- **Error-free** across all eight runs apart from 17 warmup-boundary resets
+  (Express write) and 2 (Ruby write).
+- Honest picture: Fiber (Go) leads on raw throughput. Altair's read tail
+  carries one Boehm stop-the-world GC pause landing on in-flight requests —
+  the next optimization target, tracked in the
   [performance audit](docs/architecture/performance-audit.md).
 
 The full report — methodology, per-framework latency tables, the

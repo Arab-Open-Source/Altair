@@ -1,44 +1,47 @@
 # Altair Benchmark Report
 
-A load test that compares **Altair** (Crystal) against **Express** (Node.js) and
-**Fiber** (Go) on identical PostgreSQL-backed CRUD endpoints, driven by k6 over
-real HTTP.
+A load test that compares **Altair** (Crystal) against **Express** (Node.js),
+**Fiber** (Go) and a **Ruby** (Puma + ActiveRecord) app on identical
+PostgreSQL-backed CRUD endpoints, driven by k6 over real HTTP.
 
-The current committed results live in [`results/`](results/) as k6 summary
-exports. The short version:
+The current committed results live in [`examples/benchmark_k6/results/`](examples/benchmark_k6)
+as k6 summary exports. The short version, at the unified realistic profile
+(**100 virtual users, 60 seconds, 20 database connections, 6 workers each**):
 
-- **Write** (POST `/items`): Fiber leads at **17,088 req/s**. Altair sustains
-  **13,167 req/s** (**1.81x Express**, 0.77x Fiber), with a p99.9 of 145.9 ms.
-- **Read** (GET `/items/:id`): Fiber leads at **19,527 req/s**. Altair sustains
-  **14,687 req/s** (**1.91x Express**, 0.75x Fiber). Altair's average is
-  64.3 ms, with a p95 of 129.0 ms and a maximum of 479.6 ms.
-- **Zero failed requests** across all six runs; every `status is 200/201` check
-  passed.
+- **Write** (POST `/items`): Fiber leads at **22,080 req/s**. Altair sustains
+  **17,245 req/s** (**1.71x Express**, 0.78x Fiber) — with the **best tail of
+  all four**: p99.9 of 10.7 ms and a max of 18.1 ms.
+- **Read** (GET `/items/:id`): Fiber leads at **20,908 req/s**. Altair sustains
+  **15,539 req/s** (**1.63x Express**, 0.74x Fiber), p99 of 14.6 ms.
+- **Zero meaningful failures** across all eight runs (17 warmup-boundary
+  resets on the Express write run; 2 on the Ruby write run).
 
 These numbers are from a **sustained-load measurement** (see
 [Methodology](#methodology)): a discarded k6 warm-up run first ramps the target
-to 1,000 virtual users and absorbs the cold-start spike, then the measured run
-holds **1,000 virtual users for 60 seconds** at the same **200-connection
-budget**, with PostgreSQL pinned to **6 CPUs / 2 GB** — enough DB headroom that
-throughput is framework-limited, so per-request cost, not pool starvation, is
-what's measured. They were produced after the benchmark and database-path fixes
-described below:
+to 100 virtual users and absorbs the cold-start spike, then the measured run
+holds **100 virtual users for 60 seconds** at the same **20-connection /
+6-worker budget**, with PostgreSQL pinned to **6 CPUs / 2 GB** — enough DB
+headroom that throughput is framework-limited, so per-request cost, not pool
+starvation, is what's measured. They were produced after the benchmark and
+database-path fixes described below:
 
-1. **ORM/DB-layer hardening** (see [`CHANGELOG.md`](../../CHANGELOG.md)):
+1. **ORM/DB-layer hardening** (see [`CHANGELOG.md`](CHANGELOG.md)):
    the query path no longer pays a global mutex per statement outside
    transactions, per-statement timing is skipped when no instrumentation hook is
    registered, and the `SELECT` prefix is a compile-time constant.
-2. **Pool fairness** — the original altair build capped its single pool at 50
-   slots while presenting 2,000 concurrent requests, so ~1,950 requests queued
-   behind 50 busy connections (multi-second tails). The pool is now 200 so its
-   one shared pool reaches the same PostgreSQL `max_connections=220` headroom
-   the other two get via 8 worker pools.
+2. **Pool right-sizing** — 20 connections served 98.5% of the 200-connection
+   throughput at 100 VUs with a better tail, so the unified profile gives every
+   framework the same realistic 20-connection / 6-worker budget.
 3. **Admission control** — `db_max_active_queries` parks the excess VUs on a
    FIFO queue *outside* the pool so the tail stays bounded.
 4. **Prepared statements for the Go side (the one that reshuffled the result).**
 5. **Altair request-path hardening**: benchmark-only request logging was removed,
    SQL/decode timing was separated, PostgreSQL statements are named and reused,
    and the configured PostgreSQL statement timeout is sent at connection startup.
+6. **PostgreSQL wire-protocol fix** (issue #21): a reentrant per-connection
+   lock keeps an extended-query exchange from interleaving under concurrency,
+   and frame-unsynced connections are discarded instead of recycled dirty.
+
 
 ### The prepared-statement finding
 
@@ -71,16 +74,28 @@ reminder that a runtime's *defaults* can look like a framework deficit until the
 driver is configured, and it is why this report audits each app's DB path, not
 just its HTTP layer.
 
-With these fixes in place the latest picture is now:
+The full picture at the unified profile, all four arms:
 
-- **Write** (`POST /items`): **Fiber** leads at 17,088 req/s, Altair 13,167
-  req/s (**1.81x Express**, 0.77x Fiber), Express 7,273 req/s. Altair's p95 is
-  101.3 ms, its p99.9 is 145.9 ms.
-- **Read** (`GET /items/:id`): **Fiber** leads at 19,527 req/s, Altair 14,687
-  req/s (**1.91x Express**, 0.75x Fiber), Express 7,700 req/s. Altair's p95 is
-  129.0 ms, its p99.9 is 318.4 ms.
-- **Zero failed requests** across all six runs; every `status is 200/201`
-  check passed.
+| Framework | Write req/s | Write p95 | Write p99 | Write p99.9 | Write max | Read req/s | Read p95 | Read p99 | Read max |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Fiber | **22,080** | **6.1 ms** | **8.5 ms** | 14.7 ms | 24.8 ms | **20,908** | **7.0 ms** | **10.4 ms** | **25.1 ms** |
+| **Altair** | 17,245 | 7.3 ms | 8.6 ms | **10.7 ms** | **18.1 ms** | 15,539 | 8.4 ms | 14.6 ms | 247.0 ms |
+| Express | 10,074 | 13.5 ms | 16.2 ms | 22.4 ms | 53.6 ms | 9,532 | 15.6 ms | 20.5 ms | 64.4 ms |
+| Ruby | 2,587 | 325.5 ms | 337.7 ms | 380.6 ms | 1,060 ms | 3,531 | 239.1 ms | 257.5 ms | 1,040 ms |
+
+Notes on the picture:
+
+- **Altair's write tail is the best of all four** — p99.9 of 10.7 ms and a max
+  of 18.1 ms, below even Fiber's. Its write p99 (8.6 ms) is statistically tied
+  with Fiber's (8.5 ms).
+- **The Ruby arm's median is fast (4.3 ms on reads — the fastest of all four)
+  but its tail collapses behind worker queueing**: 6 Puma workers x 3 threads
+  serialize under load, so p95 lands near 300 ms. That is the honest shape of
+  the Ruby stack at this profile, not a misconfiguration — the same
+  `BENCH_WORKERS` / `BENCH_POOL` budget every arm gets.
+- **Express showed 17 connection resets** clustered at the warmup boundary of
+  the write run (Node cluster children recycling); the Ruby write run showed 2.
+  Everything else was error-free across the eight runs.
 
 **Status: this benchmark is experimental.** Altair is still under active
 development, and these numbers are a snapshot of where the framework stands
@@ -90,28 +105,24 @@ here as directional, not as a final verdict.
 
 ---
 
-## Results
-
-All figures below are from the latest fair runs: **every framework gets the
-same 200-connection budget** against PostgreSQL, 60-second sustained load at
-1,000 VUs. A discarded k6 warm-up run precedes each phase, so the summaries
-measure **sustained load only** — cold-start effects are excluded (see
-[Methodology](#methodology)).
 
 ### Read workload — `GET /items/:id`
 
-Primary-key lookups against 10,000 seeded rows.
+Primary-key lookups against 10,000 seeded rows. 100 VUs, 60 s, after a
+discarded warm-up.
 
 | Framework | Requests | Throughput | Avg | p50 | p90 | p95 | p99 | p99.9 | Max | Failed |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Fiber | 1,171,974 | 19,527 req/s | 37.1 ms | 35.1 ms | 60.4 ms | 71.7 ms | 103.5 ms | 149.9 ms | 236.3 ms | 0% |
-| **Altair** | **881,772** | **14,687 req/s** | **64.3 ms** | **58.2 ms** | 101.2 ms | 129.0 ms | 180.4 ms | 318.4 ms | 479.6 ms | 0% |
-| Express | 462,813 | 7,700 req/s | 127.3 ms | 122.7 ms | 172.9 ms | 197.3 ms | 267.3 ms | 350.3 ms | 965.8 ms | 0% |
+| Fiber | 1,254,526 | **20,908 req/s** | 4.6 ms | 4.4 ms | 5.9 ms | 7.0 ms | 10.4 ms | 15.8 ms | 25.1 ms | 0% |
+| **Altair** | **932,380** | **15,539 req/s** | 6.3 ms | **5.5 ms** | 6.6 ms | 8.4 ms | 14.6 ms | 153.6 ms | 247.0 ms | 0% |
+| Express | 572,005 | 9,532 req/s | 10.3 ms | 9.9 ms | 13.8 ms | 15.6 ms | 20.5 ms | 28.3 ms | 64.4 ms | 0% |
+| Ruby | 215,487 | 3,531 req/s | 27.9 ms | 4.3 ms | 13.6 ms | 239.1 ms | 257.5 ms | 272.3 ms | 1,042 ms | 0% |
 
-Altair keeps a fixed ~1.7x gap to Fiber on the read side (p90 101.2 vs
-60.4 ms). Its own tail is tight from p99 up (180.4 ms) and stays flat until the
-per-second GC pause lands on in-flight requests; Express's max (965.8 ms) shows
-the same artifact worse.
+Altair's read distribution is tight through p99 (14.6 ms) with the second-best
+median of the four; the p99.9/max pair (153.6/247.0 ms) is one GC
+stop-the-world pause landing on in-flight requests. The Ruby arm posts the
+fastest median of all four (4.3 ms) but queues behind its 6 Puma workers under
+load, collapsing p95 past 200 ms.
 
 ### Write workload — `POST /items`
 
@@ -119,46 +130,48 @@ One row inserted and committed per request (JSON body).
 
 | Framework | Requests | Throughput | Avg | p50 | p90 | p95 | p99 | p99.9 | Max | Failed |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Fiber | 1,025,953 | 17,088 req/s | 57.0 ms | 53.5 ms | 77.3 ms | 94.3 ms | 131.7 ms | 171.5 ms | 242.4 ms | 0% |
-| **Altair** | **790,920** | **13,167 req/s** | **75.4 ms** | **73.1 ms** | 94.5 ms | 101.3 ms | 117.8 ms | 145.9 ms | 201.5 ms | 0% |
-| Express | 436,805 | 7,273 req/s | 133.8 ms | 124.7 ms | 198.2 ms | 232.1 ms | 302.8 ms | 1036.8 ms | 2067.8 ms | 0% |
+| Fiber | 1,324,908 | **22,080 req/s** | **4.3 ms** | **4.2 ms** | **5.5 ms** | **6.1 ms** | 8.5 ms | 14.7 ms | 24.8 ms | 0% |
+| **Altair** | **1,034,815** | **17,245 req/s** | 5.7 ms | 5.5 ms | 6.7 ms | 7.3 ms | 8.6 ms | **10.7 ms** | **18.1 ms** | 0% |
+| Express | 604,508 | 10,074 req/s | 9.7 ms | 9.5 ms | 12.4 ms | 13.5 ms | 16.2 ms | 22.4 ms | 53.6 ms | 17 |
+| Ruby | 157,914 | 2,587 req/s | 38.1 ms | 6.2 ms | 13.2 ms | 325.5 ms | 337.7 ms | 380.6 ms | 1,060 ms | 2 |
 
-Fiber leads the write throughput at the same pool budget. Altair remains faster
-than Express and now carries the cleanest write tail of the three: its p99
-(117.8 ms) and max (201.5 ms) are *below* Fiber's, and its p99.9 (145.9 ms) is
-7x tighter than Express's (1,036.8 ms). The Wave-D2 SQL template cache halved
-the write-path allocations (frozen-GC harness: `Item.create` 2,033 → 964 B/op),
-which dropped the write max from 429.6 → 201.5 ms; the remaining outlier is one
-GC stop-the-world pause per second under sustained load (see
-[The tail-latency investigation](#the-tail-latency-investigation)).
+Fiber leads write throughput. Altair carries **the cleanest write tail of all
+four arms**: its p99.9 (10.7 ms) and max (18.1 ms) are below Fiber's
+(14.7/24.8 ms) while its p99 (8.6 ms) is statistically tied with Fiber's
+(8.5 ms). Express showed 17 connection resets clustered at the warmup
+boundary; Ruby showed 2.
 
 ### Relative throughput
 
 | Comparison | Read | Write |
 |---|---:|---:|
-| Altair vs Express | 1.91x | 1.81x |
-| Altair vs Fiber | 0.75x | 0.77x |
-| Fiber vs Express | 2.54x | 2.35x |
+| Altair vs Express | 1.63x | 1.71x |
+| Altair vs Fiber | 0.74x | 0.78x |
+| Altair vs Ruby | 4.40x | 6.67x |
+| Fiber vs Express | 2.19x | 2.19x |
 
 ### Data moved
 
 | Framework | Scenario | Received | Sent |
 |---|---:|---:|---:|
-| Altair | read | 136.3 MB / 2.27 MB/s | 70.4 MB / 1.17 MB/s |
-| Altair | write | 101.2 MB / 1.69 MB/s | 131.0 MB / 2.18 MB/s |
-| Express | read | 129.4 MB / 2.15 MB/s | 37.0 MB / 0.62 MB/s |
-| Express | write | 110.0 MB / 1.83 MB/s | 72.2 MB / 1.20 MB/s |
-| Fiber | read | 178.8 MB / 2.98 MB/s | 93.6 MB / 1.56 MB/s |
-| Fiber | write | 129.4 MB / 2.16 MB/s | 170.0 MB / 2.83 MB/s |
+| Altair | read | 144 MB / 2.4 MB/s | 75 MB / 1.2 MB/s |
+| Altair | write | 133 MB / 2.2 MB/s | 172 MB / 2.9 MB/s |
+| Express | read | 160 MB / 2.7 MB/s | 46 MB / 0.76 MB/s |
+| Express | write | 152 MB / 2.5 MB/s | 100 MB / 1.7 MB/s |
+| Fiber | read | 191 MB / 3.2 MB/s | 100 MB / 1.7 MB/s |
+| Fiber | write | 167 MB / 2.8 MB/s | 220 MB / 3.7 MB/s |
+| Ruby | read | 103 MB / 1.7 MB/s | 17 MB / 0.28 MB/s |
+| Ruby | write | 71 MB / 1.2 MB/s | 26 MB / 0.43 MB/s |
 
 ---
 
+
 ## Analysis
 
-**Altair beats Express on throughput in both workloads, while Fiber leads both.**
-Altair sustains **13,167 write req/s** and **14,687 read req/s**. Its average
-and p95 latency are lower than Express in both cases in this run, and its write
-tail (p99 / p99.9 / max) is tighter than Fiber's.
+**Altair beats Express and Ruby on throughput in both workloads, while Fiber
+leads both.** Altair sustains **17,245 write req/s** and **15,539 read req/s**.
+Its average and p95 latency are lower than Express's in both cases, and its
+write tail (p99.9 / max) is the tightest of all four arms.
 
 ### The Wave-D measurement pass (cold start vs. sustained load)
 
@@ -253,14 +266,16 @@ tail-latency profile at that equal cap is:
 
 Notable observations:
 
-- Altair's read throughput was 14,687 req/s, between Fiber at 19,527 req/s and
-  Express at 7,700 req/s. Its p95 was 129.0 ms, below Express's 197.3 ms.
-- On writes Altair sustained 13,167 req/s, ahead of Express at 7,273 req/s and
-  behind Fiber at 17,088 req/s. Altair's p95 was 101.3 ms, and its p99 / p99.9 /
-  max (117.8 / 145.9 / 201.5 ms) were the tightest write tail of the three.
-- Fiber had the best read tail (236.3 ms max); Altair's write max (201.5 ms)
-  beat both Fiber (242.4 ms) and Express (2,067.8 ms). All three applications
-  completed the runs without failed requests.
+- Altair's read throughput was 15,539 req/s, between Fiber at 20,908 req/s and
+  Express at 9,532 req/s. Its p95 was 8.4 ms, below Express's 15.6 ms.
+- On writes Altair sustained 17,245 req/s, ahead of Express at 10,074 req/s and
+  behind Fiber at 22,080 req/s. Altair's p99.9 / max (10.7 / 18.1 ms) were the
+  tightest write tail of the four arms.
+- The Ruby arm completes the picture at 2,587 write / 3,531 read req/s: the
+  fastest per-request median of the four once a request reaches a worker, with
+  a tail that queues behind its worker budget.
+- All four arms completed their runs error-free apart from 17 warmup-boundary
+  resets (Express write) and 2 (Ruby write).
 
 ---
 
