@@ -39,7 +39,8 @@ case "$FRAMEWORK" in
   express) PORT=4101; TABLE=items_express; LOG=/tmp/bench_express.log ;;
   fiber)   PORT=4102; TABLE=items_fiber;   LOG=/tmp/bench_fiber.log   ;;
   altair)  PORT=4103; TABLE=items_altair;  LOG=/tmp/bench_altair.log  ;;
-  *) echo "usage: $0 express|fiber|altair"; exit 1 ;;
+  ruby)    PORT=4104; TABLE=items_ruby;    LOG=/tmp/bench_ruby.log    ;;
+  *) echo "usage: $0 express|fiber|altair|ruby"; exit 1 ;;
 esac
 
 # Stop whatever is on a port (a few passes for cluster children to die).
@@ -78,11 +79,23 @@ start_target() {
         BENCH_INITIAL_POOL="$BENCH_POOL" BENCH_MAX_IDLE="$BENCH_POOL" \
         CRYSTAL_WORKERS="$BENCH_WORKERS" /tmp/bench_altair > "$LOG" 2>&1 < /dev/null &
       ;;
+    ruby)
+      # The Ruby arm runs a locally generated app under app/ruby/ (gitignored
+      # by repo policy — see the README). WEB_CONCURRENCY x RAILS_MAX_THREADS
+      # workers x threads stay inside the shared connection budget.
+      if [ ! -x app/ruby/bin/rails ]; then
+        echo "error: app/ruby is not bootstrapped — generate the local Ruby app first" >&2
+        exit 1
+      fi
+      setsid env PORT=4104 DATABASE_URL="$DB_URL" RAILS_ENV=production \
+        WEB_CONCURRENCY="$BENCH_WORKERS" RAILS_MAX_THREADS=3 BENCH_TABLE=items_ruby \
+        app/ruby/bin/rails server -p 4104 > "$LOG" 2>&1 < /dev/null &
+      ;;
   esac
 }
 
-# Stop the other two apps so the target runs alone.
-for other_port in 4101 4102 4103; do
+# Stop the other arms so the target runs alone.
+for other_port in 4101 4102 4103 4104; do
   [ "$other_port" != "$PORT" ] && stop_port "$other_port"
 done
 

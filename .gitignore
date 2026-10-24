@@ -24,3 +24,4 @@ examples/boehm_vs_gcry/app/lib
 # The cloned Kemal source used for cross-framework study (Wave 0+)
 /kemal/
 /dist/
+examples/benchmark_k6/app/ruby/
