@@ -50,10 +50,47 @@ module Altair
         SEED_BLOCKS.clear
       end
 
+      # Boots the HTTP server for the given application class, honoring
+      # CLI options (`-p`, `-b`, `-e`, `-w`, `--no-watch`, `--delay`, `--entry`).
+      # In development mode, the Watcher supervises the application process.
+      def server(app : A.class, args : Array(String) = ARGV) : Int32 forall A
+        app.run!(args)
+        0
+      end
+
+      # Applies CLI flags to the application and global environment.
+      def apply_server_options(app_class, options : Watcher::Options) : Nil
+        if env_name = options.env
+          case env_name.downcase
+          when "production", "prod"
+            Altair.env = Altair::Env::Production
+          when "test"
+            Altair.env = Altair::Env::Test
+          when "development", "dev"
+            Altair.env = Altair::Env::Development
+          end
+        end
+
+        app = app_class.instance rescue nil
+        return unless app
+
+        if port = options.port
+          app.config.port = port
+        end
+        if host = options.host
+          app.config.host = host
+        end
+        if delay = options.delay
+          app.config.reload.delay = delay
+        end
+        if entry = options.entry
+          app.config.reload.entry = entry
+        end
+      end
+
       # Boots the HTTP server for the given application class.
       def run!(app : A.class) : Int32 forall A
-        app.run!
-        0
+        server(app, [] of String)
       end
 
       # Prints the application's route table: method, pattern and named

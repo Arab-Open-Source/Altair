@@ -5,6 +5,20 @@ All notable changes to Altair will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Development hot reload** (`Altair::CLI::Watcher`) — automatic code
+  reloading in development mode. Monitors `src/`, `views/` and `config/`
+  for file changes, debounces rapid edits, recompiles the application and
+  restarts the server only after a successful build. Compilation failures
+  keep the previous server running and display compiler errors inline.
+  Enabled by default in development; `--no-watch` disables it. Configurable
+  via `config.reload` (delay, watch paths, ignore paths) or
+  `config/altair.yml`. CLI flags: `-p PORT`, `-b HOST`, `-e ENV`,
+  `-w`/`--no-watch`, `--delay DURATION`, `--entry PATH`.
+
 ## [0.4.3] - 2026-10-24
 
 ### Added

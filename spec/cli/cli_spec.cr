@@ -90,4 +90,14 @@ module Altair::CLI
       Altair::CLI::Generators.generator_suggestions("scafold").should contain("scaffold")
     end
   end
+
+  describe ".help_for" do
+    it "returns specific help for server command" do
+      help = Altair::CLI.help_for("server")
+      help.should contain("Usage: altair server")
+      help.should contain("--watch")
+      help.should contain("--no-watch")
+      help.should contain("--delay")
+    end
+  end
 end

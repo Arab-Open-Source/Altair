@@ -1,0 +1,2 @@
+#!/usr/bin/env sh
+exec crystal run "$(dirname "$0")/altair.cr" -- "$@"
