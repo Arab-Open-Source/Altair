@@ -293,6 +293,17 @@ module Altair
     # ```
     getter compression : Compression = Compression.new
 
+    # Development hot reload settings driving `Altair::CLI::Watcher`.
+    # Enabled by default in development; monitors files in `watch_paths`
+    # and restarts the server after successful compilation.
+    #
+    # ```
+    # config.reload.enabled = true
+    # config.reload.delay = 300.milliseconds
+    # config.reload.watch_paths << "assets"
+    # ```
+    getter reload : Reload = Reload.new
+
     # Settings bag for the `ConditionalGet` middleware.
     class ConditionalGet
       # Whether responses are fingerprinted and conditional requests honored.
@@ -310,6 +321,30 @@ module Altair
 
       # Deflate/gzip level, 0-9. `nil` uses the library default (6).
       property level : Int32? = nil
+    end
+
+    # Settings bag for development hot reloading.
+    class Reload
+      # Whether hot reload watching is active in development.
+      property? enabled : Bool = true
+
+      # The debounce quiet window before triggering compilation after file changes.
+      property delay : Time::Span = 200.milliseconds
+
+      # How often the watcher scans watched directories for changes.
+      property poll_interval : Time::Span = 150.milliseconds
+
+      # Directory paths relative to the project root monitored by the watcher.
+      property watch_paths : Array(String) = ["src", "views", "config"]
+
+      # Directory and file patterns excluded from watching.
+      property ignore_paths : Array(String) = [".git", "lib", "bin", "tmp", "log", "node_modules", "db", ".altair"]
+
+      # Optional explicit entrypoint file to compile.
+      property entry : String? = nil
+
+      # Additional arguments forwarded to `crystal build`.
+      property build_args : Array(String) = [] of String
     end
 
     # Global debug flag, inherited from the active environment's settings.

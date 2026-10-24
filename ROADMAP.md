@@ -24,7 +24,7 @@ generators on top of that stack.
 | 6 | Hardening (sessions, flash, CSRF, config, security) | Completed |
 | 7 | Post-release features | Completed — jobs, auth, assets, testing utilities, joins, has_many :through/polymorphic, and Wave 0 ORM hardening (IN chunking, custom PK + UUID, atomic writes, order/reload) all shipped; only console (deferred) remains |
 | 8 | Database ergonomics | Completed — `altair new -d postgresql`, `bin/altair db:create` / `db:drop`, `ENV["DATABASE_URL"]` applied at boot, PG contract suite in CI |
-| 9 | CLI ergonomics | Planned — destroy, job generator, db:status, server flags, assets/jobs helpers |
+| 9 | CLI ergonomics | In progress — hot reload shipped; remaining: destroy, job generator, db:status, assets/jobs helpers |
 | 10 | Router & future features | Completed — dynamic redirect, Cable, cache, storage, API mode, admin generator, observability |
 | v0.4.0 | ORM completion wave | Completed — query DSL (negation, alternatives, finders, bulk writes), after_commit hooks, touch/increment!, counter caches, batched dependent destroy, conditional validations |
 

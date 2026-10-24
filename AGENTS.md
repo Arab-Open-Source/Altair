@@ -124,7 +124,7 @@ Nothing ships unless someone can look at it, click it, and see it work.
 | 6 | Hardening | Completed |
 | 7 | Post-release | Completed |
 | 8 | Database ergonomics | Completed |
-| 9 | CLI ergonomics | Planned |
+| 9 | CLI ergonomics | In progress — hot reload shipped |
 | 10 | Router & future features | Completed |
 
 ## The phases
@@ -233,7 +233,8 @@ src/altair/
   concurrency/   Semaphore (FIFO permit gate primitive)
   view/          ECR templates, layouts, partials, helpers, htmx layer
   rendering/     Renderers (html, json, text, fragment)
-  cli/           CLI dispatcher, per-project commands, generators
+  cli/           CLI dispatcher, per-project commands, generators,
+                 watcher.cr (development hot reload supervisor)
   plugins/       (planned — empty placeholder)
   concerns/      (planned — empty placeholder)
   testing/       test.cr (boot with configure: hook, migrate!, transactional),
