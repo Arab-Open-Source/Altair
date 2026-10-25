@@ -34,6 +34,30 @@ framework-limited, so per-request cost is what is measured.
 
 <img src="/assets/img/logos/crystal.svg" width="40" alt="Crystal" style="vertical-align:middle"> &nbsp;<strong>vs</strong>&nbsp; <img src="/assets/img/logos/ruby.svg" width="36" alt="Ruby" style="vertical-align:middle">
 
+## The official collector: gcry
+
+Altair ships [gcry](https://github.com/sdogruyol/gcry) as its official
+garbage collector. The tables above are the default build (bundled
+Boehm); building with a single flag — `-Dgc_none` — swaps the collector
+with no code change. A root-cause investigation traced Boehm's
+intermittent read-tail spike (p99.9 up to 154 ms on unlucky runs) to
+stop-the-world pauses that scale with heap size; gcry removes the spike
+deterministically.
+
+Interleaved A/B, medians of three rounds per arm:
+
+| Workload | Collector | rps | p99 | p99.9 | max |
+|---|---|---:|---:|---:|---:|
+| Write | Boehm | 15,335 | 12.7 ms | **14.9 ms** | **21.3 ms** |
+| Write | gcry 0.38.0 | 15,292 | 12.7 ms | 15.6 ms | 26.7 ms |
+| Read | Boehm | 14,571 | 15.7 ms | 25.1 ms* | 60.1 ms* |
+| Read | gcry 0.38.0 | **14,958** | **14.8 ms** | **22.4 ms** | **36.3 ms** |
+
+*The Boehm read medians flatter it: one of its three rounds exploded to
+123.5 / 482.2 ms — the intermittent dirty window. gcry's worst round was
+23.3 / 37.9 ms. Write throughput is at parity (earlier gcry versions
+paid an 11 percent write penalty; 0.38.0 removed it).
+
 ## The closest architectural peer: the Ruby full-stack arm
 
 The most instructive comparison is not the raw throughput table — it is the

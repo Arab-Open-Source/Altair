@@ -16,6 +16,27 @@ as k6 summary exports. The short version, at the unified realistic profile
 - **Zero meaningful failures** across all eight runs (17 warmup-boundary
   resets on the Express write run; 2 on the Ruby write run).
 
+### The official collector: gcry (interleaved A/B)
+
+Altair adopts [gcry](https://github.com/sdogruyol/gcry) 0.38.0 as its
+official collector. The committed tables above are the default build
+(bundled Boehm); with `-Dgc_none` the same app swaps collectors with no
+code change. Interleaved A/B, medians of three rounds per arm, unique
+server processes:
+
+| Workload | Collector | rps | p95 | p99 | p99.9 | max |
+|---|---|---:|---:|---:|---:|---:|
+| Write | Boehm | 15,335 | 11.4 | 12.7 | **14.9** | **21.3** |
+| Write | gcry 0.38.0 | 15,292 | 11.4 | 12.7 | 15.6 | 26.7 |
+| Read | Boehm | 14,571 | 12.3 | 15.7 | 25.1* | 60.1* |
+| Read | gcry 0.38.0 | **14,958** | **12.2** | **14.8** | **22.4** | **36.3** |
+
+*Boehm medians look acceptable only because two of three rounds landed
+clean windows; its third round exploded to 123.5 / 482.2 ms - the
+intermittent dirty window this whole investigation chased. gcry never
+dirtied: worst round 23.3 / 37.9 ms. Full evidence:
+`gcry-results.md` and `read-tail-investigation.md`.
+
 These numbers are from a **sustained-load measurement** (see
 [Methodology](#methodology)): a discarded k6 warm-up run first ramps the target
 to 100 virtual users and absorbs the cold-start spike, then the measured run
@@ -396,7 +417,10 @@ docker compose up -d postgres
 # 2. build the servers once (run the crystal build from the app dir so the
 #    relative altair shard resolves)
 cd app/altair
+# Default (bundled Boehm):
 crystal build --release --no-debug src/bench.cr -o /tmp/bench_altair
+# Official collector (gcry):
+crystal build --release --no-debug -Dgc_none src/bench.cr -o /tmp/bench_altair
 cd ../..
 go build -o /tmp/bench_fiber app/fiber/main.go
 # Express needs no build: node app/express/src/server.js

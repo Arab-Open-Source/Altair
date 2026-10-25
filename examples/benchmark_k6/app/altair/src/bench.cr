@@ -18,6 +18,6 @@ require "./gc_tuning"
 require "./application"
 
 {% unless flag?(:gc_none) %}
-BenchGC.setup!
+  BenchGC.setup!
 {% end %}
 Bench.run!

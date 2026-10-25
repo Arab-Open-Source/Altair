@@ -195,6 +195,33 @@ Highlights:
   the next optimization target, tracked in the
   [performance audit](docs/architecture/performance-audit.md).
 
+### The official collector: gcry
+
+Altair ships [gcry](https://github.com/sdogruyol/gcry) as its official
+garbage collector — adopted after a full root-cause investigation traced
+an intermittent read-tail spike (p99.9 123-154 ms on unlucky runs) to
+Boehm stop-the-world pauses. Building with a single compiler flag swaps
+the collector with no code change:
+
+```
+crystal build --release -Dgc_none src/app.cr
+```
+
+Measured in an interleaved A/B (medians of three rounds per arm, unique
+server processes), gcry 0.38.0 eliminates the dirty window entirely:
+
+| Read metric | Boehm (median) | Boehm (worst round) | gcry (median) | gcry (worst round) |
+|---|---:|---:|---:|---:|
+| p99.9 | 25.1 ms | **123.5 ms** | **22.4 ms** | 23.3 ms |
+| max | 60.1 ms | **482.2 ms** | **36.3 ms** | 37.9 ms |
+
+Write throughput is at parity (the write penalty of gcry 0.27.1 is gone
+in 0.38.0). The full evidence trail — including every mitigation that
+was measured and rejected — lives in
+[`examples/benchmark_k6/gcry-results.md`](examples/benchmark_k6/gcry-results.md)
+and
+[`examples/benchmark_k6/read-tail-investigation.md`](examples/benchmark_k6/read-tail-investigation.md).
+
 The full report — methodology, per-framework latency tables, the
 tail-latency investigation and the Wave-D allocation findings — lives in
 [`examples/benchmark_k6/README.md`](examples/benchmark_k6/README.md).

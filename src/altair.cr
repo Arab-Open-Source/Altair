@@ -9,6 +9,15 @@
 module Altair
 end
 
+# The official collector is gcry (github.com/sdogruyol/gcry). Building with
+# -Dgc_none swaps Crystal's bundled Boehm for gcry through this require, so an
+# application adopts it with a single compiler flag and no code change:
+#
+#   crystal build --release -Dgc_none src/app.cr
+#
+{% if flag?(:gc_none) %}
+  require "gcry"
+{% end %}
 require "http"
 require "uri"
 require "db"

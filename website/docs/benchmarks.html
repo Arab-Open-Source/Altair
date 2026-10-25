@@ -186,6 +186,63 @@ write run; Ruby showed 2. Everything else was error-free across the eight
 runs.</li>
 </ul>
 <p><img src="../assets/img/logos/crystal.svg" width="40" alt="Crystal" style="vertical-align:middle"> &nbsp;<strong>vs</strong>&nbsp; <img src="../assets/img/logos/ruby.svg" width="36" alt="Ruby" style="vertical-align:middle"></p>
+<h2 id="the-official-collector-gcry">The official collector: gcry<a class="anchor" href="#the-official-collector-gcry" aria-label="Link to this section">#</a></h2>
+<p>Altair ships <a href="https://github.com/sdogruyol/gcry">gcry</a> as its official
+garbage collector. The tables above are the default build (bundled
+Boehm); building with a single flag — <code>-Dgc_none</code> — swaps the collector
+with no code change. A root-cause investigation traced Boehm&#39;s
+intermittent read-tail spike (p99.9 up to 154 ms on unlucky runs) to
+stop-the-world pauses that scale with heap size; gcry removes the spike
+deterministically.</p>
+<p>Interleaved A/B, medians of three rounds per arm:</p>
+<table>
+<thead>
+<tr>
+<th>Workload</th>
+<th>Collector</th>
+<th align="right">rps</th>
+<th align="right">p99</th>
+<th align="right">p99.9</th>
+<th align="right">max</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Write</td>
+<td>Boehm</td>
+<td align="right">15,335</td>
+<td align="right">12.7 ms</td>
+<td align="right"><strong>14.9 ms</strong></td>
+<td align="right"><strong>21.3 ms</strong></td>
+</tr>
+<tr>
+<td>Write</td>
+<td>gcry 0.38.0</td>
+<td align="right">15,292</td>
+<td align="right">12.7 ms</td>
+<td align="right">15.6 ms</td>
+<td align="right">26.7 ms</td>
+</tr>
+<tr>
+<td>Read</td>
+<td>Boehm</td>
+<td align="right">14,571</td>
+<td align="right">15.7 ms</td>
+<td align="right">25.1 ms*</td>
+<td align="right">60.1 ms*</td>
+</tr>
+<tr>
+<td>Read</td>
+<td>gcry 0.38.0</td>
+<td align="right"><strong>14,958</strong></td>
+<td align="right"><strong>14.8 ms</strong></td>
+<td align="right"><strong>22.4 ms</strong></td>
+<td align="right"><strong>36.3 ms</strong></td>
+</tr>
+</tbody></table>
+<p>*The Boehm read medians flatter it: one of its three rounds exploded to
+123.5 / 482.2 ms — the intermittent dirty window. gcry&#39;s worst round was
+23.3 / 37.9 ms. Write throughput is at parity (earlier gcry versions
+paid an 11 percent write penalty; 0.38.0 removed it).</p>
 <h2 id="the-closest-architectural-peer-the-ruby-full-stack-arm">The closest architectural peer: the Ruby full-stack arm<a class="anchor" href="#the-closest-architectural-peer-the-ruby-full-stack-arm" aria-label="Link to this section">#</a></h2>
 <p>The most instructive comparison is not the raw throughput table — it is the
 arm built the same way Altair is. The Ruby arm is a <strong>full-stack MVC
@@ -274,7 +331,7 @@ Ruby: Puma workers x threads). Override via env for stress reruns.</li>
 investigation, the per-second GC pause measurement and the allocation
 findings — and the repository&#39;s <code>CHANGELOG.md</code> for what changed between
 measurement passes.</p>
-<div class="docs-footer-meta"><span>Found a mistake? <a href="https://github.com/Arab-Open-Source/Altair/blob/main/website/pages/docs/benchmarks.md" rel="noopener">Edit this page on GitHub</a>.</span></div><div class="docs-pager"><div class="pager-progress">Page 16 of 16</div><div class="pager-links"><a class="pager-card" href="cli.html"><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span><span><span class="label">Previous</span><span class="pager-title">CLI reference</span></span></a><span></span></div></div></article><aside class="docs-toc" aria-label="On this page"><p class="toc-title">On this page</p><ul><li><a href="#results-unified-profile-100-vus-60-s-20-connections-6-workers">Results — unified profile (100 VUs, 60 s, 20 connections, 6 workers)</a></li><li><a href="#the-closest-architectural-peer-the-ruby-full-stack-arm">The closest architectural peer: the Ruby full-stack arm</a></li><li><a href="#historical-sessions">Historical sessions</a></li><li class="toc-h3"><a href="#session-2026-09-09-isolated-databases-older-profile">Session 2026-09-09 — isolated databases (older profile)</a></li><li><a href="#methodology">Methodology</a></li><li><a href="#where-this-came-from">Where this came from</a></li></ul></aside></div>
+<div class="docs-footer-meta"><span>Found a mistake? <a href="https://github.com/Arab-Open-Source/Altair/blob/main/website/pages/docs/benchmarks.md" rel="noopener">Edit this page on GitHub</a>.</span></div><div class="docs-pager"><div class="pager-progress">Page 16 of 16</div><div class="pager-links"><a class="pager-card" href="cli.html"><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span><span><span class="label">Previous</span><span class="pager-title">CLI reference</span></span></a><span></span></div></div></article><aside class="docs-toc" aria-label="On this page"><p class="toc-title">On this page</p><ul><li><a href="#results-unified-profile-100-vus-60-s-20-connections-6-workers">Results — unified profile (100 VUs, 60 s, 20 connections, 6 workers)</a></li><li><a href="#the-official-collector-gcry">The official collector: gcry</a></li><li><a href="#the-closest-architectural-peer-the-ruby-full-stack-arm">The closest architectural peer: the Ruby full-stack arm</a></li><li><a href="#historical-sessions">Historical sessions</a></li><li class="toc-h3"><a href="#session-2026-09-09-isolated-databases-older-profile">Session 2026-09-09 — isolated databases (older profile)</a></li><li><a href="#methodology">Methodology</a></li><li><a href="#where-this-came-from">Where this came from</a></li></ul></aside></div>
   </main>
 
   <footer class="site-footer">

@@ -54,6 +54,10 @@ jobs:
           ALTAIR_TEST_PG_URL: postgres://postgres:postgres@localhost:5432/altair_test
       - name: Build the altair binary
         run: shards build altair
+      - name: Build with the official collector (gcry)
+        # Altair ships gcry as its official GC; verify the -Dgc_none wiring
+        # compiles on every change.
+        run: crystal build src/altair_cli.cr -Dgc_none --no-codegen
       - name: Example builds
         run: |
           for entry in hello_world:src/hello_world.cr htmx:src/htmx.cr sqlite_crud:src/app.cr postgresql_crud:src/app.cr showcase:src/showcase.cr; do

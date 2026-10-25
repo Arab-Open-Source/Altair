@@ -18,6 +18,8 @@ targets:
 dependencies:
   sqlite3:
     github: crystal-lang/crystal-sqlite3
+  gcry:
+    github: sdogruyol/gcry
 
 development_dependencies:
   ameba:
@@ -25,3 +27,4 @@ development_dependencies:
     commit: f53fcd3382553121239c8f144aec5e27aeadbed8
   pg:
     github: will/crystal-pg
+    version: 0.30.0
