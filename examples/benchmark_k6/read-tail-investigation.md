@@ -249,6 +249,69 @@ heap-growth driver.
 The raw evidence is committed under `results/diagnose/` (k6 summaries,
 per-second app CSV with the STW meter, PG activity log).
 
+
+## Mitigation trials (2026-10-25) - what was tried and what holds
+
+Follow-up session: every candidate mitigation was measured with the same
+probe (sampled binary, unified profile, warm-up + 60 s read pass; paired
+controls in the same host window because run-to-run host variance is
++/-40 percent on stop-time totals).
+
+| Arm | Mechanism | Result |
+|---|---|---|
+| `GC_FREE_SPACE_DIVISOR=2/1` (env) | collect earlier | no effect - the env var is not honored by this build |
+| `GC_INITIAL_HEAP_SIZE=128MB` (env) | pre-size heap | no effect (same reason) |
+| `GC_MARK_THREADS=4` (env) | parallel mark | worse (33 vs 21-30 ms/s); not compiled in or counterproductive here |
+| Boehm incremental (`GC_enable_incremental`) | micro-pauses | **worse**: total stop time tripled (68 vs 21-30 ms/s) under MT |
+| Heap cap 48/96/128MB (`GC.max_heap_size=`) | force small marks | **breaks**: error storms (79 percent failures at 96MB), server death at 48MB |
+| Free-space divisor via function (`GC_set_free_space_divisor(1)`) | set the threshold the env var cannot | **holds: stop-time total down ~40-50 percent** (14.2 vs 20.9-30.4 ms/s paired; worst second 39 vs 59-114 ms) at ~4 percent throughput cost |
+| Content-Length buffered renders (framework change) | fewer allocations/syscalls | shipped on principle; effect on stop time within host noise |
+
+Two exonerations worth recording:
+
+- **The ORM read path retains nothing.** An isolated probe ran 150,000
+  `Item.find` + JSON-build cycles with a full collection before and
+  after: live bytes moved by 0.1 B per request and the heap stayed flat
+  at 1.3 MB. The read path allocates 1,727 B/request (find 1,297 +
+  JSON 432) versus 1,335 B for a write - nearly identical.
+- **The sampler's "live" column is not live data.** It is computed as
+  `heap_size - free_bytes`, which includes garbage accumulated since
+  the last collection. The read phase's 40-110 MB "live" curve is
+  garbage-between-collections, not retention.
+
+### Corrected mechanism
+
+All phases allocate at comparable rates (~70 MB/s server-wide, ~26 MB/s
+of it ORM). Boehm expands the heap until free space falls below
+heap/divisor, then marks everything. The write phase settles at a
+favorable equilibrium (~36 MB heap, collections every ~170 ms, ~1 ms
+marks). The read phase settles at a worse one (heap three times larger,
+collections 2-3 per second, 10-30 ms marks) - a hysteresis effect: the
+equilibrium a phase reaches depends on its early transient, and the
+read warm-up's burst (fresh sockets, cold caches) pushes it onto the
+high-heap branch. Why exactly the read transient lands there is the one
+open question left; a per-second heap histogram from the first seconds
+of each phase would close it.
+
+### Standing recommendations
+
+1. **Operator knob (works today):** call `GC_set_free_space_divisor(1)`
+   at boot - in the benchmark app via
+   `BENCH_GC_DIVISOR=1 scripts/diagnose.sh` or the probe harness. Halves
+   the stop-time budget for ~4 percent throughput. Keep it opt-in: it is
+   a runtime trade, not a free win.
+2. **Content-Length renders** are now the framework default for
+   buffered `json`/`html`/`text` - principled, specs green.
+3. **The collector itself is the ceiling.** With gcry excluded by
+   choice, the remaining headroom lives upstream (Crystal's Boehm
+   integration: parallel/incremental mark under MT, or heap-shrinking
+   collections). The measured matrix above is the evidence package for
+   such an upstream conversation.
+
+The mitigation-probe arms and their CSVs are reproducible with
+`scripts/diagnose.sh` plus the `BENCH_GC_*` toggles compiled into
+`app/altair/src/bench_sample.cr`.
+
 ## Experiment plan (in order)
 
 1. `VUS=100 DURATION=60 scripts/diagnose.sh` - one instrumented sweep

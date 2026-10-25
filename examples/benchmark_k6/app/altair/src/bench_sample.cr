@@ -1,5 +1,9 @@
 # Altair benchmark — per-second observability sampler (diagnosis only).
 #
+# BENCH_GC_INCREMENTAL=1 additionally switches Boehm into incremental mode
+# (GC_enable_incremental): long stop-the-world marks become small steps, the
+# pause profile the write phase already shows naturally.
+#
 # Compiled only with `--define bench_sample` (see scripts/diagnose.sh). The
 # normal benchmark binary is bit-for-bit unaffected: without the flag this
 # file defines nothing and application.cr registers no middleware.
@@ -16,6 +20,11 @@
 # scripts/sample_pg.sh, and the two CSV timelines are correlated by unix time.
 {% if flag?(:bench_sample) %}
   require "gc"
+
+  lib LibGC
+    fun enable_incremental = GC_enable_incremental : Int32
+    fun set_free_space_divisor = GC_set_free_space_divisor(divisor : UInt32)
+  end
 
   module BenchSample
     class_getter path : String = ENV["BENCH_SAMPLE"]? || "/tmp/bench_altair_sample.csv"
@@ -42,6 +51,20 @@
 
     def self.start : Nil
       return if @@started.swap(true)
+      if ENV["BENCH_GC_INCREMENTAL"]? == "1"
+        LibGC.enable_incremental
+      end
+      if cap = ENV["BENCH_GC_MAX_HEAP"]?.try(&.to_u64?)
+        # Caps the Boehm heap: collections happen before expansion instead of
+        # after, keeping every mark small (the write phase's pause profile).
+        GC.max_heap_size = cap
+      end
+      if divisor = ENV["BENCH_GC_DIVISOR"]?.try(&.to_u32?)
+        # Sets the expansion threshold directly (the env var is not honored
+        # by this build; the function is). Lower divisor -> smaller heap ->
+        # shorter marks.
+        LibGC.set_free_space_divisor(divisor)
+      end
       install_pause_meter
       io = File.open(path, "w")
       io.puts "unix_sec,reqs,avg_ms,max_ms,errs,gc_heap_mb,gc_live_mb,gc_total_mb,gc_alloc_mb,gc_collections,gc_stw_events,gc_stw_ms,pool_open,pool_idle,pool_inflight,pool_max"
