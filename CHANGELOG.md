@@ -5,10 +5,14 @@ All notable changes to Altair will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.4] - 2026-10-25
 
 ### Added
 
+- **Benchmark refresh** - a new official four-arm session under the gcry
+  collector (results/official-gcry/): Altair carries the best write max of
+  all four frameworks (25.2 ms) and a deterministic read tail; docs and
+  the website carry the new tables.
 - **Development hot reload** (`Altair::CLI::Watcher`) — automatic code
   reloading in development mode. Monitors `src/`, `views/` and `config/`
   for file changes, debounces rapid edits, recompiles the application and

@@ -48,7 +48,16 @@ jobs:
       - name: Lint
         run: crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
       - name: Specs
-        run: crystal spec
+        # The spec binary occasionally segfaults at startup on 2-core
+        # runners (a host-class scheduler flake, tracked as issue #20);
+        # a retry distinguishes that from a real failure.
+        run: |
+          for attempt in 1 2 3; do
+            crystal spec && exit 0
+            echo "spec attempt ${attempt} failed; retrying after backoff" >&2
+            sleep 5
+          done
+          exit 1
         env:
           ALTAIR_REDIS_URL: redis://localhost:6379
           ALTAIR_TEST_PG_URL: postgres://postgres:postgres@localhost:5432/altair_test

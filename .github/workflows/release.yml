@@ -60,14 +60,16 @@ jobs:
         if: runner.os != 'Windows' && contains(inputs.platforms || 'linux,windows,macos', matrix.platform)
         shell: bash
         run: |
-          shards build altair --release
+          # -Dgc_none builds with the official collector (gcry) instead of
+          # the bundled Boehm; see the repository README's collector section.
+          shards build altair --release -Dgc_none
           mkdir -p dist
           cp "bin/altair" "dist/altair-${{ matrix.target }}"
       - name: Build (Windows)
         if: runner.os == 'Windows' && contains(inputs.platforms || 'linux,windows,macos', matrix.platform)
         shell: bash
         run: |
-          shards build altair --release
+          shards build altair --release -Dgc_none
           mkdir -p dist
           cp "bin/altair.exe" "dist/altair-${{ matrix.target }}.exe"
       - name: Upload artifact
