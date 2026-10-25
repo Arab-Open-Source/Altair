@@ -174,26 +174,24 @@ each measured phase. The committed results:
 
 | Workload | Framework | req/s | avg | p95 | p99 | p99.9 | max |
 |---|---|---:|---:|---:|---:|---:|---:|
-| **Write** `POST /items` | Fiber | 22,080 | 4.3 ms | 6.1 ms | 8.5 ms | 14.7 ms | 24.8 ms |
-| | **Altair** | **17,245** | 5.7 ms | 7.3 ms | 8.6 ms | **10.7 ms** | **18.1 ms** |
-| | Express | 10,074 | 9.7 ms | 13.5 ms | 16.2 ms | 22.4 ms | 53.6 ms |
-| | Ruby | 2,587 | 38.1 ms | 325.5 ms | 337.7 ms | 380.6 ms | 1,060 ms |
-| **Read** `GET /items/:id` | Fiber | 20,908 | 4.6 ms | 7.0 ms | 10.4 ms | 15.8 ms | 25.1 ms |
-| | **Altair** | **15,539** | 6.3 ms | 8.4 ms | 14.6 ms | 153.6 ms | 247.0 ms |
-| | Express | 9,532 | 10.3 ms | 15.6 ms | 20.5 ms | 28.3 ms | 64.4 ms |
-| | Ruby | 3,531 | 27.9 ms | 239.1 ms | 257.5 ms | 272.3 ms | 1,042 ms |
+| **Write** `POST /items` | Fiber | 20,300 | 4.7 ms | **7.3 ms** | **9.8 ms** | **16.3 ms** | 36.8 ms |
+| | **Altair (gcry)** | **13,981** | 7.0 ms | 11.9 ms | 13.8 ms | 17.0 ms | **25.2 ms** |
+| | Express | 8,074 | 12.1 ms | 18.1 ms | 23.2 ms | 33.1 ms | 65.5 ms |
+| | Ruby | 2,213 | 44.5 ms | 376.6 ms | 407.0 ms | 471.2 ms | 1,071.6 ms |
+| **Read** `GET /items/:id` | Fiber | 18,990 | 5.1 ms | **8.2 ms** | **12.1 ms** | **18.9 ms** | **31.4 ms** |
+| | **Altair (gcry)** | **13,619** | 7.2 ms | 13.0 ms | 16.6 ms | 25.9 ms | 37.2 ms |
+| | Express | 7,671 | 12.8 ms | 20.7 ms | 28.0 ms | 41.0 ms | 91.0 ms |
+| | Ruby | 2,975 | 33.1 ms | 281.6 ms | 313.6 ms | 347.7 ms | 1,046.7 ms |
 
-Highlights:
+Highlights (all four arms measured in one interleaved session, zero
+failed requests across every run):
 
-- **Altair is ~1.6–1.7x faster than Express on throughput** in both workloads,
-  and its **write tail is the best of all four arms** — p99.9 of 10.7 ms and a
-  max of 18.1 ms, below even Fiber's.
-- **Error-free** across all eight runs apart from 17 warmup-boundary resets
-  (Express write) and 2 (Ruby write).
-- Honest picture: Fiber (Go) leads on raw throughput. Altair's read tail
-  carries one Boehm stop-the-world GC pause landing on in-flight requests —
-  the next optimization target, tracked in the
-  [performance audit](docs/architecture/performance-audit.md).
+- **Altair beats Express ~1.7-1.8x on throughput** in both workloads and
+  carries **the best write max of all four arms** (25.2 ms - tighter than
+  Fiber's 36.8 ms), with a deterministic read tail (max 37.2 ms).
+- Honest picture: Fiber leads raw throughput (Altair at 0.69-0.72x); the
+  Ruby full-stack arm - the closest architectural peer - trails 6.3x on
+  writes and 4.6x on reads.
 
 ### The official collector: gcry
 

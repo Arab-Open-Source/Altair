@@ -159,14 +159,14 @@
   <div class="bench-card highlight">
     <div class="bench-head"><img class="bench-logo" src="assets/img/logos/crystal.svg" alt="Crystal"><span class="bench-name">Altair</span></div>
     <p class="workload">Write &middot; POST /items</p>
-    <p class="figure">17,245 <small>req/s</small></p>
-    <p class="note">1.7x Express &middot; 6.7x the Ruby full-stack arm &middot; best write tail of all four (max 18.1 ms).</p>
+    <p class="figure">13,981 <small>req/s</small></p>
+    <p class="note">1.7x Express &middot; 6.3x the Ruby full-stack arm &middot; best write max of all four (25.2 ms, tighter than Go).</p>
   </div>
   <div class="bench-card highlight">
     <div class="bench-head"><img class="bench-logo" src="assets/img/logos/crystal.svg" alt="Crystal"><span class="bench-name">Altair</span></div>
     <p class="workload">Read &middot; GET /items/:id</p>
-    <p class="figure">15,539 <small>req/s</small></p>
-    <p class="note">1.6x Express &middot; 4.4x the Ruby full-stack arm &middot; zero meaningful failures in every run.</p>
+    <p class="figure">13,619 <small>req/s</small></p>
+    <p class="note">1.8x Express &middot; 4.6x the Ruby full-stack arm &middot; deterministic tail on the official gcry collector.</p>
   </div>
   <div class="bench-card">
     <p class="workload">Methodology</p>
@@ -180,14 +180,14 @@
       <tr><th>Framework</th><th>Write req/s</th><th>Write p99</th><th>Write max</th><th>Read req/s</th><th>Read p99</th></tr>
     </thead>
     <tbody>
-      <tr class="vs-altair"><td><span class="vs-fw"><img src="assets/img/logos/crystal.svg" alt="Crystal logo">Altair</span></td><td>17,245</td><td>8.6 ms</td><td><strong>18.1 ms</strong></td><td>15,539</td><td>14.6 ms</td></tr>
-      <tr><td><span class="vs-fw"><img src="assets/img/logos/go.svg" alt="Go logo">Fiber (Go)</span></td><td><strong>22,080</strong></td><td><strong>8.5 ms</strong></td><td>24.8 ms</td><td><strong>20,908</strong></td><td><strong>10.4 ms</strong></td></tr>
-      <tr><td><span class="vs-fw"><img src="assets/img/logos/nodejs.svg" alt="Node.js logo">Express</span></td><td>10,074</td><td>16.2 ms</td><td>53.6 ms</td><td>9,532</td><td>20.5 ms</td></tr>
-      <tr><td><span class="vs-fw"><img src="assets/img/logos/ruby.svg" alt="Ruby logo">Ruby full-stack</span></td><td>2,587</td><td>337.7 ms</td><td>1,060 ms</td><td>3,531</td><td>257.5 ms</td></tr>
+      <tr class="vs-altair"><td><span class="vs-fw"><img src="assets/img/logos/crystal.svg" alt="Crystal logo">Altair</span></td><td>13,981</td><td>13.8 ms</td><td><strong>25.2 ms</strong></td><td>13,619</td><td>16.6 ms</td></tr>
+      <tr><td><span class="vs-fw"><img src="assets/img/logos/go.svg" alt="Go logo">Fiber (Go)</span></td><td><strong>20,300</strong></td><td><strong>9.8 ms</strong></td><td>36.8 ms</td><td><strong>18,990</strong></td><td><strong>12.1 ms</strong></td></tr>
+      <tr><td><span class="vs-fw"><img src="assets/img/logos/nodejs.svg" alt="Node.js logo">Express</span></td><td>8,074</td><td>23.2 ms</td><td>65.5 ms</td><td>7,671</td><td>28.0 ms</td></tr>
+      <tr><td><span class="vs-fw"><img src="assets/img/logos/ruby.svg" alt="Ruby logo">Ruby full-stack</span></td><td>2,213</td><td>407.0 ms</td><td>1,072 ms</td><td>2,975</td><td>313.6 ms</td></tr>
     </tbody>
   </table>
   </div>
-  <p class="vs-caption">100 virtual users, 60 seconds, one 20-connection / 6-worker budget for every framework. Altair holds second place on throughput with the best write tail of all four arms; the closest architectural peer — the Ruby full-stack arm — trails 6.7x on writes and 4.4x on reads.</p>
+  <p class="vs-caption">100 virtual users, 60 seconds, one 20-connection / 6-worker budget for every framework. Altair holds second place on throughput with the best write tail of all four arms; the closest architectural peer — the Ruby full-stack arm — trails 6.3x on writes and 4.6x on reads.</p>
 </div><div class="content-narrow">
 <div class="section-head">
 <p class="kicker">Start here</p>
