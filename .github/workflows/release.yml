@@ -132,6 +132,13 @@ jobs:
           files: dist/*
           fail_on_unmatched_files: true
           overwrite_files: true
-          # The release body is the tag's annotated message (git notes-style);
-          # generated notes would replace it with a bare commit list.
+          # The release body must be the tag's annotated message. Two known
+          # failure modes, both hit in practice:
+          #   - generate_release_notes: true replaces the message with a bare
+          #     commit list (v0.4.3),
+          #   - re-running the publish job on an existing release leaves the
+          #     empty default body in place (v0.4.4).
+          # If the release page ever shows an empty body again, fix it with:
+          #   git tag -l v<ver> --format='%(contents)'   -> the intended body
+          #   PATCH /repos/<owner>/<repo>/releases/<id>  body: <that message>
           generate_release_notes: false
