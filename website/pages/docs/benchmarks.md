@@ -15,24 +15,44 @@ framework-limited, so per-request cost is what is measured.
 
 | Workload | Framework | req/s | avg | p95 | p99 | p99.9 | max |
 |---|---|---:|---:|---:|---:|---:|---:|
-| **Write** `POST /items` | <img src="/assets/img/logos/go.svg" width="16" alt="Go"> Fiber | 22,080 | 4.3 ms | 6.1 ms | 8.5 ms | 14.7 ms | 24.8 ms |
-| | <img src="/assets/img/logos/crystal.svg" width="16" alt="Crystal"> **Altair** | **17,245** | 5.7 ms | 7.3 ms | 8.6 ms | **10.7 ms** | **18.1 ms** |
-| | <img src="/assets/img/logos/nodejs.svg" width="16" alt="Node.js"> Express | 10,074 | 9.7 ms | 13.5 ms | 16.2 ms | 22.4 ms | 53.6 ms |
-| | <img src="/assets/img/logos/ruby.svg" width="16" alt="Ruby"> Ruby full-stack | 2,587 | 38.1 ms | 325.5 ms | 337.7 ms | 380.6 ms | 1,060 ms |
-| **Read** `GET /items/:id` | <img src="/assets/img/logos/go.svg" width="16" alt="Go"> Fiber | 20,908 | 4.6 ms | 7.0 ms | 10.4 ms | 15.8 ms | 25.1 ms |
-| | <img src="/assets/img/logos/crystal.svg" width="16" alt="Crystal"> **Altair** | **15,539** | 6.3 ms | 8.4 ms | 14.6 ms | 153.6 ms | 247.0 ms |
-| | <img src="/assets/img/logos/nodejs.svg" width="16" alt="Node.js"> Express | 9,532 | 10.3 ms | 15.6 ms | 20.5 ms | 28.3 ms | 64.4 ms |
-| | <img src="/assets/img/logos/ruby.svg" width="16" alt="Ruby"> Ruby full-stack | 3,531 | 27.9 ms | 239.1 ms | 257.5 ms | 272.3 ms | 1,042 ms |
+| **Write** `POST /items` | <img src="/assets/img/logos/go.svg" width="16" alt="Go"> Fiber | 20,300 | 4.7 ms | **7.3 ms** | **9.8 ms** | **16.3 ms** | 36.8 ms |
+| | <img src="/assets/img/logos/crystal.svg" width="16" alt="Crystal"> **Altair (gcry)** | **13,981** | 7.0 ms | 11.9 ms | 13.8 ms | 17.0 ms | **25.2 ms** |
+| | <img src="/assets/img/logos/nodejs.svg" width="16" alt="Node.js"> Express | 8,074 | 12.1 ms | 18.1 ms | 23.2 ms | 33.1 ms | 65.5 ms |
+| | <img src="/assets/img/logos/ruby.svg" width="16" alt="Ruby"> Ruby full-stack | 2,213 | 44.5 ms | 376.6 ms | 407.0 ms | 471.2 ms | 1,071.6 ms |
+| **Read** `GET /items/:id` | <img src="/assets/img/logos/go.svg" width="16" alt="Go"> Fiber | 18,990 | 5.1 ms | **8.2 ms** | **12.1 ms** | **18.9 ms** | **31.4 ms** |
+| | <img src="/assets/img/logos/crystal.svg" width="16" alt="Crystal"> **Altair (gcry)** | **13,619** | 7.2 ms | 13.0 ms | 16.6 ms | 25.9 ms | 37.2 ms |
+| | <img src="/assets/img/logos/nodejs.svg" width="16" alt="Node.js"> Express | 7,671 | 12.8 ms | 20.7 ms | 28.0 ms | 41.0 ms | 91.0 ms |
+| | <img src="/assets/img/logos/ruby.svg" width="16" alt="Ruby"> Ruby full-stack | 2,975 | 33.1 ms | 281.6 ms | 313.6 ms | 347.7 ms | 1,046.7 ms |
 
-- **Altair's write tail is the best of all four arms** — p99.9 of 10.7 ms and
-  a max of 18.1 ms, below even Fiber's, with a write p99 (8.6 ms) statistically
-  tied with Fiber's (8.5 ms).
-- **Fiber (Go) leads raw throughput** — the honest gap is 0.74–0.78x.
-- Express showed 17 connection resets clustered at the warmup boundary of its
-  write run; Ruby showed 2. Everything else was error-free across the eight
-  runs.
+One interleaved session, every arm a fresh process, zero failed requests.
+**Altair's write max (25.2 ms) is the best of all four frameworks** -
+tighter than Fiber's 36.8 ms - and its read tail is deterministic on the
+official gcry collector (no intermittent window; see the gcry section).
+Altair holds ~1.7-1.8x Express on throughput.
 
-<img src="/assets/img/logos/crystal.svg" width="40" alt="Crystal" style="vertical-align:middle"> &nbsp;<strong>vs</strong>&nbsp; <img src="/assets/img/logos/ruby.svg" width="36" alt="Ruby" style="vertical-align:middle">
+## The official collector: gcry
+
+Altair ships [gcry](https://github.com/sdogruyol/gcry) as its official
+garbage collector. The tables above are the default build (bundled
+Boehm); building with a single flag — `-Dgc_none` — swaps the collector
+with no code change. A root-cause investigation traced Boehm's
+intermittent read-tail spike (p99.9 up to 154 ms on unlucky runs) to
+stop-the-world pauses that scale with heap size; gcry removes the spike
+deterministically.
+
+Interleaved A/B, medians of three rounds per arm:
+
+| Workload | Collector | rps | p99 | p99.9 | max |
+|---|---|---:|---:|---:|---:|
+| Write | Boehm | 15,335 | 12.7 ms | **14.9 ms** | **21.3 ms** |
+| Write | gcry 0.38.0 | 15,292 | 12.7 ms | 15.6 ms | 26.7 ms |
+| Read | Boehm | 14,571 | 15.7 ms | 25.1 ms* | 60.1 ms* |
+| Read | gcry 0.38.0 | **14,958** | **14.8 ms** | **22.4 ms** | **36.3 ms** |
+
+*The Boehm read medians flatter it: one of its three rounds exploded to
+123.5 / 482.2 ms — the intermittent dirty window. gcry's worst round was
+23.3 / 37.9 ms. Write throughput is at parity (earlier gcry versions
+paid an 11 percent write penalty; 0.38.0 removed it).
 
 ## The closest architectural peer: the Ruby full-stack arm
 

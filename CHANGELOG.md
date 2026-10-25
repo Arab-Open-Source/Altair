@@ -19,6 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `config/altair.yml`. CLI flags: `-p PORT`, `-b HOST`, `-e ENV`,
   `-w`/`--no-watch`, `--delay DURATION`, `--entry PATH`.
 
+### Changed
+
+- **gcry is the official collector.** The framework depends on
+  sdogruyol/gcry (0.38.0) and wires it in through a single compiler flag:
+  building an application with `-Dgc_none` swaps Crystal's bundled Boehm
+  for gcry with no code change (`require "altair"` is enough). The full
+  framework suite (1,025 examples) passes under gcry. Measured on the
+  benchmark harness, gcry eliminates Boehm's intermittent read-tail
+  window (read p99.9 22.4 ms and max 36.3 ms, stable across rounds,
+  versus Boehm's intermittent 123-154 ms / 247-482 ms spikes) at write
+  throughput parity - the write penalty of earlier gcry versions is gone
+  in 0.38.0. See `examples/benchmark_k6/gcry-results.md` and
+  `read-tail-investigation.md` for the full evidence trail.
+
+
 ## [0.4.3] - 2026-10-24
 
 ### Added

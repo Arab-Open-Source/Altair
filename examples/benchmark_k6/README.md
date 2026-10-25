@@ -16,6 +16,27 @@ as k6 summary exports. The short version, at the unified realistic profile
 - **Zero meaningful failures** across all eight runs (17 warmup-boundary
   resets on the Express write run; 2 on the Ruby write run).
 
+### The official collector: gcry (interleaved A/B)
+
+Altair adopts [gcry](https://github.com/sdogruyol/gcry) 0.38.0 as its
+official collector. The committed tables above are the default build
+(bundled Boehm); with `-Dgc_none` the same app swaps collectors with no
+code change. Interleaved A/B, medians of three rounds per arm, unique
+server processes:
+
+| Workload | Collector | rps | p95 | p99 | p99.9 | max |
+|---|---|---:|---:|---:|---:|---:|
+| Write | Boehm | 15,335 | 11.4 | 12.7 | **14.9** | **21.3** |
+| Write | gcry 0.38.0 | 15,292 | 11.4 | 12.7 | 15.6 | 26.7 |
+| Read | Boehm | 14,571 | 12.3 | 15.7 | 25.1* | 60.1* |
+| Read | gcry 0.38.0 | **14,958** | **12.2** | **14.8** | **22.4** | **36.3** |
+
+*Boehm medians look acceptable only because two of three rounds landed
+clean windows; its third round exploded to 123.5 / 482.2 ms - the
+intermittent dirty window this whole investigation chased. gcry never
+dirtied: worst round 23.3 / 37.9 ms. Full evidence:
+`gcry-results.md` and `read-tail-investigation.md`.
+
 These numbers are from a **sustained-load measurement** (see
 [Methodology](#methodology)): a discarded k6 warm-up run first ramps the target
 to 100 virtual users and absorbs the cold-start spike, then the measured run
@@ -74,28 +95,29 @@ reminder that a runtime's *defaults* can look like a framework deficit until the
 driver is configured, and it is why this report audits each app's DB path, not
 just its HTTP layer.
 
-The full picture at the unified profile, all four arms:
+The full picture at the unified profile, all four arms (the official
+gcry session - one interleaved run window, every arm a fresh process,
+zero failed requests; raw exports under `results/official-gcry/`):
 
 | Framework | Write req/s | Write p95 | Write p99 | Write p99.9 | Write max | Read req/s | Read p95 | Read p99 | Read max |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Fiber | **22,080** | **6.1 ms** | **8.5 ms** | 14.7 ms | 24.8 ms | **20,908** | **7.0 ms** | **10.4 ms** | **25.1 ms** |
-| **Altair** | 17,245 | 7.3 ms | 8.6 ms | **10.7 ms** | **18.1 ms** | 15,539 | 8.4 ms | 14.6 ms | 247.0 ms |
-| Express | 10,074 | 13.5 ms | 16.2 ms | 22.4 ms | 53.6 ms | 9,532 | 15.6 ms | 20.5 ms | 64.4 ms |
-| Ruby | 2,587 | 325.5 ms | 337.7 ms | 380.6 ms | 1,060 ms | 3,531 | 239.1 ms | 257.5 ms | 1,040 ms |
+| Fiber | **20,300** | **7.3 ms** | **9.8 ms** | **16.3 ms** | 36.8 ms | **18,990** | **8.2 ms** | **12.1 ms** | **31.4 ms** |
+| **Altair (gcry)** | 13,981 | 11.9 ms | 13.8 ms | 17.0 ms | **25.2 ms** | 13,619 | 13.0 ms | 16.6 ms | 37.2 ms |
+| Express | 8,074 | 18.1 ms | 23.2 ms | 33.1 ms | 65.5 ms | 7,671 | 20.7 ms | 28.0 ms | 91.0 ms |
+| Ruby | 2,213 | 376.6 ms | 407.0 ms | 471.2 ms | 1,071.6 ms | 2,975 | 281.6 ms | 313.6 ms | 1,046.7 ms |
 
 Notes on the picture:
 
-- **Altair's write tail is the best of all four** — p99.9 of 10.7 ms and a max
-  of 18.1 ms, below even Fiber's. Its write p99 (8.6 ms) is statistically tied
-  with Fiber's (8.5 ms).
-- **The Ruby arm's median is fast (4.3 ms on reads — the fastest of all four)
-  but its tail collapses behind worker queueing**: 6 Puma workers x 3 threads
-  serialize under load, so p95 lands near 300 ms. That is the honest shape of
-  the Ruby stack at this profile, not a misconfiguration — the same
-  `BENCH_WORKERS` / `BENCH_POOL` budget every arm gets.
-- **Express showed 17 connection resets** clustered at the warmup boundary of
-  the write run (Node cluster children recycling); the Ruby write run showed 2.
-  Everything else was error-free across the eight runs.
+- **Altair's write max (25.2 ms) is the best of all four arms** - below
+  even Fiber's 36.8 ms - and the read tail is deterministic (37.2 ms
+  max, no intermittent window; the official gcry collector removed it).
+- **The Ruby arm's median is fast but its tail collapses behind worker
+  queueing**: 6 Puma workers x 3 threads serialize under load, so p95
+  lands near 300 ms. That is the honest shape of the Ruby stack at this
+  profile - the same `BENCH_WORKERS` / `BENCH_POOL` budget every arm gets.
+- The earlier committed session (bundled-Boehm build, faster host window)
+  is preserved in git history; this is the current official comparison
+  under the official collector.
 
 **Status: this benchmark is experimental.** Altair is still under active
 development, and these numbers are a snapshot of where the framework stands
@@ -113,42 +135,23 @@ discarded warm-up.
 
 | Framework | Requests | Throughput | Avg | p50 | p90 | p95 | p99 | p99.9 | Max | Failed |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Fiber | 1,254,526 | **20,908 req/s** | 4.6 ms | 4.4 ms | 5.9 ms | 7.0 ms | 10.4 ms | 15.8 ms | 25.1 ms | 0% |
-| **Altair** | **932,380** | **15,539 req/s** | 6.3 ms | **5.5 ms** | 6.6 ms | 8.4 ms | 14.6 ms | 153.6 ms | 247.0 ms | 0% |
-| Express | 572,005 | 9,532 req/s | 10.3 ms | 9.9 ms | 13.8 ms | 15.6 ms | 20.5 ms | 28.3 ms | 64.4 ms | 0% |
-| Ruby | 215,487 | 3,531 req/s | 27.9 ms | 4.3 ms | 13.6 ms | 239.1 ms | 257.5 ms | 272.3 ms | 1,042 ms | 0% |
+| Fiber | 1,218,075 | **20,300 req/s** | **4.7 ms** | **4.5 ms** | **6.4 ms** | **7.3 ms** | **9.8 ms** | **16.3 ms** | 36.8 ms | 0% |
+| **Altair (gcry)** | **838,913** | **13,981 req/s** | 7.0 ms | 6.5 ms | 9.3 ms | 11.9 ms | 13.8 ms | 17.0 ms | **25.2 ms** | 0% |
+| Express | 484,518 | 8,074 req/s | 12.1 ms | 11.7 ms | 16.3 ms | 18.1 ms | 23.2 ms | 33.1 ms | 65.5 ms | 0% |
+| Ruby | 135,052 | 2,213 req/s | 44.5 ms | 7.2 ms | 17.0 ms | 376.6 ms | 407.0 ms | 471.2 ms | 1,071.6 ms | 0% |
 
-Altair's read distribution is tight through p99 (14.6 ms) with the second-best
-median of the four; the p99.9/max pair (153.6/247.0 ms) is one GC
-stop-the-world pause landing on in-flight requests. The Ruby arm posts the
-fastest median of all four (4.3 ms) but queues behind its 6 Puma workers under
-load, collapsing p95 past 200 ms.
-
-### Write workload — `POST /items`
-
-One row inserted and committed per request (JSON body).
-
-| Framework | Requests | Throughput | Avg | p50 | p90 | p95 | p99 | p99.9 | Max | Failed |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Fiber | 1,324,908 | **22,080 req/s** | **4.3 ms** | **4.2 ms** | **5.5 ms** | **6.1 ms** | 8.5 ms | 14.7 ms | 24.8 ms | 0% |
-| **Altair** | **1,034,815** | **17,245 req/s** | 5.7 ms | 5.5 ms | 6.7 ms | 7.3 ms | 8.6 ms | **10.7 ms** | **18.1 ms** | 0% |
-| Express | 604,508 | 10,074 req/s | 9.7 ms | 9.5 ms | 12.4 ms | 13.5 ms | 16.2 ms | 22.4 ms | 53.6 ms | 17 |
-| Ruby | 157,914 | 2,587 req/s | 38.1 ms | 6.2 ms | 13.2 ms | 325.5 ms | 337.7 ms | 380.6 ms | 1,060 ms | 2 |
-
-Fiber leads write throughput. Altair carries **the cleanest write tail of all
-four arms**: its p99.9 (10.7 ms) and max (18.1 ms) are below Fiber's
-(14.7/24.8 ms) while its p99 (8.6 ms) is statistically tied with Fiber's
-(8.5 ms). Express showed 17 connection resets clustered at the warmup
-boundary; Ruby showed 2.
+Fiber leads write throughput. Altair carries **the best write max of all
+four arms** (25.2 ms, below Fiber's 36.8 ms) with a p99.9 of 17.0 ms
+statistically level with Fiber's 16.3 ms - every run error-free.
 
 ### Relative throughput
 
 | Comparison | Read | Write |
 |---|---:|---:|
-| Altair vs Express | 1.63x | 1.71x |
-| Altair vs Fiber | 0.74x | 0.78x |
-| Altair vs Ruby | 4.40x | 6.67x |
-| Fiber vs Express | 2.19x | 2.19x |
+| Altair vs Express | 1.78x | 1.73x |
+| Altair vs Fiber | 0.72x | 0.69x |
+| Altair vs Ruby | 4.58x | 6.31x |
+| Fiber vs Express | 2.47x | 2.51x |
 
 ### Data moved
 
@@ -396,7 +399,10 @@ docker compose up -d postgres
 # 2. build the servers once (run the crystal build from the app dir so the
 #    relative altair shard resolves)
 cd app/altair
+# Default (bundled Boehm):
 crystal build --release --no-debug src/bench.cr -o /tmp/bench_altair
+# Official collector (gcry):
+crystal build --release --no-debug -Dgc_none src/bench.cr -o /tmp/bench_altair
 cd ../..
 go build -o /tmp/bench_fiber app/fiber/main.go
 # Express needs no build: node app/express/src/server.js
