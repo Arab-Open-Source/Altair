@@ -289,7 +289,7 @@ module Altair
             io << "\n"
             io << "case ARGV[0]?\n"
             io << "when \"server\"\n"
-            io << "  #{app_class}.run!\n"
+            io << "  exit Altair::CLI::Project.server(#{app_class}, ARGV[1..])\n"
             io << "when \"routes\"\n"
             io << "  Altair::CLI::Project.print_routes(#{app_class})\n"
             io << "when \"db:migrate\"\n"

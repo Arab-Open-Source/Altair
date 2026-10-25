@@ -94,12 +94,11 @@ module Altair
 
     # The directory of the Altair project surrounding the current working
     # directory, or nil. A project is recognized by its `bin/altair.cr`
-    # launcher, so old projects (created before `bin/altair` existed) and
-    # new ones are found the same way.
+    # launcher or its shard.yml with src/ directory.
     def self.find_project_dir : Path?
       dir = Path[Dir.current]
       loop do
-        return dir if File.exists?(dir / "bin" / "altair.cr")
+        return dir if File.exists?(dir / "bin" / "altair.cr") || (File.exists?(dir / "shard.yml") && Dir.exists?(dir / "src"))
         parent = dir.parent
         break if parent == dir
         dir = parent
@@ -119,13 +118,16 @@ module Altair
 
     # The command and arguments that run `args` inside the project at
     # `dir`. Returns `["bin/altair", args]` when the wrapper exists,
-    # otherwise `["crystal", ["run", "bin/altair.cr", "--", *args]]`.
+    # otherwise `["crystal", ["run", entry, "--", *args]]`.
     def self.project_launcher(dir : Path, args : Array(String)) : {String, Array(String)}
       wrapper = dir / "bin" / "altair"
       if File.exists?(wrapper)
         {wrapper.to_s, args}
-      else
+      elsif File.exists?(dir / "bin" / "altair.cr")
         {"crystal", ["run", (dir / "bin" / "altair.cr").to_s, "--"] + args}
+      else
+        entry = Watcher.resolve_entry(dir, nil)
+        {"crystal", ["run", (dir / entry).to_s, "--"] + args}
       end
     end
 
@@ -172,6 +174,8 @@ module Altair
               --framework-path DIR   use a local framework checkout instead of GitHub
               (also: --framework-path=DIR or ALTAIR_PATH env var)
           TXT
+      when "server"
+        Watcher::Options.help
       when "generate", "g"
         Generators.generator_help
       when "install"

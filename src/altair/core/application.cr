@@ -138,9 +138,18 @@ abstract class Altair::Application
   end
 
   # Boots the application: builds the server and blocks until it shuts
-  # down.
-  def self.run! : Nil
-    instance.start
+  # down. In development mode, starts the Watcher unless `--no-watch`
+  # is passed.
+  def self.run!(args : Array(String) = ARGV) : Nil
+    options = Altair::CLI::Watcher::Options.parse(args)
+    Altair::CLI::Project.apply_server_options(self, options)
+
+    if Altair::CLI::Watcher.should_watch?(self, options)
+      watcher = Altair::CLI::Watcher.new(self, options)
+      watcher.start
+    else
+      instance.start
+    end
   end
 
   # Boots the HTTP server for this application instance and blocks until

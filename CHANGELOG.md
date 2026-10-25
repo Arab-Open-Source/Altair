@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Development hot reload** (`Altair::CLI::Watcher`) — automatic code
+  reloading in development mode. Monitors `src/`, `views/` and `config/`
+  for file changes, debounces rapid edits, recompiles the application and
+  restarts the server only after a successful build. Compilation failures
+  keep the previous server running and display compiler errors inline.
+  Enabled by default in development; `--no-watch` disables it. Configurable
+  via `config.reload` (delay, watch paths, ignore paths) or
+  `config/altair.yml`. CLI flags: `-p PORT`, `-b HOST`, `-e ENV`,
+  `-w`/`--no-watch`, `--delay DURATION`, `--entry PATH`.
+
 ### Changed
 
 - **gcry is the official collector.** The framework depends on
@@ -20,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   throughput parity - the write penalty of earlier gcry versions is gone
   in 0.38.0. See `examples/benchmark_k6/gcry-results.md` and
   `read-tail-investigation.md` for the full evidence trail.
+
 
 ## [0.4.3] - 2026-10-24
 
