@@ -8,6 +8,10 @@ shards:
     git: https://github.com/crystal-lang/crystal-db.git
     version: 0.14.0
 
+  gcry:
+    git: https://github.com/sdogruyol/gcry.git
+    version: 0.38.0
+
   pg:
     git: https://github.com/will/crystal-pg.git
     version: 0.30.0

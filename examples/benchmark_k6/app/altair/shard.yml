@@ -8,6 +8,8 @@ dependencies:
     path: ../../../..
   pg:
     github: will/crystal-pg
+  gcry:
+    github: sdogruyol/gcry
 
 targets:
   bench:

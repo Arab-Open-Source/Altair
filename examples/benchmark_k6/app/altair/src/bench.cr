@@ -7,6 +7,9 @@
 # tail in gc_tuning.cr (measured basis: read-tail-investigation.md).
 require "altair"
 require "altair/record/adapters/postgresql"
+{% if flag?(:gc_none) %}
+  require "gcry"
+{% end %}
 require "../db/schema"
 require "./models/item"
 require "./controllers/application_controller"
@@ -14,5 +17,7 @@ require "./controllers/items_controller"
 require "./gc_tuning"
 require "./application"
 
+{% unless flag?(:gc_none) %}
 BenchGC.setup!
+{% end %}
 Bench.run!
