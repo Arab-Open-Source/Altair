@@ -24,6 +24,7 @@ module Altair
       @limit : Int32?
       @offset : Int32?
       @lock_for_update = false
+      @on_primary = false
 
       # Iterates the records, running the query on first access.
       def each(& : T ->) : Nil
@@ -48,6 +49,7 @@ module Altair
         @limit = other.@limit if other.@limit
         @offset = other.@offset if other.@offset
         @lock_for_update = true if other.@lock_for_update
+        @on_primary = true if other.@on_primary
         other.@preloaders.each { |preloader| @preloaders << preloader }
         self
       end
@@ -73,20 +75,46 @@ module Altair
         self
       end
 
+      # Forces this relation, including its eager loaders, to read from the
+      # primary even when a replica is configured:
+      #
+      # ```
+      # Post.all.on_primary.to_a
+      # ```
+      def on_primary : self
+        unless @on_primary
+          @on_primary = true
+          @records = nil
+        end
+        self
+      end
+
       # Materializes the records, running the scheduled eager loads.
       def to_a : Array(T)
-        @records ||= begin
-          rows = [] of T
-          sql = select_sql_with_distinct + join_sql + clause_sql
+        @records ||= if @on_primary
+                       T.connection.with_primary { load_records }
+                     else
+                       load_records
+                     end
+      end
+
+      private def load_records : Array(T)
+        rows = [] of T
+        sql = select_sql_with_distinct + join_sql + clause_sql
+        begin
           T.connection.query(sql, values: @binds) do |rs|
             rs.each { rows << T.from_row(rs) }
           end
-          unless @preloaders.empty?
-            model_rows = rows.map(&.as(Altair::Record::Model))
-            @preloaders.each(&.call(model_rows))
-          end
-          rows
+        rescue DB::ConnectionLost
+          # The replica may have dropped after checkout. Its failure has
+          # already been recorded; retry this read once on the primary.
+          return T.connection.with_primary { load_records }
         end
+        unless @preloaders.empty?
+          model_rows = rows.map(&.as(Altair::Record::Model))
+          @preloaders.each(&.call(model_rows))
+        end
+        rows
       end
 
       # Adds an INNER JOIN for each association:

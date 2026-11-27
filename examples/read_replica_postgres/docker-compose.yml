@@ -1,0 +1,55 @@
+name: altair-read-replica
+
+services:
+  postgres-primary:
+    image: postgres:17-alpine
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - max_wal_senders=10
+      - -c
+      - max_replication_slots=10
+      - -c
+      - hot_standby=on
+    environment:
+      POSTGRES_USER: altair
+      POSTGRES_PASSWORD: altair
+      POSTGRES_DB: altair_demo
+    ports:
+      - "127.0.0.1:55440:5432"
+    volumes:
+      - primary_data:/var/lib/postgresql/data
+      - ./db/init-primary.sql:/docker-entrypoint-initdb.d/10-replicator.sql:ro
+      - ./db/init-primary.sh:/docker-entrypoint-initdb.d/20-replication-hba.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U altair -d altair_demo"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  postgres-replica:
+    image: postgres:17-alpine
+    entrypoint: ["/bin/sh", "/scripts/replica-entrypoint.sh"]
+    environment:
+      POSTGRES_USER: altair
+      POSTGRES_PASSWORD: altair
+      POSTGRES_DB: altair_demo
+    ports:
+      - "127.0.0.1:55441:5432"
+    volumes:
+      - replica_data:/var/lib/postgresql/data
+      - ./scripts/replica-entrypoint.sh:/scripts/replica-entrypoint.sh:ro
+    depends_on:
+      postgres-primary:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U altair -d altair_demo"]
+      interval: 2s
+      timeout: 2s
+      retries: 60
+
+volumes:
+  primary_data:
+  replica_data:

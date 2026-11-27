@@ -114,6 +114,37 @@ describe Altair::Record::Connection do
     end
   end
 
+  it "surfaces a pool timeout when every connection is checked out" do
+    options = DB::Pool::Options.new(
+      initial_pool_size: 1,
+      max_pool_size: 1,
+      max_idle_pool_size: 1,
+      checkout_timeout: 0.05
+    )
+    conn = Altair::Record::Connection.new(
+      Altair::Record::Adapters::SQLite3.instance,
+      "sqlite3://./spec/record/pool-timeout.db",
+      options,
+      5.seconds
+    )
+    begin
+      conn.exec("CREATE TABLE IF NOT EXISTS timeout_probe (id INTEGER PRIMARY KEY)")
+      held = conn.database.checkout
+      begin
+        expect_raises(DB::PoolTimeout) do
+          conn.query_one("SELECT count(*) FROM timeout_probe") { |rs| rs.read(Int64) }
+        end
+      ensure
+        conn.database.release(held)
+      end
+    ensure
+      conn.close
+      File.delete?("spec/record/pool-timeout.db")
+      File.delete?("spec/record/pool-timeout.db-wal")
+      File.delete?("spec/record/pool-timeout.db-shm")
+    end
+  end
+
   it "never interpolates values into SQL" do
     conn = spec_connection
     begin

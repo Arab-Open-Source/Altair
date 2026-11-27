@@ -106,7 +106,7 @@ module Altair
       # every fiber on every thread would otherwise contend on.
       @active_transactions = Atomic(Int32).new(0)
 
-      def initialize(@adapter : Adapter, url : String, pool_options : DB::Pool::Options, @query_timeout : Time::Span, @replica : DB::Database? = nil)
+      def initialize(@adapter : Adapter, url : String, pool_options : DB::Pool::Options, @query_timeout : Time::Span, @replica : DB::Database? = nil, @replica_retry_cooldown : Time::Span = 5.seconds)
         @database = @adapter.connect(url, pool_options)
       end
 
@@ -121,6 +121,21 @@ module Altair
       # keyed by fiber evicts finished request fibers without a cleanup
       # pass.
       @sticky_writes = Support::LRUCache(Fiber, Bool).new(1024)
+      @primary_reads = Support::LRUCache(Fiber, Int32).new(1024)
+      @primary_statements = Atomic(Int64).new(0_i64)
+      @replica_statements = Atomic(Int64).new(0_i64)
+      @replica_failovers = Atomic(Int64).new(0_i64)
+      @replica_state_lock = Mutex.new
+      @replica_retry_at : Time::Instant? = nil
+
+      # Per-target statement counters for observability.
+      def query_target_metrics : NamedTuple(primary: Int64, replica: Int64, failovers: Int64)
+        {
+          primary:   @primary_statements.get,
+          replica:   @replica_statements.get,
+          failovers: @replica_failovers.get,
+        }
+      end
 
       # Clears request-scoped read-routing state for the calling fiber.
       # Request handlers call this in their ensure block so a keep-alive
@@ -129,17 +144,136 @@ module Altair
         return unless @replica
 
         @sticky_writes.delete(Fiber.current)
+        @primary_reads.delete(Fiber.current)
       end
 
-      # The pool plain SELECT statements run against: the replica when one
-      # is configured and the calling fiber is neither inside a transaction
-      # nor pinned by an earlier write; the primary otherwise.
-      private def read_database : DB::Database
-        replica = @replica
-        return @database unless replica
-        return @database if @sticky_writes.get(Fiber.current)
+      # Forces every read performed by the block, including eager loaders,
+      # to use the primary. Nested blocks are reference-counted.
+      def with_primary(&block : -> U) : U forall U
+        fiber = Fiber.current
+        count = @primary_reads.get(fiber) || 0
+        @primary_reads.put(fiber, count + 1)
+        begin
+          block.call
+        ensure
+          if count.zero?
+            @primary_reads.delete(fiber)
+          else
+            @primary_reads.put(fiber, count)
+          end
+        end
+      end
 
-        replica
+      private def primary_read? : Bool
+        (@primary_reads.get(Fiber.current) || 0) > 0
+      end
+
+      private def replica_ready? : Bool
+        @replica_state_lock.synchronize do
+          retry_at = @replica_retry_at
+          retry_at.nil? || Time.instant >= retry_at
+        end
+      end
+
+      private def mark_replica_failure(error : Exception) : Nil
+        @replica_state_lock.synchronize do
+          @replica_retry_at = Time.instant + @replica_retry_cooldown
+        end
+        @replica_failovers.add(1_i64)
+        Log.for("altair.record.replica").warn do
+          "read replica unavailable (#{error.class}: #{error.message}); " \
+          "falling back to primary for #{@replica_retry_cooldown}"
+        end
+      end
+
+      private def mark_replica_success : Nil
+        recovered = @replica_state_lock.synchronize do
+          if @replica_retry_at
+            @replica_retry_at = nil
+            true
+          else
+            false
+          end
+        end
+        Log.for("altair.record.replica").info { "read replica recovered" } if recovered
+      end
+
+      # Selects the pool and target label for a read. Explicit primary reads
+      # bypass the replica; writes and pinned fibers also stay on the primary.
+      private def read_route(on_primary : Bool = false) : {DB::Database, QueryEvent::Target}
+        replica = @replica
+        if !on_primary && !primary_read? && replica && replica_ready? && !@sticky_writes.get(Fiber.current)
+          {replica, QueryEvent::Target::Replica}
+        else
+          {@database, QueryEvent::Target::Primary}
+        end
+      end
+
+      # Checks out the connection for a read and falls back to the primary
+      # when the replica cannot hand one out. The target returned reflects
+      # where the statement actually ran.
+      private def checkout_read(on_primary : Bool = false) : {DB::Connection, QueryEvent::Target}
+        database, target = read_route(on_primary)
+        return {@database.retry { @database.checkout }, QueryEvent::Target::Primary} if target.primary?
+
+        begin
+          connection = database.checkout
+          mark_replica_success
+          {connection, QueryEvent::Target::Replica}
+        rescue error : DB::Error | IO::Error
+          mark_replica_failure(error)
+          {@database.retry { @database.checkout }, QueryEvent::Target::Primary}
+        end
+      end
+
+      private def run_read(on_primary : Bool = false, &block : DB::Connection, QueryEvent::Target -> U) : U forall U
+        operation = -> {
+          connection, target = checkout_read(on_primary)
+          record_target(target)
+          begin
+            block.call(connection, target)
+          rescue error : DB::ConnectionLost
+            mark_replica_failure(error) if target.replica?
+            raise error
+          ensure
+            connection.release
+          end
+        }
+
+        if Altair::Record.checkout_hooks?
+          run_checkout { operation.call }
+        else
+          operation.call
+        end
+      end
+
+      private def run_primary(&block : DB::Connection -> U) : U forall U
+        operation = -> {
+          connection = @database.retry { @database.checkout }
+          record_target(QueryEvent::Target::Primary)
+          begin
+            block.call(connection)
+          ensure
+            connection.release
+          end
+        }
+
+        if Altair::Record.checkout_hooks?
+          run_checkout { operation.call }
+        else
+          operation.call
+        end
+      end
+
+      private def record_target(target : QueryEvent::Target) : Nil
+        return unless @replica
+
+        case target
+        when .replica?
+          @replica_statements.add(1_i64)
+        else
+          @primary_statements.add(1_i64)
+        end
       end
 
       # Whether plain SELECTs currently route to the replica. Exposed for
@@ -201,10 +335,13 @@ module Altair
             result
           end
         elsif conn = active_connection
+          record_target(QueryEvent::Target::Primary)
           conn.fetch_or_build_prepared_statement(sql).exec(*db_args, args: args)
         elsif Altair::Record.checkout_hooks?
+          record_target(QueryEvent::Target::Primary)
           run_checkout { @database.exec(sql, *db_args, args: args) }
         else
+          record_target(QueryEvent::Target::Primary)
           @database.exec(sql, *db_args, args: args)
         end
       end
@@ -213,9 +350,15 @@ module Altair
       # block. `values:` binds a variable-length collection, for
       # `IN (...)` clauses. Row-reading time is tracked as decode time in
       # the granular event, separate from the checkout wait.
-      def query(sql : String, *args, values : Enumerable? = nil, &block : DB::ResultSet ->) : Nil
+      def query(sql : String, *args, values : Enumerable? = nil, on_primary : Bool = false, &block : DB::ResultSet ->) : Nil
+        writing = false
+        if @replica
+          writing = QueryEvent::Operation.from_sql(sql) != QueryEvent::Operation::Query
+          @sticky_writes.put(Fiber.current, true) if writing
+        end
+
         if measure?
-          measured_statement(sql, QueryEvent::Operation.from_sql(sql)) do |conn, meter|
+          measured_statement(sql, QueryEvent::Operation.from_sql(sql), on_primary: on_primary) do |conn, meter|
             sql_started = Time.instant
             conn.query(sql, *args, args: values) do |rs|
               meter.sql = Time.instant - sql_started
@@ -223,26 +366,47 @@ module Altair
             end
           end
         elsif conn = active_connection
+          record_target(QueryEvent::Target::Primary)
           conn.fetch_or_build_prepared_statement(sql).query(*args, args: values) do |rs|
             block.call(rs)
           end
-        elsif Altair::Record.checkout_hooks?
-          run_checkout do
-            read_database.query(sql, *args, args: values) do |rs|
+        elsif @replica.nil?
+          if Altair::Record.checkout_hooks?
+            run_checkout do
+              @database.query(sql, *args, args: values) do |rs|
+                block.call(rs)
+              end
+            end
+          else
+            @database.query(sql, *args, args: values) do |rs|
+              block.call(rs)
+            end
+          end
+        elsif writing
+          run_primary do |checked|
+            checked.fetch_or_build_prepared_statement(sql).query(*args, args: values) do |rs|
               block.call(rs)
             end
           end
         else
-          read_database.query(sql, *args, args: values) do |rs|
-            block.call(rs)
+          run_read(on_primary) do |checked, _target|
+            checked.fetch_or_build_prepared_statement(sql).query(*args, args: values) do |rs|
+              block.call(rs)
+            end
           end
         end
       end
 
       # Runs a query expecting a single row, yielded to the block.
-      def query_one(sql : String, *args, &block : DB::ResultSet -> U) : U forall U
+      def query_one(sql : String, *args, on_primary : Bool = false, &block : DB::ResultSet -> U) : U forall U
+        writing = false
+        if @replica
+          writing = QueryEvent::Operation.from_sql(sql) != QueryEvent::Operation::Query
+          @sticky_writes.put(Fiber.current, true) if writing
+        end
+
         if measure?
-          measured_statement(sql, QueryEvent::Operation.from_sql(sql)) do |conn, meter|
+          measured_statement(sql, QueryEvent::Operation.from_sql(sql), on_primary: on_primary) do |conn, meter|
             sql_started = Time.instant
             conn.query_one(sql, *args) do |rs|
               meter.sql = Time.instant - sql_started
@@ -253,16 +417,42 @@ module Altair
             end
           end
         elsif conn = active_connection
+          record_target(QueryEvent::Target::Primary)
           conn.fetch_or_build_prepared_statement(sql).query(*args) do |rs|
             rs.move_next || raise DB::NoResultsError.new("No results")
             block.call(rs)
           end
-        elsif Altair::Record.checkout_hooks?
-          run_checkout do
-            read_database.query_one(sql, *args) { |rs| block.call(rs) }
+        elsif @replica.nil?
+          if Altair::Record.checkout_hooks?
+            run_checkout do
+              @database.query_one(sql, *args) { |rs| block.call(rs) }
+            end
+          else
+            @database.query_one(sql, *args) { |rs| block.call(rs) }
+          end
+        elsif writing
+          run_primary do |checked|
+            checked.fetch_or_build_prepared_statement(sql).query(*args) do |rs|
+              rs.move_next || raise DB::NoResultsError.new("No results")
+              block.call(rs)
+            end
           end
         else
-          read_database.query_one(sql, *args) { |rs| block.call(rs) }
+          begin
+            run_read(on_primary) do |checked, _target|
+              checked.fetch_or_build_prepared_statement(sql).query(*args) do |rs|
+                rs.move_next || raise DB::NoResultsError.new("No results")
+                block.call(rs)
+              end
+            end
+          rescue DB::ConnectionLost
+            run_primary do |checked|
+              checked.fetch_or_build_prepared_statement(sql).query(*args) do |rs|
+                rs.move_next || raise DB::NoResultsError.new("No results")
+                block.call(rs)
+              end
+            end
+          end
         end
       end
 
@@ -270,9 +460,9 @@ module Altair
       # Returns the block's result for the first row, or `nil` when there
       # are none. Accepts scalar `*args` plus an optional `values:` list for
       # IN (...) clauses.
-      def query_one?(sql : String, *args, values : Enumerable? = nil, &block : DB::ResultSet -> U) : U? forall U
+      def query_one?(sql : String, *args, values : Enumerable? = nil, on_primary : Bool = false, &block : DB::ResultSet -> U) : U? forall U
         found = nil
-        query(sql, *args, values: values) do |rs|
+        query(sql, *args, values: values, on_primary: on_primary) do |rs|
           if rs.move_next
             found = block.call(rs)
           end
@@ -425,48 +615,34 @@ module Altair
       private def measured_statement(
         sql : String,
         op : QueryEvent::Operation,
+        on_primary : Bool = false,
         &block : DB::Connection, QueryMeter -> U
       ) : U forall U
         meter = QueryMeter.new
         started = Time.instant
         success = true
         result = uninitialized U
-        # Reads route to the replica when one is configured; writes stay on
-        # the primary.
-        target = op == QueryEvent::Operation::Query ? read_database : @database
+        target_label = QueryEvent::Target::Primary
         begin
           if conn = active_connection
+            record_target(QueryEvent::Target::Primary)
             # The statement-specific runner records SQL and decode spans at
             # their exact boundaries. Wrapping the whole block here would
             # fold row decoding back into sql_time for transactions.
             result = block.call(conn, meter)
           else
             checkout_started = Time.instant
-            inner = ->(cn : DB::Connection) {
-              meter.checkout = Time.instant - checkout_started
-              result = block.call(cn, meter)
-              nil
-            }
-            callback = ->(run : Proc(DB::Connection, Nil)) {
-              target.retry do
-                checked = uninitialized DB::Connection
-                begin
-                  checked = target.checkout
-                rescue ex
-                  meter.checkout = Time.instant - checkout_started
-                  raise ex
-                end
-                begin
-                  run.call(checked)
-                ensure
-                  checked.release
-                end
+            if op == QueryEvent::Operation::Query
+              run_read(on_primary) do |checked, actual_target|
+                target_label = actual_target
+                meter.checkout = Time.instant - checkout_started
+                result = block.call(checked, meter)
               end
-            }
-            if Altair::Record.checkout_hooks?
-              run_checkout { callback.call(inner) }
             else
-              callback.call(inner)
+              run_primary do |checked|
+                meter.checkout = Time.instant - checkout_started
+                result = block.call(checked, meter)
+              end
             end
           end
         rescue ex
@@ -477,7 +653,7 @@ module Altair
           if Altair::Record.query_event_handlers?
             Altair::Record.notify_query_event(
               sql, @adapter.class.name, op,
-              meter.checkout, meter.sql, meter.decode, success
+              meter.checkout, meter.sql, meter.decode, success, target_label
             )
           end
           if Altair::Record.query_handlers?

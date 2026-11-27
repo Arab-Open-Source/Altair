@@ -1,0 +1,11 @@
+name: read_replica_postgres
+version: 0.1.0
+
+crystal: '>= 1.22.3'
+
+dependencies:
+  altair:
+    path: ../..
+  pg:
+    github: Arab-Open-Source/crystal-pg
+    commit: 09165422b8fcac84d4359340bd4c35f5ff541e31
