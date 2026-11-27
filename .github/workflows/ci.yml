@@ -47,9 +47,9 @@ jobs:
       - name: Install shards
         run: shards install
       - name: Format check
-        run: crystal tool format --check src spec examples
+        run: crystal tool format --check src spec examples bundle
       - name: Lint
-        run: crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
+        run: crystal run lib/ameba/bin/ameba.cr -- src spec examples bundle --format silent
       - name: Specs
         # A startup scheduler flake is tracked in issue #20. Retry only the
         # known signal/futex signatures; real failures and timeouts stop immediately.
@@ -96,6 +96,10 @@ jobs:
           retention-days: 7
       - name: Build the altair binary
         run: shards build altair
+      - name: Curated example compile check
+        run: scripts/check_examples.sh
+        env:
+          ALTAIR_SKIP_BUILD: "1"
       - name: PostgreSQL generated-app smoke
         run: scripts/postgres_release_smoke.sh
         env:
@@ -112,6 +116,30 @@ jobs:
             file=${entry##*:}
             (cd examples/$dir && shards install && crystal build $file --no-codegen)
           done
+
+  deployment-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Crystal
+        uses: crystal-lang/install-crystal@v1
+      - name: Install shards
+        run: shards install
+      - name: Build the altair binary
+        run: shards build altair
+      - name: SQLite generated deployment
+        run: scripts/deployment_smoke.sh sqlite
+        env:
+          ALTAIR_SKIP_BUILD: "1"
+      - name: PostgreSQL generated deployment
+        run: scripts/deployment_smoke.sh postgresql
+        env:
+          ALTAIR_SKIP_BUILD: "1"
+      - name: API generated deployment
+        run: scripts/deployment_smoke.sh api
+        env:
+          ALTAIR_SKIP_BUILD: "1"
 
   test-record-random:
     runs-on: ubuntu-latest

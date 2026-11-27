@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Generated Docker/Compose deployment** — `altair new` writes a multi-stage
+  `Dockerfile` (Crystal 1.22.3, static build), `.dockerignore` and `compose.yml`
+  for SQLite, PostgreSQL and `--api`. The runtime image runs as a non-root
+  `app` user, declares a `/health` HEALTHCHECK, precompiles assets, and keeps
+  only the compiled server and launcher, public assets/config and
+  `db/migrations`. Database files live in named volumes (`pg_data`, or
+  `sqlite_data` at `/app/db/data`); migrations remain explicit and secrets
+  are required through Compose `${VAR:?...}` variables.
+- **Offline docs and examples** — a curated `bundle/` of guides and starter
+  programs ships in the repository and in the release source archive.
+  `altair docs [<topic>]` (with `--list` / `--open` / `--refresh`) and
+  `altair examples [<name>] (--copy NAME|all)` read it without a network
+  connection; `altair new --with-examples` copies a curated set into
+  `examples/altair/`. Generated projects record provenance in
+  `.altair/bundle.yml` and cache copies under `.altair/cache/`. Nothing is
+  written into `lib/`.
+- **Deployment smoke in CI and releases** — `scripts/deployment_smoke.sh
+  sqlite|postgresql|api` builds the generated project, applies a real
+  migration (and a no-op second one), checks health and an HTTP endpoint,
+  verifies a non-root uid, scans the runtime image, compares it to the
+  builder, and tests restart and volume persistence. CI and release
+  workflows run the same smoke; `scripts/check_examples.sh` compiles the
+  bundled starters against a generated project.
+
+### Fixed
+
+- **Runtime image kept migrations out of reach** — `db/migrations` now stays
+  in the image beside the compiled launcher, while SQLite database files are
+  mounted at `/app/db/data`; a rebuilt image can therefore apply new
+  migrations without hiding the filenames the runner needs.
+
+## [0.5.0] - 2026-11-27
+
 ### Changed
 
 - **PostgreSQL concurrency fixes now ship through pinned dependencies.**

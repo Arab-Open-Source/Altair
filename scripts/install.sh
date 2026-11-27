@@ -179,6 +179,9 @@ if [ "$FRAMEWORK" -eq 1 ]; then
   echo "Framework source installed at $framework_dir"
   echo "Offline projects can reference it:"
   echo "  altair new myapp --framework-path \"$framework_dir\""
+  echo "Offline guides and starter examples are installed in its bundle/:"
+  echo "  altair docs deployment"
+  echo "  altair examples --copy hello"
 fi
 
 echo "Run 'altair' from any directory."

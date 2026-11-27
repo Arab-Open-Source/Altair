@@ -25,7 +25,7 @@ module Altair
         # `/tmp/my_app`; only its basename becomes the application name.
         # Returns the process exit code.
         def self.run(args : Array(String)) : Int32
-          framework_path, api, database, remaining = parse_args(args)
+          framework_path, api, database, with_examples, remaining = parse_args(args)
           framework_path = resolve_framework_path(framework_path)
 
           name = remaining.first?
@@ -37,17 +37,18 @@ module Altair
           end
 
           begin
-            New.new(name, framework_path, api, database).generate
+            New.new(name, framework_path, api, database, with_examples).generate
           rescue ex : Altair::Error
             abort ex.message || ex.to_s
           end
           0
         end
 
-        private def self.parse_args(args : Array(String)) : {String?, Bool, Symbol, Array(String)}
+        private def self.parse_args(args : Array(String)) : {String?, Bool, Symbol, Bool, Array(String)}
           framework_path = nil
           api = false
           database : Symbol? = nil
+          with_examples = false
           remaining = [] of String
           index = 0
           while index < args.size
@@ -60,6 +61,9 @@ module Altair
               index += 1
             elsif arg == "--api"
               api = true
+              index += 1
+            elsif arg == "--with-examples"
+              with_examples = true
               index += 1
             elsif arg == "-d" || arg == "--database"
               value = args[index + 1]?
@@ -78,7 +82,7 @@ module Altair
             end
           end
           database ||= normalize_database(ENV["ALTAIR_DATABASE"]? || "sqlite")
-          {framework_path, api, database, remaining}
+          {framework_path, api, database, with_examples, remaining}
         end
 
         private def self.normalize_database(raw : String) : Symbol
@@ -103,6 +107,30 @@ module Altair
           end
         end
 
+        # The embedded reference text for a topic, used by `altair docs`
+        # when no curated bundle is installed. Nil for unknown topics.
+        # ameba:disable Metrics/CyclomaticComplexity
+        def reference_doc(topic : String) : String?
+          case topic
+          when "routing"       then ref_routing
+          when "controllers"   then ref_controllers
+          when "views"         then ref_views
+          when "record"        then ref_record
+          when "auth"          then ref_auth
+          when "jobs"          then ref_jobs
+          when "assets"        then ref_assets
+          when "testing"       then ref_testing
+          when "configuration" then ref_config
+          when "middleware"    then ref_middleware
+          when "cli"           then ref_cli
+          when "cache"         then ref_cache
+          when "storage"       then ref_storage
+          when "cable"         then ref_cable
+          when "redis"         then ref_redis
+          when "gotchas"       then ref_gotchas
+          end
+        end
+
         # The raw argument as passed to `new`, e.g. `a/b` or `/tmp/my_app`.
         getter raw_name : String
 
@@ -117,7 +145,10 @@ module Altair
         # Whether this project exposes only JSON endpoints.
         getter? api : Bool
 
-        def initialize(raw_name : String, @framework_path : String? = nil, @api : Bool = false, @database : Symbol = :sqlite)
+        # Whether curated starter examples are copied into the project.
+        getter? with_examples : Bool
+
+        def initialize(raw_name : String, @framework_path : String? = nil, @api : Bool = false, @database : Symbol = :sqlite, @with_examples : Bool = false)
           unless {:sqlite, :postgresql}.includes?(@database)
             raise Altair::Error.new("Unknown database adapter `#{@database}` — supported: sqlite, postgresql")
           end
@@ -159,12 +190,26 @@ module Altair
         # Writes the whole project. Returns the project directory.
         def generate : Path
           raise Altair::Error.new("Directory #{project_dir} already exists") if exists?
+
+          bundle = @framework_path ? Path.new(@framework_path.not_nil!).join("bundle") : nil
+          bundle = nil unless bundle && Bundle.valid_source?(bundle.not_nil!)
+          if with_examples? && bundle.nil? && Bundle.source_root.nil?
+            raise Altair::Error.new("--with-examples needs an installed framework bundle — pass --framework-path DIR or set ALTAIR_BUNDLE_PATH")
+          end
+
           Dir.mkdir_p(project_dir.to_s)
 
           generated.each do |relative, content|
             write_file(project_dir.join(relative), content)
           end
           make_executable(project_dir.join("bin/altair"))
+
+          if with_examples?
+            unless Bundle.refresh(project_dir, bundle)
+              raise Altair::Error.new("--with-examples needs an installed framework bundle — pass --framework-path DIR or set ALTAIR_BUNDLE_PATH")
+            end
+            Bundle.copy_examples(project_dir, Bundle.examples(project_dir), bundle)
+          end
 
           puts post_create_message
           project_dir
@@ -178,7 +223,17 @@ module Altair
 
             Created #{project_dir} — navigate in and run:
               shards install      # fetch the Altair framework (or re-run altair new with --framework-path for an offline copy)
-              bin/altair server
+              bin/altair db:migrate
+              bin/altair server   # http://localhost:3000 (GET /health, GET /metrics)
+
+            Deploy with Docker:
+              docker compose build
+              docker compose run --rm web ./bin/altair db:migrate
+              docker compose up -d
+              curl http://localhost:3000/health
+
+            Read offline guides with `altair docs`; list starter programs with
+            `altair examples`.#{" Copied into examples/altair/." if with_examples?}
             TXT
         end
 
@@ -188,6 +243,12 @@ module Altair
           unless {{ flag?(:win32) }}
             File.chmod(path, 0o755)
           end
+        end
+
+        # The exact file list for this project mode, in generation order.
+        # Used by generator specs to pin the project contract.
+        def generated_paths : Array(String)
+          generated.map(&.[0])
         end
 
         # Every generated file's relative path and exact contents.
@@ -210,6 +271,10 @@ module Altair
             {"db/migrations/.gitkeep", ""},
             {"db/seeds.cr", seeds},
             {"public/css/app.css", app_css},
+            {"assets/css/app.css", app_css},
+            {"Dockerfile", dockerfile},
+            {".dockerignore", dockerignore},
+            {"compose.yml", compose_yml},
             {".gitignore", regex_gitignore},
             {"README.md", readme},
             {"AGENTS.md", agents_md},
@@ -230,7 +295,9 @@ module Altair
             {".opencode/skills/altair/reference/storage.md", ref_storage},
             {".opencode/skills/altair/reference/cable.md", ref_cable},
             {".opencode/skills/altair/reference/redis.md", ref_redis},
-          ].reject { |path, _| api? && (path.starts_with?("src/app/views/") || path.starts_with?("public/") || path == ".opencode/skills/altair/reference/views.md" || path == ".opencode/skills/altair/reference/assets.md") }
+            {".opencode/skills/altair/reference/deployment.md", ref_deployment},
+            {".opencode/skills/altair/reference/observability.md", ref_observability},
+          ].reject { |path, _| api? && (path.starts_with?("src/app/views/") || path.starts_with?("public/") || path.starts_with?("assets/") || path == ".opencode/skills/altair/reference/views.md" || path == ".opencode/skills/altair/reference/assets.md") }
         end
 
         # The shard metadata. `framework_path` pins a local checkout;
@@ -360,6 +427,7 @@ module Altair
             io << "class #{app_class} < Altair::Application\n"
             io << "  config.name = \"#{app_class}\"\n"
             io << "  config.port = 3000\n"
+            io << "  config.observability = true\n"
             io << "  config.cors.origins = [\"*\"]\n" if api?
             io << "end\n"
             io << "\n"
@@ -414,9 +482,20 @@ module Altair
           String.build do |io|
             io << "# Copy to `.env` and edit — `.env` is gitignored.\n"
             io << "# Leave unset to use the defaults in `config/database.yml`.\n"
-            io << "# DATABASE_URL=postgres://user:pass@localhost/#{@name}_production\n"
+            if @database == :postgresql
+              io << "# DATABASE_URL=postgres://user:pass@localhost/#{@name}_production\n"
+            else
+              io << "# DATABASE_URL=sqlite3://./db/#{@name}_production.db\n"
+            end
             io << "# SECRET_KEY_BASE=<generate with: openssl rand -hex 64>\n"
+            io << "# ALTAIR_ENV=production\n"
             io << "# PORT=3000\n"
+            io << "# HOST_PORT=3000\n"
+            if @database == :postgresql
+              io << "# POSTGRES_USER=app\n"
+              io << "# POSTGRES_PASSWORD=<inject from your secret manager>\n"
+              io << "# POSTGRES_DB=#{@name}_production\n"
+            end
           end
         end
 
@@ -498,33 +577,203 @@ module Altair
           end
         end
 
-        private def regex_gitignore : String
-          "/lib/\n/.altair/\n/tmp/\n/db/*.db\n/.env\n"
+        # A multi-stage image: Crystal and build dependencies stay in the
+        # builder, the runtime carries only the compiled server, the compiled
+        # `bin/altair` launcher, assets, config and migrations. The launcher
+        # is built from the same source `bin/altair.cr` developers use, so
+        # `docker compose run --rm web ./bin/altair db:migrate` runs exactly
+        # the project's migration command. Migrations never run at boot.
+        private def dockerfile : String
+          static_packages = " sqlite-static yaml-static"
+          pg_packages = @database == :postgresql ? " postgresql-dev" : ""
+          assets_copy = api? ? "" : "COPY assets ./assets\nCOPY public ./public\n"
+          precompile = api? ? "" : "\n# Fingerprint assets at build time; plain copies remain available for dev.\nRUN /tmp/altair assets:precompile\n"
+          runtime_public = api? ? "" : "COPY --from=builder /app/public ./public\n"
+          String.build do |io|
+            io << "# Generated by Altair " << Altair::VERSION << " — do not edit.\n"
+            io << "FROM crystallang/crystal:1.22.3-alpine AS builder\n"
+            io << "RUN apk add --no-cache sqlite-dev yaml-dev openssl-dev" << static_packages << pg_packages << "\n"
+            io << "WORKDIR /app\n"
+            io << "COPY shard.yml ./\n"
+            io << "RUN shards install\n"
+            io << "COPY src ./src\nCOPY db ./db\nCOPY bin ./bin\nCOPY config ./config\n"
+            io << assets_copy
+            io << "RUN crystal build src/#{@name}.cr -o /tmp/#{@name} --release --static --no-debug \\\n"
+            io << " && crystal build bin/altair.cr -o /tmp/altair --release --static --no-debug\n"
+            io << precompile
+            io << "\nFROM alpine:3.21 AS runtime\n"
+            io << "RUN apk add --no-cache ca-certificates tzdata wget \\\n"
+            io << " && addgroup -S app && adduser -S -G app app\n"
+            io << "WORKDIR /app\n"
+            io << "COPY --from=builder /tmp/#{@name} ./bin/#{@name}\n"
+            io << "COPY --from=builder /tmp/altair ./bin/altair\n"
+            io << runtime_public
+            io << "COPY config/database.yml ./config/database.yml\n"
+            io << "COPY db/migrations ./db/migrations\n"
+            io << "RUN mkdir -p db/migrations db/data public/uploads && chown -R app:app /app\n"
+            io << "USER app\n"
+            io << "ENV ALTAIR_ENV=production PORT=3000\n"
+            io << "EXPOSE 3000\n"
+            io << "HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \\\n"
+            io << " CMD wget -q -O /dev/null http://127.0.0.1:3000/health || exit 1\n"
+            io << "CMD [\"./bin/#{@name}\"]\n"
+          end
         end
 
-        # The project readme, pointing at the two commands.
+        # Keeps secrets, local databases, build caches and framework sources
+        # out of the Docker build context entirely.
+        private def dockerignore : String
+          <<-TXT
+          .git
+          .env
+          .env.*
+          !.env.example
+          lib/
+          bin/*
+          !bin/altair.cr
+          spec/
+          tmp/
+          log/
+          *.log
+          db/*.db
+          db/*.db-wal
+          db/*.db-shm
+          db/data/
+          public/assets/
+          .altair/cache/
+          TXT
+        end
+
+        # Compose wiring for the generated Dockerfile. The database service
+        # is healthy before the web service starts, but schema migrations are
+        # deliberately left to an explicit `bin/altair db:migrate` command.
+        private def compose_yml : String
+          if @database == :postgresql
+            <<-YML
+            services:
+              db:
+                image: postgres:16-alpine
+                environment:
+                  POSTGRES_USER: ${POSTGRES_USER:-app}
+                  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+                  POSTGRES_DB: ${POSTGRES_DB:-#{@name}_production}
+                volumes:
+                  - pg_data:/var/lib/postgresql/data
+                healthcheck:
+                  test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+                  interval: 5s
+                  timeout: 3s
+                  retries: 10
+
+              web:
+                build:
+                  context: .
+                  dockerfile: Dockerfile
+                environment:
+                  ALTAIR_ENV: production
+                  PORT: 3000
+                  DATABASE_URL: ${DATABASE_URL:-postgres://app:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/#{@name}_production}
+                  SECRET_KEY_BASE: ${SECRET_KEY_BASE:?set SECRET_KEY_BASE}
+                ports:
+                  - "${HOST_PORT:-3000}:3000"
+                depends_on:
+                  db:
+                    condition: service_healthy
+
+            volumes:
+              pg_data:
+            YML
+          else
+            <<-YML
+            services:
+              web:
+                build:
+                  context: .
+                  dockerfile: Dockerfile
+                environment:
+                  ALTAIR_ENV: production
+                  PORT: 3000
+                  DATABASE_URL: ${DATABASE_URL:-sqlite3://./db/data/#{@name}_production.db}
+                  SECRET_KEY_BASE: ${SECRET_KEY_BASE:?set SECRET_KEY_BASE}
+                ports:
+                  - "${HOST_PORT:-3000}:3000"
+                volumes:
+                  # WAL sidecars live beside the database; keep all three in
+                  # this one volume and run a single writer container. The
+                  # image keeps db/migrations visible beside the volume.
+                  - sqlite_data:/app/db/data
+
+            volumes:
+              sqlite_data:
+            YML
+          end
+        end
+
+        private def regex_gitignore : String
+          "/lib/\n/.altair/cache/\n/tmp/\n/db/*.db\n/db/*.db-wal\n/db/*.db-shm\n/public/assets/\n/.env\n"
+        end
+
+        # The project readme, including the deployment contract.
         private def readme : String
+          db = @database == :postgresql ? "PostgreSQL" : "SQLite"
           String.build do |io|
-            io << "# #{app_class}\n"
-            io << "\n"
-            io << "A new Altair application.\n"
-            io << "\n"
-            io << "```\n"
-            io << "shards install\n"
-            io << "bin/altair server\n"
-            io << "```\n"
-            io << "\n"
-            io << "then open http://localhost:3000.\n"
-            io << "\n"
-            io << "## Tasks\n"
-            io << "\n"
+            io << "# #{app_class}\n\n"
+            io << "A new Altair application (#{db}#{api? ? ", API mode" : ""}). Requires Crystal 1.22.3 or newer.\n\n"
+            io << "```\nshards install\nbin/altair db:migrate\nbin/altair server\n```\n\n"
+            io << "Open http://localhost:3000; `GET /health` and `GET /metrics` are enabled.\n\n"
+            io << "## Tasks\n\n"
             io << "```\n"
             io << "bin/altair routes        # print the route table\n"
             io << "bin/altair db:create     # create databases from database.yml (db:drop to remove)\n"
             io << "bin/altair db:migrate    # run migrations\n"
-            io << "bin/altair db:seed      # run db/seeds.cr\n"
+            io << "bin/altair db:rollback   # revert the last migration\n"
+            io << "bin/altair db:seed       # run db/seeds.cr\n"
             io << "bin/altair g scaffold Post title:string\n"
+            io << "bin/altair assets:precompile\n"
+            io << "bin/altair jobs:work | jobs:stats\n"
+            io << "```\n\n"
+            io << "## Deploy\n\n"
+            io << "The generated `Dockerfile` is multi-stage: Crystal 1.22.3 builds a static\n"
+            io << "binary, and the runtime image runs as a non-root user with a `/health`\n"
+            io << "healthcheck. Secrets, `.git`, `lib/`, `spec/` and local databases are\n"
+            io << "excluded by `.dockerignore` and never copied into the final image.\n\n"
             io << "```\n"
+            io << "docker compose build\n"
+            io << "docker compose run --rm web ./bin/altair db:migrate\n"
+            io << "docker compose up -d\n"
+            io << "curl http://localhost:3000/health\n"
+            io << "```\n\n"
+            io << "Migrations are never automatic: schema changes are rolled out deliberately,\n"
+            io << "and rollback (`bin/altair db:rollback`) is a maintenance operation. The\n"
+            io << "generated Compose setup runs one web container; rolling or zero-downtime\n"
+            io << "deploys need an orchestrator and a migration plan. For safe upgrades,\n"
+            io << "ship additive migrations first (nullable columns, new tables), deploy the\n"
+            io << "new binary, then remove old columns in a later release. Configure\n"
+            io << "`POSTGRES_PASSWORD` and `SECRET_KEY_BASE` from your secret manager; no real\n"
+            io << "credentials live in the repository or Compose file.\n"
+            if @database == :postgresql
+              io << "PostgreSQL data lives in the `pg_data` volume — take `pg_dump` backups\n"
+              io << "before migrations and rehearse restores separately.\n\n"
+            else
+              io << "SQLite data lives in the `sqlite_data` volume at `/app/db/data`; the\n"
+              io << "image keeps `db/migrations` beside it so rebuilt images apply new\n"
+              io << "migrations. WAL mode writes `*.db-wal` and `*.db-shm` beside the\n"
+              io << "database, so keep all three in the volume and use a single writer\n"
+              io << "container.\n\n"
+            end
+            io << "See `altair docs deployment` and `altair docs observability` for guides.\n\n"
+            io << "## Offline docs and examples\n\n"
+            io << "`altair docs` prints curated guides with no network access; `altair docs\n"
+            io << "record associations` looks up a topic. `altair examples` lists starter\n"
+            if with_examples?
+              io << "programs; this project already has copies under `examples/altair/`.\n"
+            else
+              io << "programs and `altair examples --copy hello` copies one into\n"
+              io << "`examples/altair/`. Both commands read the framework bundle installed\n"
+              io << "with the CLI.\n"
+            end
+            io << "Project provenance is recorded in `.altair/bundle.yml`; run\n"
+            io << "`altair docs --refresh` after upgrading Altair.\n"
           end
         end
 
@@ -705,6 +954,26 @@ module Altair
           Altair::Test.transactional { Post.create(title: "ephemeral") } # rolled back
           ```
 
+          ## Deployment
+
+          `Dockerfile` (multi-stage, Crystal 1.22.3, static, non-root, `/health`
+          healthcheck), `.dockerignore` and `compose.yml` are generated.
+          Build with `docker compose build`, apply migrations explicitly with
+          `docker compose run --rm web ./bin/altair db:migrate`, then start
+          with `docker compose up -d`. Migrations never run at container boot.
+          Migration files stay in the image at `db/migrations`; database data
+          lives outside the image (named volumes). Secrets come from the
+          environment; `.env`, `lib/`, `spec/` and local databases stay out of
+          images.
+
+          ## Offline docs and examples
+
+          `altair docs` / `altair docs <topic>` print curated guides offline;
+          `altair examples` lists starter programs and `--copy` places them in
+          `examples/altair/`. Copied examples use this project's `shard.yml`
+          and never introduce a second Altair dependency. `.altair/bundle.yml`
+          records provenance; `altair docs --refresh` updates it after upgrade.
+
           ## Gotchas
 
           - Every value is a bind param — never interpolate into SQL.
@@ -758,6 +1027,8 @@ module Altair
           | Server | `bin/altair server` |
           | Assets | `bin/altair assets:precompile` |
           | Jobs | `bin/altair jobs:work` / `jobs:stats` |
+          | Docs | `altair docs [<topic>]` (offline guides) |
+          | Examples | `altair examples [--copy NAME]` |
 
           ## Reference index — read the file matching your task
 
@@ -772,6 +1043,8 @@ module Altair
           - `reference/config.md` — database.yml, .env, environments
           - `reference/middleware.md` — stack, factories, security headers
           - `reference/cli.md` — all generators and project commands
+          - `reference/deployment.md` — Docker, Compose, migrations, secrets
+          - `reference/observability.md` — /health, /metrics, logs, read replicas
           - `reference/gotchas.md` — pitfalls that cost real debugging time
 
           ## 60-second app
@@ -1149,7 +1422,9 @@ module Altair
           # CLI — Altair
 
           ```bash
-          altair new blog [-d sqlite|postgresql] [--framework-path DIR]   # scaffold (ALTAIR_PATH, ALTAIR_DATABASE env too)
+          altair new blog [-d sqlite|postgresql] [--api] [--with-examples] [--framework-path DIR]
+          altair docs [<topic> ...] [--list] [--open] [--refresh]  # offline guides
+          altair examples [<name>] [--copy NAME|all]              # starter programs
           altair g model Post title:string
           altair g migration CreatePosts title:string
           altair g controller Posts
@@ -1160,9 +1435,53 @@ module Altair
           bin/altair server | routes | db:migrate | db:rollback | db:create | db:drop | db:seed | assets:precompile | jobs:work | jobs:stats
           ```
 
-          `new` prints `shards install` reminder. Standalone `altair` auto-forwards app-context commands by walking up to `bin/altair.cr`.
+          `new` prints `shards install` and deployment reminders. Standalone
+          `altair` auto-forwards app-context commands by walking up to
+          `bin/altair.cr`. `docs` and `examples` work offline from the
+          installed bundle; `--with-examples` copies into `examples/altair/`.
 
           The `jobs` table and `assets` manifest are lazy — no extra migration needed.
+          MD
+        end
+
+        private def ref_deployment : String
+          <<-MD
+          # Deployment — Altair
+
+          Generated files: `Dockerfile`, `.dockerignore`, `compose.yml`.
+
+          ```bash
+          docker compose build
+          docker compose run --rm web ./bin/altair db:migrate
+          docker compose up -d
+          curl http://localhost:3000/health
+          ```
+
+          Builder is Crystal 1.22.3 (Alpine, static linking). Runtime is Alpine
+          with a non-root `app` user and a `/health` healthcheck. Only the
+          compiled server, compiled `bin/altair` launcher, config, public
+          assets and `db/migrations` are copied. `.env`, `.git`, `lib/`,
+          `spec/`, local SQLite files and caches are excluded. API projects
+          have no view or asset stages. Migrations are explicit and never run
+          at boot; `db:rollback` reverts one step. Secrets use Compose
+          `${VAR:?...}` requirements, never defaults.
+          MD
+        end
+
+        private def ref_observability : String
+          <<-MD
+          # Observability — Altair
+
+          Generated projects set `config.observability = true`:
+          `GET /health` and `GET /metrics` (Prometheus text, including
+          database target counters). `config.structured_logs` switches request
+          logs to JSON. `X-Request-Id` is echoed back.
+
+          Read replicas: `config.db_replica_url` routes clean SELECTs to the
+          replica; writes/transactions and `Relation#on_primary` use the
+          primary. `QueryEvent#target` is `:primary` or `:replica`. Failures
+          enter a bounded cooldown with recovery logging; `INSERT ... RETURNING`
+          is pinned to the primary. See `altair docs read_replicas`.
           MD
         end
 

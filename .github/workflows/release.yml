@@ -87,7 +87,7 @@ jobs:
 
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     services:
       postgres:
         image: postgres:16-alpine
@@ -114,6 +114,18 @@ jobs:
         env:
           ALTAIR_SKIP_BUILD: "1"
           ALTAIR_TEST_PG_URL: postgres://postgres:postgres@localhost:5432/altair_test
+      - name: SQLite generated deployment
+        run: scripts/deployment_smoke.sh sqlite
+        env:
+          ALTAIR_SKIP_BUILD: "1"
+      - name: PostgreSQL generated deployment
+        run: scripts/deployment_smoke.sh postgresql
+        env:
+          ALTAIR_SKIP_BUILD: "1"
+      - name: API generated deployment
+        run: scripts/deployment_smoke.sh api
+        env:
+          ALTAIR_SKIP_BUILD: "1"
 
   release:
     needs: [build, smoke]
@@ -136,6 +148,23 @@ jobs:
           fi
           echo "version parity $tag OK."
 
+      - name: Guard bundle version parity
+        shell: bash
+        run: |
+          shard="$(grep '^version:' shard.yml | awk '{print $2}')"
+          version="$(sed -n 's/.*VERSION = "\([^"]*\)".*/\1/p' src/altair/core/version.cr)"
+          bundle="$(sed -n 's/^framework: *//p' bundle/bundle.yml)"
+          revision="$(sed -n 's/^revision: *//p' bundle/bundle.yml)"
+          if [ -z "$bundle" ] || [ -z "$revision" ]; then
+            echo "bundle/bundle.yml is missing framework or revision" >&2
+            exit 1
+          fi
+          if [ "$bundle" != "$shard" ] || [ "$bundle" != "$version" ]; then
+            echo "bundle parity failed: bundle $bundle vs shard.yml $shard vs version.cr $version" >&2
+            exit 1
+          fi
+          echo "bundle parity $bundle (revision $revision) OK."
+
       - name: Collect binaries, installers and checksums
         shell: bash
         run: |
@@ -148,13 +177,17 @@ jobs:
 
           # Framework source archives: the offline path for installed users
           # (issue #4). Installers fetch these with --framework / -Framework
-          # and unpack them into ~/.altair/framework/<version>/. Deliberately
-          # excludes lib/, spec/, docs/, examples/ and CI — only what a
-          # project's `path:` dependency needs to compile.
+          # and unpack them into ~/.altair/framework/<version>/. The curated
+          # docs/examples `bundle/` is included at the archive root so
+          # `altair docs` and `altair examples` work offline from that
+          # location. lib/, spec/, full docs/ and CI remain excluded: only
+          # what a project's `path:` dependency needs to compile, plus the
+          # small curated bundle.
           src_dir="altair-src-${{ github.ref_name }}"
           mkdir -p "$src_dir"
           cp shard.yml README.md LICENSE CONTRIBUTING.md VENDORED_DRIVERS.md "$src_dir/"
           cp -r src "$src_dir/src"
+          cp -r bundle "$src_dir/bundle"
           tar -czf "dist/${src_dir}.tar.gz" "$src_dir"
           zip -qr "dist/${src_dir}.zip" "$src_dir"
           rm -rf "$src_dir"

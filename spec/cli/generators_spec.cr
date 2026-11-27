@@ -370,6 +370,107 @@ module Altair::CLI
       end
     end
 
+    it "generates a Docker and Compose deployment contract" do
+      in_tempdir do
+        Generators::New.new("blog", "/tmp/fake-framework").generate
+        docker = File.read("blog/Dockerfile")
+        docker.should contain "FROM crystallang/crystal:1.22.3-alpine AS builder"
+        docker.should contain "--release --static --no-debug"
+        docker.should contain "sqlite-static yaml-static"
+        docker.should contain "USER app"
+        docker.should contain "HEALTHCHECK"
+        docker.should contain "http://127.0.0.1:3000/health"
+        docker.should contain "CMD [\"./bin/blog\"]"
+        docker.should contain "COPY db/migrations ./db/migrations"
+        docker.should_not contain "db:migrate"
+        ignore = File.read("blog/.dockerignore")
+        %w[.git .env lib/ bin/* spec/ db/*.db public/assets/].each do |pattern|
+          ignore.should contain pattern
+        end
+        ignore.should contain "!bin/altair.cr"
+        compose = File.read("blog/compose.yml")
+        compose.should contain "sqlite_data:/app/db/data"
+        compose.should contain "DATABASE_URL: ${DATABASE_URL:-sqlite3://./db/data/blog_production.db}"
+        compose.should contain "SECRET_KEY_BASE: ${SECRET_KEY_BASE:?set SECRET_KEY_BASE}"
+        File.read("blog/src/config/application.cr").should contain "config.observability = true"
+        env = File.read("blog/.env.example")
+        env.should contain "ALTAIR_ENV=production"
+        env.should contain "HOST_PORT=3000"
+        env.should_not contain "postgres:postgres"
+      end
+    end
+
+    it "generates a PostgreSQL image and a healthy database service" do
+      in_tempdir do
+        Generators::New.new("pg_blog", "/tmp/fake-framework", false, :postgresql).generate
+        docker = File.read("pg_blog/Dockerfile")
+        docker.should contain "postgresql-dev"
+        docker.should contain "sqlite-static yaml-static"
+        compose = File.read("pg_blog/compose.yml")
+        compose.should contain "image: postgres:16-alpine"
+        compose.should contain "pg_data:/var/lib/postgresql/data"
+        compose.should contain "condition: service_healthy"
+        compose.should contain "POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}"
+        compose.should_not contain "POSTGRES_PASSWORD: postgres"
+      end
+    end
+
+    it "omits views and asset stages in API mode" do
+      in_tempdir do
+        generator = Generators::New.new("api_blog", "/tmp/fake-framework", true)
+        paths = generator.generated_paths
+        paths.should_not contain "public/css/app.css"
+        paths.should_not contain "assets/css/app.css"
+        generator.generate
+        File.exists?("api_blog/src/app/views").should be_false
+        docker = File.read("api_blog/Dockerfile")
+        docker.should_not contain "assets:precompile"
+        docker.should_not contain "COPY --from=builder /app/public"
+        File.read("api_blog/compose.yml").should contain "web:"
+      end
+    end
+
+    it "copies the curated examples and a bundle manifest with --with-examples" do
+      in_tempdir do
+        framework = Path[__DIR__].parent.parent
+        Generators::New.new("with_examples", framework.to_s, false, :sqlite, true).generate
+        %w[hello json_api cache].each do |name|
+          File.exists?("with_examples/examples/altair/#{name}/app.cr").should be_true
+          File.exists?("with_examples/examples/altair/#{name}/README.md").should be_true
+          File.exists?("with_examples/examples/altair/#{name}/shard.yml").should be_false
+        end
+        manifest = File.read("with_examples/.altair/bundle.yml")
+        manifest.should contain "framework: #{Altair::VERSION}"
+        manifest.should contain "revision: #{Altair::CLI::Bundle::REVISION}"
+        manifest.should contain "  - hello"
+        File.exists?("with_examples/.altair/cache/docs/deployment.md").should be_true
+        File.read("with_examples/README.md").should contain "examples/altair/"
+      end
+    end
+
+    it "writes deterministic files for the same arguments" do
+      first_root = Path.new(Dir.tempdir, "altair_generator_first_#{Random.rand(1_000_000)}")
+      second_root = Path.new(Dir.tempdir, "altair_generator_second_#{Random.rand(1_000_000)}")
+      FileUtils.mkdir_p(first_root)
+      FileUtils.mkdir_p(second_root)
+      begin
+        first = Generators::New.new("blog", "/tmp/fake-framework")
+        second = Generators::New.new("blog", "/tmp/fake-framework")
+        first.generated_paths.should eq(second.generated_paths)
+        Dir.cd(first_root.to_s) { first.generate }
+        Dir.cd(second_root.to_s) { second.generate }
+        first.generated_paths.each do |relative|
+          first_file = first_root.join("blog", relative)
+          second_file = second_root.join("blog", relative)
+          File.exists?(second_file.to_s).should be_true
+          File.read(first_file.to_s).should eq(File.read(second_file.to_s))
+        end
+      ensure
+        FileUtils.rm_rf(first_root.to_s)
+        FileUtils.rm_rf(second_root.to_s)
+      end
+    end
+
     it "embeds a comprehensive agent skill into every new project" do
       in_tempdir do
         Generators::New.new("blog", "/tmp/fake-framework").generate
