@@ -7,9 +7,17 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     services:
       redis:
         image: redis:7-alpine
@@ -38,33 +46,63 @@ jobs:
         uses: crystal-lang/install-crystal@v1
       - name: Install shards
         run: shards install
-      - name: Apply vendored driver patches
-        # shards install restores pristine upstream crystal-pg / crystal-db;
-        # the PostgreSQL wire-protocol contract specs (run below against the
-        # postgres service) pin the patched behavior and fail without it.
-        run: scripts/apply_vendor_patches.sh
       - name: Format check
         run: crystal tool format --check src spec examples
       - name: Lint
         run: crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
       - name: Specs
-        # The spec binary occasionally segfaults at startup on 2-core
-        # runners (a host-class scheduler flake, tracked as issue #20);
-        # a retry distinguishes that from a real failure.
+        # A startup scheduler flake is tracked in issue #20. Retry only the
+        # known signal/futex signatures; real failures and timeouts stop immediately.
         run: |
+          set -o pipefail
           for attempt in 1 2 3; do
-            crystal spec && exit 0
-            echo "spec attempt ${attempt} failed; retrying after backoff" >&2
+            echo "Spec attempt ${attempt}"
+            if timeout 5m crystal spec 2>&1 | tee /tmp/altair-spec.log; then
+              exit 0
+            else
+              status=${PIPESTATUS[0]}
+            fi
+
+            retry=false
+            case "$status" in
+              134|139)
+                retry=true
+                ;;
+              *)
+                if grep -q "futex facility returned an unexpected error code" /tmp/altair-spec.log; then
+                  retry=true
+                fi
+                ;;
+            esac
+
+            if [[ "$retry" != true || "$attempt" -eq 3 ]]; then
+              echo "Specs exited with status ${status}; not retrying" >&2
+              exit "$status"
+            fi
+
+            echo "::warning::Known scheduler startup flake on attempt ${attempt} (exit ${status}); retrying once after backoff"
             sleep 5
           done
-          exit 1
         env:
           ALTAIR_REDIS_URL: redis://localhost:6379
           ALTAIR_TEST_PG_URL: postgres://postgres:postgres@localhost:5432/altair_test
+      - name: Upload spec log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: altair-spec-log
+          path: /tmp/altair-spec.log
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Build the altair binary
         run: shards build altair
+      - name: PostgreSQL generated-app smoke
+        run: scripts/postgres_release_smoke.sh
+        env:
+          ALTAIR_SKIP_BUILD: "1"
+          ALTAIR_TEST_PG_URL: postgres://postgres:postgres@localhost:5432/altair_test
       - name: Build with the official collector (gcry)
-        # Altair ships gcry as its official GC; verify the -Dgc_none wiring
+        # Altair ships gcry as the official GC; verify the -Dgc_none wiring
         # compiles on every change.
         run: crystal build src/altair_cli.cr -Dgc_none --no-codegen
       - name: Example builds
@@ -75,8 +113,46 @@ jobs:
             (cd examples/$dir && shards install && crystal build $file --no-codegen)
           done
 
+  test-record-random:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: altair_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Crystal
+        uses: crystal-lang/install-crystal@v1
+      - name: Install shards
+        run: shards install
+      - name: Randomized record specs
+        run: |
+          set -o pipefail
+          timeout 8m crystal spec spec/record -- --order random 2>&1 | tee /tmp/altair-record-spec.log
+        env:
+          ALTAIR_TEST_PG_URL: postgres://postgres:postgres@localhost:5432/altair_test
+      - name: Upload record spec log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: altair-record-spec-log
+          path: /tmp/altair-record-spec.log
+          if-no-files-found: ignore
+          retention-days: 7
+
   test-windows:
     runs-on: windows-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Install Crystal

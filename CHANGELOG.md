@@ -5,6 +5,30 @@ All notable changes to Altair will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **PostgreSQL concurrency fixes now ship through pinned dependencies.**
+  Generated PostgreSQL projects use maintained `crystal-pg` and `crystal-db`
+  forks pinned to exact commits, so the wire-protocol and retry-cause fixes no
+  longer require a repository-local patch script. A transitive `sqlite3` pin
+  keeps both adapters on the same patched `db` source. Provenance and upstream
+  pull requests are documented in `VENDORED_DRIVERS.md`.
+- The PostgreSQL protocol contract now verifies distinct concurrent statements
+  without relying on named prepared-statement caching, which was rejected after
+  it produced stale plans across DDL changes.
+- **Bounded CI and release workflows** — hard job timeouts, explicit spec
+  timeouts, cancellation of superseded CI runs, targeted retries only for known
+  scheduler startup signatures, randomized record specs, and failure-log
+  artifacts.
+
+### Fixed
+
+- **PostgreSQL release smoke coverage** — CI generates a fresh PostgreSQL
+  project, installs the pinned drivers, and runs a concurrent single-connection
+  workload before publishing.
+
 ## [0.4.4] - 2026-10-25
 
 ### Added

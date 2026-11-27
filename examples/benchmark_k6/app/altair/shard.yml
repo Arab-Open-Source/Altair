@@ -7,7 +7,8 @@ dependencies:
   altair:
     path: ../../../..
   pg:
-    github: will/crystal-pg
+    github: HMH-3080/crystal-pg
+    commit: 6854d35d8a29a411436d95dbc9b58c12958bb10d
   gcry:
     github: sdogruyol/gcry
 
