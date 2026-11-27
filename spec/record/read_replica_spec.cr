@@ -111,4 +111,113 @@ describe "read replicas" do
       end
     end
   end
+
+  it "does not let another fiber's transaction disable replica routing" do
+    with_replica_app do |connection|
+      entered = Channel(Nil).new(1)
+      release = Channel(Nil).new(1)
+      errors = Channel(Exception?).new(1)
+
+      spawn(name: "replica-transaction") do
+        connection.transaction do
+          connection.exec("INSERT INTO replica_notes (body) VALUES ('transaction only')")
+          entered.send(nil)
+          release.receive
+        end
+        errors.send(nil)
+      rescue e
+        errors.send(e)
+      end
+
+      select
+      when entered.receive
+      when timeout(5.seconds)
+        raise "transaction fiber did not enter"
+      end
+
+      begin
+        connection.replica_routed?.should be_true
+        ReplicaNote.all.to_a.size.should eq(0)
+      ensure
+        release.send(nil)
+        select
+        when error = errors.receive
+          raise error if error
+        when timeout(5.seconds)
+          raise "transaction fiber did not finish"
+        end
+      end
+    end
+  end
+
+  it "keeps replica routing when checkout hooks are registered" do
+    with_replica_app do |connection|
+      primary_view = ReplicaSpec.setup_pool("sqlite3://./spec/record/replica-primary.db")
+      begin
+        primary_view.exec("INSERT INTO replica_notes (body) VALUES ('primary only')")
+      ensure
+        primary_view.close
+      end
+
+      called = false
+      Altair::Record.on_checkout do |run|
+        called = true
+        run.call
+      end
+
+      connection.replica_routed?.should be_true
+      ReplicaNote.all.to_a.size.should eq(0)
+      connection.query_one("SELECT count(*) FROM replica_notes") { |rs| rs.read(Int64) }.should eq(0)
+      called.should be_true
+    end
+  end
+
+  it "keeps replica routing when admission control is enabled" do
+    with_replica_app do |_connection|
+      primary_view = ReplicaSpec.setup_pool("sqlite3://./spec/record/replica-primary.db")
+      begin
+        primary_view.exec("INSERT INTO replica_notes (body) VALUES ('primary only')")
+      ensure
+        primary_view.close
+      end
+
+      Altair::Record::PermitGate.enable(1)
+      begin
+        ReplicaNote.all.to_a.size.should eq(0)
+      ensure
+        Altair::Record::PermitGate.enable(0)
+      end
+    end
+  end
+
+  it "keeps replica routing when query instrumentation is registered" do
+    with_replica_app do |_connection|
+      primary_view = ReplicaSpec.setup_pool("sqlite3://./spec/record/replica-primary.db")
+      begin
+        primary_view.exec("INSERT INTO replica_notes (body) VALUES ('primary only')")
+      ensure
+        primary_view.close
+      end
+
+      called = false
+      Altair::Record.on_query do |_sql, _elapsed|
+        called = true
+      end
+
+      ReplicaNote.all.to_a.size.should eq(0)
+      called.should be_true
+    end
+  end
+
+  it "clears write stickiness when request-scoped state is cleared" do
+    with_replica_app do |connection|
+      ReplicaNote.create(body: "mine")
+      connection.replica_routed?.should be_false
+
+      Altair::Record.clear_fiber_state
+
+      connection.replica_routed?.should be_true
+      ReplicaNote.all.to_a.size.should eq(0)
+    end
+  end
 end

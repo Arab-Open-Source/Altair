@@ -240,6 +240,13 @@ module Altair
       connection.sql_template_metrics
     end
 
+    # Clears request-scoped state on the current connection without opening
+    # one. Request handlers call this when a request finishes.
+    def self.clear_fiber_state : Nil
+      connection = @@connection_lock.synchronize { @@connection }
+      connection.try(&.clear_fiber_state)
+    end
+
     # Closes the pooled connection (used by specs and runner scripts). The
     # nil write happens under the lock so a concurrent fast-path reader
     # either sees the previous connection (about to be closed, already
