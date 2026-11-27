@@ -40,11 +40,11 @@ Downloads are resilient by design: the installers ride curl's own retries (bundl
 altair version
 ```
 
-You should see something like `Altair 0.2.0`.
+You should see something like `Altair 0.5.0`.
 
 ## Offline installs (--framework)
 
-Every release ships the framework source itself as checksummed assets (`altair-src-v<version>.tar.gz` / `.zip`). Pass the framework switch and the installer unpacks it next to the binary:
+Every release ships the framework source itself as checksummed assets (`altair-src-v<version>.tar.gz` / `.zip`). Pass the framework switch and the installer unpacks it next to the binary — source **plus** the curated `bundle/` of documentation and starter examples:
 
 ```powershell
 .\install.ps1 -Framework            # Windows: %USERPROFILE%\.altair\framework\<version>\
@@ -54,8 +54,10 @@ curl ... | sh -s -- --framework     # Unix:    ~/.altair/framework/<version>/
 A machine without GitHub access can then scaffold projects against that local copy — no network needed at dependency-resolution time:
 
 ```sh
-altair new myapp --framework-path "$HOME/.altair/framework/0.3.1"
+altair new myapp --framework-path "$HOME/.altair/framework/0.5.0"
 ```
+
+Because the source archive includes `bundle/docs/` and `bundle/examples/`, `altair docs` and `altair examples` also work offline from that copy — topic lookup, reading and listing make no network calls. See the [Offline docs and examples guide](/docs/docs_and_examples.html) for details.
 
 ## Installing to a custom directory
 

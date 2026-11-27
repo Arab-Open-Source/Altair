@@ -27,6 +27,10 @@ const meta = {
   "docs/console": { title: "Console guide — Altair", description: "Development console: boot banner, request log, colors and slow-request highlighting." },
   "docs/testing": { title: "Testing guide — Altair", description: "Testing Altair applications with Altair::Test helpers." },
   "docs/benchmarks": { title: "Benchmarks — Altair", description: "Altair vs Express and Fiber on PostgreSQL-backed CRUD endpoints under real HTTP load, driven by k6." },
+  "docs/deployment": { title: "Deployment — Altair", description: "Deploy a generated Altair project: multi-stage Dockerfile, Compose, non-root runtime, health checks and explicit migrations." },
+  "docs/read_replicas": { title: "Read replicas — Altair", description: "Experimental read-replica routing in Altair: routing rules, sticky reads, failover, on_primary and per-target metrics." },
+  "docs/observability": { title: "Observability — Altair", description: "Altair /health and /metrics endpoints, Prometheus request and database metrics, structured logs and request ids." },
+  "docs/docs_and_examples": { title: "Offline docs and examples — Altair", description: "Use altair docs and altair examples offline from the curated bundle, with --open, --refresh and --with-examples." },
 };
 
 // Sidebar navigation, grouped. Order here is also the reading order for the
@@ -48,6 +52,12 @@ const docsNav = [
     { page: "docs/uploads", title: "Uploads" },
     { page: "docs/console", title: "Console" },
     { page: "docs/testing", title: "Testing" },
+  ]},
+  { heading: "Production", pages: [
+    { page: "docs/deployment", title: "Deployment" },
+    { page: "docs/read_replicas", title: "Read replicas" },
+    { page: "docs/observability", title: "Observability" },
+    { page: "docs/docs_and_examples", title: "Offline docs and examples" },
   ]},
   { heading: "Reference", pages: [
     { page: "docs/features", title: "What is implemented" },
@@ -74,6 +84,10 @@ const icons = {
   "docs/cli": '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>',
   "docs/benchmarks": '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
   "docs/index": '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+  "docs/deployment": '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><line x1="6" y1="7" x2="6.01" y2="7"/><line x1="6" y1="17" x2="6.01" y2="17"/></svg>',
+  "docs/read_replicas": '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>',
+  "docs/observability": '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+  "docs/docs_and_examples": '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 7h7"/><path d="M9 11h5"/></svg>',
 };
 
 const flatOrder = docsNav.flatMap((group) => group.pages.map((p) => p.page));
@@ -307,7 +321,7 @@ const indexHtml = render("index");
 writeFileSync(join(root, "index.html"), indexHtml);
 
 mkdirSync(join(root, "docs"), { recursive: true });
-  const pages = ["index", "install", "usage", "update", "features", "cli", "routing", "controllers", "views", "record", "sessions", "configuration", "security", "uploads", "console", "testing", "benchmarks"];
+const pages = ["index", "install", "usage", "update", "features", "cli", "routing", "controllers", "views", "record", "sessions", "configuration", "security", "uploads", "console", "testing", "benchmarks", "deployment", "read_replicas", "observability", "docs_and_examples"];
 
 // Search index: one entry per page plus one per section (h2/h3).
 const searchIndex = [];

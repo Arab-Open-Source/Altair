@@ -19,7 +19,9 @@ as k6 summary exports. The short version, at the unified realistic profile
 ### The official collector: gcry (interleaved A/B)
 
 Altair adopts [gcry](https://github.com/sdogruyol/gcry) 0.38.0 as its
-official collector. The committed tables above are the default build
+official collector in the historical session below. The current release uses
+gcry 0.40.0 on Crystal 1.22.3; the measurements were not re-run, so treat the
+numbers as historical. The committed tables above are the default build
 (bundled Boehm); with `-Dgc_none` the same app swaps collectors with no
 code change. Interleaved A/B, medians of three rounds per arm, unique
 server processes:

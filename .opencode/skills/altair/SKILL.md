@@ -18,24 +18,28 @@ summary is the quick orientation; read `AGENTS.md` before deep work.
 
 ## Where the project stands
 
-Phases 0–5 done (Foundation, Router, Controllers, Views, Record/ORM,
-CLI + Generators). Smart error pages (404 route suggestions, 405 `_method`
-hints, 500 diagnostics) already shipped. The router kept growing after
-Phase 1 in three spec-first waves: `resources` blocks
+Altair 0.5.0 (2026-11-27) requires Crystal 1.22.3 and uses gcry 0.40.0.
+Phases 0–8 and 10 are complete; Phase 9 (CLI ergonomics) is in progress —
+hot reload shipped, remaining: destroy, job generator, `db:status`,
+assets/jobs helpers and project-command help. The current unreleased branch
+completes production-readiness Step 5 and the Step 5.5 documentation
+reconciliation.
+`examples/blog` is the persistence demo; `examples/read_replica_postgres` is
+the streaming-standby demo. Smart error pages (404 route suggestions, 405
+`_method` hints, 500 diagnostics) already shipped. The router kept growing
+after Phase 1 in three spec-first waves: `resources` blocks
 (`member`/`collection`/nested), constraints (`constraints: {id: /\d+/}`) +
 implicit format suffix, and `redirect` / glob segments / singular
-`resource`. `examples/blog` is the persistence demo. The CLI builds a
-standalone `altair` binary; inside a generated project `bin/altair` runs
-`server`, `routes`, `db:migrate` / `db:rollback`, and the standalone
-`altair` auto-forwards those app-context commands to the nearest project
-from any directory. `altair install` copies the binary onto `PATH`;
-`altair update` checks GitHub for the latest release, verifies the
-download against `SHA256SUMS` and atomically replaces the running
-executable (`--check` / `--force` supported). Distributions: `release.yml`
-(pushed on `v*` tags)
-builds Linux/macOS/Windows (amd64+arm64) binaries with `SHA256SUMS`, and
-`scripts/install.sh` / `install.ps1` / `install.cmd` give a verified
-one-command install on each platform.
+`resource`. The CLI builds a standalone `altair` binary; inside a generated
+project `bin/altair` runs `server`, `routes`, `db:migrate` / `db:rollback`,
+and the standalone `altair` auto-forwards those app-context commands to the
+nearest project from any directory. `altair install` copies the binary onto
+`PATH`; `altair update` checks GitHub for the latest release, verifies the
+download against `SHA256SUMS` and atomically replaces the running executable
+(`--check` / `--force` supported). Distributions: `release.yml` (pushed on
+`v*` tags) builds Linux/macOS/Windows (amd64+arm64) binaries with
+`SHA256SUMS`, and `scripts/install.sh` / `install.ps1` / `install.cmd` give a
+verified one-command install on each platform.
 Phase 6 hardening shipped in waves: sessions + flash + CSRF + auth
 (`require_login` / `authenticate!` + `Altair::Auth::JWT`), file-driven
 configuration (`.env` / `database.yml`), multipart uploads
@@ -45,15 +49,22 @@ middleware set (`SecurityHeaders`, `RequestId`, `RateLimit` (sliding-window,
 `X-RateLimit-*` + `Retry-After`), opt-in `Cors`) in the
 default stack. The development console was redesigned with an enriched
 boot banner and aligned, colored request logs (method/status colors,
-request counter, slow-request highlighting). Phase 7 shipped its first
-four features: testing utilities (`Altair::Test.boot` with a `configure:`
-hook, the cookie-jar `Altair::Test::Client`, `migrate!`/`transactional`),
-full authentication (`altair g auth` + `password_auth` + PBKDF2 hashing),
-the asset pipeline (`assets:precompile`, manifest-backed helpers, immutable
-caching) and background jobs (typed `params` jobs, lazy `altair_jobs`
-table, atomic claiming, backoff retries, `jobs:work` / `jobs:stats`).
-992 specs (15 pending: 7 Redis rate-limit + 1 Redis middleware + 6
-PostgreSQL contract + 1 other; 19 errors without `ALTAIR_REDIS_URL`).
+request counter, slow-request highlighting). Phase 7 shipped testing
+utilities (`Altair::Test.boot` with a `configure:` hook, the cookie-jar
+`Altair::Test::Client`, `migrate!`/`transactional`), full authentication
+(`altair g auth` + `password_auth` + PBKDF2 hashing), the asset pipeline
+(`assets:precompile`, manifest-backed helpers, immutable caching) and
+background jobs (typed `params` jobs, lazy `altair_jobs` table, atomic
+claiming, backoff retries, `jobs:work` / `jobs:stats`).
+Phase 8 added `altair new -d postgresql`, `db:create`/`db:drop` and
+`DATABASE_URL` overrides. Phase 10 added joins, `has_many :through`,
+polymorphic associations, cache, storage, Cable, Redis, API mode, admin
+generation, structured logs and observability. Read replicas
+(`config.db_replica_url`, `on_primary`, failover/recovery, target metrics)
+are experimental.
+Full suite with Redis and PostgreSQL: **1114 examples, 0 failures, 0 errors,
+5 pending**; randomized record suite: **376 examples, 0 failures, 0 errors,
+5 pending**.
 The record layer shipped a post-Phase-4 performance wave: `find_each`
 keeps scoped `where` filters + `includes` preloaders across batches,
 `Relation#count`/`size` run `COUNT(*)` without materializing rows (and
@@ -85,7 +96,10 @@ those commands.
 |---|---|---|
 | 0–5 | Foundation / Router / Controllers / Views / ORM / CLI + Generators | Completed |
 | 6 | Hardening (sessions, CSRF, config, security) | Completed |
-| 7 | Post-release (jobs, auth, assets, rich queries) | Completed — jobs, auth, assets, testing utilities, `joins`, `has_many :through` and polymorphic shipped; console intentionally deferred |
+| 7 | Post-release (jobs, auth, assets, rich queries) | Completed |
+| 8 | Database ergonomics | Completed |
+| 9 | CLI ergonomics | In progress — hot reload shipped; destroy, job generator, db:status, assets/jobs helpers remain |
+| 10 | Router & future features | Completed |
 
 Exit criteria per phase and golden rules are in `ROADMAP.md`.
 
@@ -135,13 +149,26 @@ server/      HTTP server wiring
 record/      Adapter, SQLite3, Connection, Schema, migrations, N+1 detector
 view/        ECR templates, layouts, partials, helpers, htmx layer
 rendering/   Renderers (html, json, text, fragment)
-cli/         CLI dispatcher, per-project commands, generators (incl. install)
-testing/    Test helpers (Altair::Test.boot)
+cli/         dispatcher, project commands, generators, watcher, bundle/docs/examples
+auth/        password_auth, PBKDF2 hasher, JWT
+assets/      fingerprint assets/ -> public/assets/ + manifest
+jobs/        typed jobs, lazy queue, worker
+cache/       MemoryStore / RedisStore + Altair.cache
+storage/     Disk/S3 stores + has_one_attached
+cable/       WebSocket broadcaster and channels
+redis/       pure-Crystal RESP2 client, pool, pub/sub
+testing/     Test helpers (Altair::Test.boot)
+observability/ request metrics for /metrics
+concurrency/ FIFO semaphore / admission control
+bundle/      curated offline docs/ and examples/ at the repo root
 ```
 
 `spec/` mirrors `src/altair/`; `examples/hello_world/` is the runnable demo,
 `examples/blog/` the persistent ORM demo, `examples/rate_limit_demo/` the
-sliding-window limiter demo (memory + Redis, per-path rules).
+sliding-window limiter demo, and `examples/read_replica_postgres/` the
+streaming-standby demo. Generated projects also receive `Dockerfile`,
+`.dockerignore`, `compose.yml`, `.altair/bundle.yml` and `.altair/cache/`;
+nothing is written into `lib/`.
 
 ## Architecture principles
 
@@ -157,9 +184,12 @@ sliding-window limiter demo (memory + Redis, per-path rules).
 ## Testing
 
 ```bash
-crystal spec                              # full suite (currently 992, 15 pending without Redis)
-crystal tool format --check src spec examples
-crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
+crystal spec                              # full suite (1114 examples, 5 pending with Redis/PG)
+crystal spec spec/record -- --order random  # CI randomized record job
+crystal tool format --check src spec examples bundle
+crystal run lib/ameba/bin/ameba.cr -- src spec examples bundle --format silent
+scripts/check_examples.sh                 # bundled starters vs generated project
+scripts/deployment_smoke.sh sqlite        # also postgresql and api
 ```
 
 - `spec/spec_helper.cr` pins `Altair.env = Altair::Env::Test`, defines
@@ -189,6 +219,16 @@ crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
 - Never auto-format after a build; the workflow treats formatting as a check.
 - `pkill` is unreliable here — kill dev servers by PID.
 - Register new files in `src/altair.cr` in dependency order.
+- Docker `--static` needs `sqlite-static yaml-static` on Alpine, and
+  `.dockerignore` must keep `bin/altair.cr` while excluding other `bin/*`.
+- The runtime image must keep `db/migrations` because the runner matches
+  those filenames to the compiled registry; SQLite data lives at
+  `/app/db/data` so the migrations are not hidden by the volume.
+- A project generated with `--framework-path` cannot build Docker on another
+  machine unless that path is available or the shard is switched to the
+  published dependency.
+- Do not run the full suite and the randomized record suite in parallel
+  against the same PostgreSQL instance.
 
 ## Delivering changes
 

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Deploy a generated Altair project: multi-stage Dockerfile, Compose, non-root runtime, health checks and explicit migrations.">
+  <meta name="theme-color" content="#152033" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0e1624" media="(prefers-color-scheme: dark)">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Altair">
+  <meta property="og:title" content="Deployment — Altair">
+  <meta property="og:description" content="Deploy a generated Altair project: multi-stage Dockerfile, Compose, non-root runtime, health checks and explicit migrations.">
+  <meta property="og:image" content="../assets/img/logo.png">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Deployment — Altair">
+  <meta name="twitter:description" content="Deploy a generated Altair project: multi-stage Dockerfile, Compose, non-root runtime, health checks and explicit migrations.">
+  <link rel="canonical" href="https://arab-open-source.github.io/Altair/docs/deployment.html">
+  <title>Deployment — Altair</title>
+  <link rel="icon" href="../favicon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="stylesheet" href="../assets/css/docs.css">
+  <link rel="stylesheet" href="../assets/css/highlight.css">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    (function () {
+      try {
+        var saved = localStorage.getItem("altair-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (e) { /* private mode: stay light */ }
+    })();
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header">
+    <nav class="site-nav" aria-label="Main">
+      <a class="brand" href="../">
+        <img class="brand-logo" src="../assets/img/logo.png" alt="Altair logo" width="30" height="30">
+        Altair
+      </a>
+      <div class="nav-links">
+        <a href="../">Home</a>
+        <a href="../docs/">Docs</a>
+        <a href="../docs/routing.html">Guides</a>
+        <a href="../docs/install.html">Install</a>
+        <a href="../docs/usage.html">Usage</a>
+        <a href="../docs/benchmarks.html">Benchmarks</a>
+        <a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">GitHub</a>
+      </div>
+      <div class="nav-actions">
+        <button type="button" class="search-trigger" id="search-trigger" aria-haspopup="dialog" aria-label="Search documentation">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span class="search-label">Search</span>
+          <kbd>Ctrl K</kbd>
+        </button>
+        <button type="button" class="icon-btn theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+          <svg class="sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <button type="button" class="icon-btn nav-toggle" id="nav-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="docs-sidebar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <div class="nav-scrim" id="nav-scrim" aria-hidden="true"></div>
+
+  <main class="site-main" id="main-content">
+    <div class="docs-layout"><nav class="docs-sidebar" id="docs-sidebar" aria-label="Docs"><h4>Getting started</h4><ul><li><a href="install.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>Install</a></li><li><a href="usage.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>Usage</a></li><li><a href="update.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg></span>Updating</a></li></ul><h4>Guides</h4><ul><li><a href="routing.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="12" r="3"/><path d="M8.5 8.5L13.5 9.5"/><path d="M8.5 15.5L13.5 14.5"/></svg></span>Routing</a></li><li><a href="controllers.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></span>Controllers</a></li><li><a href="views.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>Views</a></li><li><a href="record.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>Record (ORM)</a></li><li><a href="sessions.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg></span>Sessions and auth</a></li><li><a href="configuration.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4"/><path d="M12 19v4"/><path d="M4.22 4.22l2.83 2.83"/><path d="M16.97 16.97l2.83 2.83"/><path d="M1 12h4"/><path d="M19 12h4"/><path d="M4.22 19.78l2.83-2.83"/><path d="M16.97 7.03l2.83-2.83"/></svg></span>Configuration</a></li><li><a href="security.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>Security</a></li><li><a href="uploads.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>Uploads</a></li><li><a href="console.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>Console</a></li><li><a href="testing.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>Testing</a></li></ul><h4>Production</h4><ul><li><a href="deployment.html" class="is-active" aria-current="page"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><line x1="6" y1="7" x2="6.01" y2="7"/><line x1="6" y1="17" x2="6.01" y2="17"/></svg></span>Deployment</a></li><li><a href="read_replicas.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg></span>Read replicas</a></li><li><a href="observability.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>Observability</a></li><li><a href="docs_and_examples.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 7h7"/><path d="M9 11h5"/></svg></span>Offline docs and examples</a></li></ul><h4>Reference</h4><ul><li><a href="features.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>What is implemented</a></li><li><a href="cli.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>CLI reference</a></li><li><a href="benchmarks.html"><span class="sidebar-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>Benchmarks</a></li></ul></nav><article class="docs-content"><div class="reading-progress" aria-hidden="true"><div class="reading-progress-bar"></div></div><nav class="breadcrumbs" aria-label="Breadcrumb"><a href="index.html">Docs</a><span class="sep">/</span><span>Production</span><span class="sep">/</span><span aria-current="page">Deployment</span></nav><div class="docs-page-header"><span class="docs-page-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><line x1="6" y1="7" x2="6.01" y2="7"/><line x1="6" y1="17" x2="6.01" y2="17"/></svg></span><h1>Deployment</h1></div>
+<p>Every project generated by <code>altair new</code> ships a multi-stage <code>Dockerfile</code>, a
+<code>.dockerignore</code> and a <code>compose.yml</code> for SQLite, PostgreSQL and <code>--api</code> modes.
+You do not need to write Docker files by hand.</p>
+<h2 id="what-the-generator-produces">What the generator produces<a class="anchor" href="#what-the-generator-produces" aria-label="Link to this section">#</a></h2>
+<p>The builder stage uses Crystal <strong>1.22.3</strong> and links the server statically;
+build dependencies stay in that stage. The runtime image contains only the
+compiled server, the compiled <code>./bin/altair</code> launcher, the public assets and
+configuration, and the <code>db/migrations</code> files the migration runner needs.
+<code>.env</code>, <code>.git</code>, <code>lib/</code>, <code>spec/</code>, local databases and build caches are excluded
+from the build context and never land in an image layer.</p>
+<p>The runtime:</p>
+<ul>
+<li>runs as a non-root <code>app</code> user;</li>
+<li>declares a <code>HEALTHCHECK</code> against <code>/health</code> (the generator sets
+<code>config.observability = true</code>);</li>
+<li>precompiles assets during the image build (<code>--api</code> projects skip the view
+and asset stages entirely);</li>
+<li>exposes <code>/health</code> and <code>/metrics</code> for orchestrators and scrapers.</li>
+</ul>
+<p>See the <a href="../docs/observability.html">Observability guide</a> for the endpoints.</p>
+<h2 id="build-migrate-and-run">Build, migrate and run<a class="anchor" href="#build-migrate-and-run" aria-label="Link to this section">#</a></h2>
+<p>From the generated project directory:</p>
+<pre><code class="hljs language-sh">docker compose build
+docker compose run --<span class="hljs-built_in">rm</span> web ./bin/altair db:migrate
+docker compose up -d
+curl -fsS http://localhost:3000/health</code></pre><p>Migrations are never automatic at container boot. The one-off <code>run</code> command
+uses the same compiled launcher as local development, so what you run in
+production is what you ran locally. Apply migrations exactly once, verify,
+then start the web service. Migrations are compiled into the command binary
+<em>and</em> their timestamped files are copied into the image at <code>db/migrations</code>,
+because the runner matches those filenames to the compiled registry — a
+schema change needs both a migration and a rebuilt image.</p>
+<h2 id="rollback-and-zero-downtime-limits">Rollback and zero-downtime limits<a class="anchor" href="#rollback-and-zero-downtime-limits" aria-label="Link to this section">#</a></h2>
+<pre><code class="hljs language-sh">docker compose run --<span class="hljs-built_in">rm</span> web ./bin/altair db:rollback</code></pre><p><code>db:rollback</code> reverts one migration and regenerates <code>db/schema.cr</code>. Treat it
+as a maintenance operation, not an automatic failure handler: rebuild the
+image afterwards so the compiled schema matches the database.</p>
+<p>The generated Compose setup runs a <strong>single web container</strong>. Rolling or
+zero-downtime deployments need an orchestrator and a migration plan. For safe
+upgrades, ship additive migrations first (nullable columns, new tables),
+deploy the new binary, then remove old columns in a later release. A
+destructive change needs a two-step deploy because old binaries may still
+reference removed columns.</p>
+<h2 id="volumes-backups-and-the-sqlite-caveat">Volumes, backups and the SQLite caveat<a class="anchor" href="#volumes-backups-and-the-sqlite-caveat" aria-label="Link to this section">#</a></h2>
+<ul>
+<li><strong>PostgreSQL:</strong> data lives in the <code>pg_data</code> volume at
+<code>/var/lib/postgresql/data</code>. Take <code>pg_dump</code> backups before migrations and
+rehearse restores separately.</li>
+<li><strong>SQLite:</strong> data lives in the <code>sqlite_data</code> volume mounted at
+<code>/app/db/data</code>, while <code>db/migrations</code> stays in the image at
+<code>/app/db/migrations</code>. WAL mode writes <code>*.db-wal</code> and <code>*.db-shm</code> beside the
+database, so keep all three files in the same volume and run a <strong>single
+writer container</strong>.</li>
+</ul>
+<h2 id="secrets-and-environment">Secrets and environment<a class="anchor" href="#secrets-and-environment" aria-label="Link to this section">#</a></h2>
+<p>Generated Compose files carry no real credentials. <code>SECRET_KEY_BASE</code> is
+required with <code>${SECRET_KEY_BASE:?...}</code>; PostgreSQL additionally requires
+<code>POSTGRES_PASSWORD</code>. Inject both from your secret manager (generate the key
+with <code>openssl rand -hex 64</code>). Other supported variables are <code>DATABASE_URL</code>,
+<code>ALTAIR_ENV</code>, <code>PORT</code>, <code>HOST_PORT</code> and, for PostgreSQL, <code>POSTGRES_USER</code> and
+<code>POSTGRES_DB</code>. See the <a href="../docs/configuration.html">Configuration reference</a>.</p>
+<p>Never commit <code>.env</code> or place credentials in an image layer.</p>
+<h2 id="api-projects">API projects<a class="anchor" href="#api-projects" aria-label="Link to this section">#</a></h2>
+<p><code>--api</code> projects build without view or asset stages and still expose
+<code>/health</code> and <code>/metrics</code>. The build → migrate → up sequence is identical.</p>
+<p>For offline guides on the machine, see
+<a href="../docs/docs_and_examples.html">Offline docs and examples</a>; the CLI also
+answers <code>altair docs deployment</code>.</p>
+<div class="docs-footer-meta"><span>Found a mistake? <a href="https://github.com/Arab-Open-Source/Altair/blob/main/website/pages/docs/deployment.md" rel="noopener">Edit this page on GitHub</a>.</span></div><div class="docs-pager"><div class="pager-progress">Page 14 of 20</div><div class="pager-links"><a class="pager-card" href="testing.html"><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></span><span><span class="label">Previous</span><span class="pager-title">Testing</span></span></a><a class="pager-card right" href="read_replicas.html"><span><span class="label">Next</span><span class="pager-title">Read replicas</span></span><span class="pager-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span></a></div></div></article><aside class="docs-toc" aria-label="On this page"><p class="toc-title">On this page</p><ul><li><a href="#what-the-generator-produces">What the generator produces</a></li><li><a href="#build-migrate-and-run">Build, migrate and run</a></li><li><a href="#rollback-and-zero-downtime-limits">Rollback and zero-downtime limits</a></li><li><a href="#volumes-backups-and-the-sqlite-caveat">Volumes, backups and the SQLite caveat</a></li><li><a href="#secrets-and-environment">Secrets and environment</a></li><li><a href="#api-projects">API projects</a></li></ul></aside></div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-brand-block">
+        <a class="brand" href="../">
+          <img class="brand-logo" src="../assets/img/logo.png" alt="Altair logo" width="30" height="30">
+          Altair
+        </a>
+        <p class="footer-tagline">Batteries-included web framework for Crystal. Routing, controllers, views, an ORM, generators and a CLI — with sane defaults.</p>
+      </div>
+      <nav class="footer-col" aria-label="Getting started">
+        <h5>Start</h5>
+        <ul>
+          <li><a href="../docs/install.html">Install</a></li>
+          <li><a href="../docs/usage.html">Usage</a></li>
+          <li><a href="../docs/update.html">Updating</a></li>
+        </ul>
+      </nav>
+      <nav class="footer-col" aria-label="Guides">
+        <h5>Guides</h5>
+        <ul>
+          <li><a href="../docs/routing.html">Routing</a></li>
+          <li><a href="../docs/record.html">Record (ORM)</a></li>
+          <li><a href="../docs/security.html">Security</a></li>
+          <li><a href="../docs/testing.html">Testing</a></li>
+          <li><a href="../docs/deployment.html">Deployment</a></li>
+          <li><a href="../docs/read_replicas.html">Read replicas</a></li>
+          <li><a href="../docs/observability.html">Observability</a></li>
+        </ul>
+      </nav>
+      <nav class="footer-col" aria-label="Project">
+        <h5>Project</h5>
+        <ul>
+          <li><a href="https://github.com/Arab-Open-Source/Altair" rel="noopener">Source</a></li>
+          <li><a href="https://github.com/Arab-Open-Source/Altair/releases" rel="noopener">Releases</a></li>
+          <li><a href="../docs/benchmarks.html">Benchmarks</a></li>
+          <li><a href="../docs/features.html">What is implemented</a></li>
+          <li><a href="../docs/docs_and_examples.html">Offline docs and examples</a></li>
+        </ul>
+      </nav>
+    </div>
+    <div class="footer-bottom">
+      <span>Altair — the web framework for Crystal. MIT licensed.</span>
+    </div>
+  </footer>
+
+  <div class="search-modal" id="search-modal" role="dialog" aria-modal="true" aria-label="Search documentation" hidden>
+    <div class="search-backdrop" data-search-close></div>
+    <div class="search-panel">
+      <div class="search-input-row">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="search" id="search-input" placeholder="Search guides, references, commands..." autocomplete="off" spellcheck="false" aria-label="Search documentation" aria-controls="search-results" aria-expanded="false">
+        <kbd>esc</kbd>
+      </div>
+      <div class="search-results" id="search-results" role="listbox" aria-label="Search results"></div>
+      <div class="search-hint">Navigate with arrow keys, Enter to open.</div>
+    </div>
+  </div>
+
+  <script src="../assets/js/docs.js" defer></script>
+</body>
+</html>

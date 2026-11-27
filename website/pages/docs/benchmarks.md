@@ -11,6 +11,12 @@ benchmark machine; a discarded k6 warm-up run precedes each measured phase.
 PostgreSQL is pinned to 6 CPUs / 2 GB — enough headroom that throughput is
 framework-limited, so per-request cost is what is measured.
 
+> **Historical results.** All tables below come from an earlier benchmark
+> session measured with gcry 0.38.0; the Crystal version used in that session
+> was not recorded. The current release runs on gcry 0.40.0 and Crystal
+> 1.22.3, and **no new benchmark has been run for it**. Treat these numbers
+> as a historical comparison, not as measurements of the current release.
+
 ## Results — unified profile (100 VUs, 60 s, 20 connections, 6 workers)
 
 | Workload | Framework | req/s | avg | p95 | p99 | p99.9 | max |
@@ -88,7 +94,7 @@ Honest reading of that table:
   an ORM on every request, no raw SQL shortcuts — so the gap measures the
   stack itself: compiled templates and queries, fibers over a threaded
   scheduler, and a database path that never blocks a second fiber on one
-  connection (see the wire-protocol fix, issue #21, in the repository).
+  connection (see the wire-protocol fix documented in `VENDORED_DRIVERS.md`).
 
 ## Historical sessions
 

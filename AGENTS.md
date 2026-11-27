@@ -38,13 +38,17 @@ Nothing ships unless someone can look at it, click it, and see it work.
 
 ## Current status
 
-- **Phases 0–5 done** (Foundation, Router, Controllers, Views, Record/ORM,
-  CLI + Generators). `examples/blog` is the always-running persistence demo
-  — its posts and comments survive restarts.
-- 992 specs (15 pending: 7 Redis rate-limit + 1 Redis middleware + 6
-  PostgreSQL concurrency contract gated on `ALTAIR_TEST_PG_CONCURRENCY`, plus
-  the fuller PostgreSQL contract suite on `ALTAIR_TEST_PG_URL`), formatter
-  clean, Ameba silent on framework sources.
+- **Altair 0.5.0** released 2026-11-27; Crystal 1.22.3, gcry 0.40.0.
+- **Phases 0–8 and 10 done**; Phase 9 (CLI ergonomics) is in progress — hot
+  reload shipped, remaining: destroy, job generator, `db:status`,
+  assets/jobs helpers and project-command help. The current unreleased branch
+  completes production-readiness Step 5 and the Step 5.5 documentation
+  reconciliation.
+  `examples/blog` is the always-running persistence demo — its posts and
+  comments survive restarts.
+- Full suite with Redis and PostgreSQL: **1114 examples, 0 failures, 0 errors,
+  5 pending**. Randomized record suite: **376 examples, 0 failures, 0 errors,
+  5 pending**. Formatter clean, Ameba silent on framework sources.
 - Phase 7 shipped four features: **testing utilities** (`Altair::Test.boot`
   with a `configure:` hook, the cookie-jar `Altair::Test::Client` with
   browser-like redirects, `migrate!`, `transactional`),
@@ -124,8 +128,9 @@ Nothing ships unless someone can look at it, click it, and see it work.
 | 6 | Hardening | Completed |
 | 7 | Post-release | Completed |
 | 8 | Database ergonomics | Completed |
-| 9 | CLI ergonomics | In progress — hot reload shipped |
+| 9 | CLI ergonomics | In progress — hot reload shipped; destroy, job generator, db:status, assets/jobs helpers remain |
 | 10 | Router & future features | Completed |
+| Unreleased | Production readiness Step 5 + 5.5 | Completed on this branch — generated deployment, offline docs/examples, deployment smoke, and documentation reconciliation |
 
 ## The phases
 
@@ -153,12 +158,14 @@ Three vertical waves, each ending green with something visible:
 - Wave 3 (done, in the tree): associations (`belongs_to` / `has_many` /
   `has_one`) with batched eager loading via `Relation#includes`;
   `dependent:` handling.
-- Deferred to later phases: `has_many :through`, prepared-statement
-  caching, `explain`, migration linter
-  (Phase 8); console/seeds (Phase 7); enums/JSON columns/dirty tracking
-  (Phase 6); `insert_all` (Phase 6). `find_each` is implemented in the
-  tree (keeps scoped `where` filters and `includes` preloaders across
-  batches).
+- Shipped after Wave 3: `joins` / `left_joins` with DISTINCT, `has_many
+  :through` (inferred source), polymorphic associations, `insert_all`,
+  enums/JSON columns, dirty tracking, `find_each` (keeps scoped `where`
+  filters and `includes` preloaders across batches), seeds via `db:seed`,
+  and post-Phase-4 performance hardening (see above).
+- Still open in the ORM: prepared-statement caching, `explain`, a migration
+  linter, `group`/`having`, and a development console. Multi-tenancy is a
+  Phase 12 candidate.
 
 ### Phase 5: CLI + Generators
 - `altair new blog` generates the standard layout (`src/`, `db/`,
@@ -186,7 +193,34 @@ Three vertical waves, each ending green with something visible:
   `scripts/install.sh` (`curl ... | sh`), `install.ps1` (`iex (irm ...)`)
   and `install.cmd` (`curl ... | cmd`) download, verify and install.
   Pushing a `v*` tag triggers it.
+- `altair new <name> [-d sqlite|postgresql] [--api] [--with-examples]` also
+  generates a multi-stage `Dockerfile`, `.dockerignore` and `compose.yml`;
+  `--api` produces a JSON-only project with no view or asset stages.
+- Curated guides and starters ship in `bundle/` and the release source
+  archive: `altair docs [<topic>]` (`--list` / `--open` / `--refresh`) and
+  `altair examples [<name>]` (`--copy NAME|all`) work offline;
+  `--with-examples` copies starters into `examples/altair/`. Generated
+  projects record provenance in `.altair/bundle.yml`, cache copies in
+  `.altair/cache/`, and never write into `lib/`.
 - Full blog demo works out of the box: new project + scaffold + server.
+
+### Production-readiness Step 5 (complete)
+
+- Generated deployment: static Crystal 1.22.3 build, non-root `app` user,
+  `/health` HEALTHCHECK, asset precompile, no automatic migrations, secrets
+  required from the environment. The runtime image keeps only the compiled
+  server and launcher, public assets/config and `db/migrations`; PostgreSQL
+  data lives in `pg_data`, SQLite data in `sqlite_data` mounted at
+  `/app/db/data` while `db/migrations` stays in the image.
+- Deploy sequence: `docker compose build`;
+  `docker compose run --rm web ./bin/altair db:migrate`; `docker compose up -d`;
+  check `/health`.
+- `scripts/deployment_smoke.sh sqlite|postgresql|api` verifies that path end
+  to end (real migration, idempotent second migration, health/endpoint,
+  non-root uid, image scan, runtime smaller than builder, restart and volume
+  persistence); CI and release workflows run it. `scripts/check_examples.sh`
+  compiles the bundled starters. Step 5.5 reconciles documentation across
+  root docs, generated-project docs, the CLI reference and the website.
 
 ### Phase 6: Hardening
 - Sessions + flash + CSRF — a simple login works.
@@ -233,17 +267,26 @@ src/altair/
   concurrency/   Semaphore (FIFO permit gate primitive)
   view/          ECR templates, layouts, partials, helpers, htmx layer
   rendering/     Renderers (html, json, text, fragment)
-  cli/           CLI dispatcher, per-project commands, generators,
-                 watcher.cr (development hot reload supervisor)
+  cli/           CLI dispatcher, per-project commands and generators,
+                 watcher.cr (hot reload), bundle.cr (offline manifest),
+                 docs.cr / examples.cr (offline readers)
   plugins/       (planned — empty placeholder)
   concerns/      (planned — empty placeholder)
   testing/       test.cr (boot with configure: hook, migrate!, transactional),
                  client.cr (cookie-jar HTTP client with redirects)
+bundle/          Curated offline docs/ and examples/ shipped in the repo and
+                 release source archive; never copied into lib/
 spec/            Mirrors src/altair, plus controller/routing integration specs
 examples/        hello_world is the always-running demo app; examples/blog
-                 is the persistence demo (Phase 4)
+                 is the persistence demo; read_replica_postgres is the
+                 streaming-standby demo
 docs/architecture/  Phase-by-phase implementation plans
 ```
+
+Generated projects receive a `Dockerfile`, `.dockerignore`, `compose.yml`,
+README, `AGENTS.md` and `.opencode/skills/altair`, plus `.altair/bundle.yml`
+(provenance) and `.altair/cache/` (copied guides and examples). Nothing is
+written into `lib/`.
 
 Modules nest under `Altair`: `Altair::Routing::Router`, `Altair::Controller`,
 etc.
@@ -278,7 +321,7 @@ etc.
 Follow the official Crystal style — the formatter is the authority:
 
 ```bash
-crystal tool format --check src spec examples
+crystal tool format --check src spec examples bundle
 ```
 
 - Match the surrounding style of the file you are editing.
@@ -287,7 +330,7 @@ crystal tool format --check src spec examples
 - Keep the linter silent:
 
 ```bash
-crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
+crystal run lib/ameba/bin/ameba.cr -- src spec examples bundle --format silent
 ```
 
 ### Workflow
@@ -303,13 +346,21 @@ crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
 
 ## Testing
 
-The suite is `crystal spec` (currently 992 examples, 15 of them pending: 7 Redis rate-limit + 1 Redis middleware + 6 PostgreSQL concurrency contract gated on `ALTAIR_TEST_PG_CONCURRENCY`, with the
-fuller PostgreSQL contract suite gated on `ALTAIR_TEST_PG_URL`). Run it before and
-after every change:
+The suite is `crystal spec`. With Redis and PostgreSQL enabled the current
+result is **1114 examples, 0 failures, 0 errors, 5 pending**; the randomized
+record suite used by CI is **376 examples, 0 failures, 0 errors, 5 pending**.
+Run the suite before and after every change:
 
 ```bash
 crystal spec
+crystal spec spec/record -- --order random   # CI's randomized record job
+bash scripts/check_examples.sh            # bundled starters vs a generated project
+bash scripts/deployment_smoke.sh sqlite|postgresql|api   # generated deploy path
 ```
+
+Do **not** run the full suite and the randomized record suite in parallel
+against the same PostgreSQL instance — they contend for the same database and
+produce misleading failures.
 
 Rules:
 
@@ -378,8 +429,8 @@ These cost real debugging time once — internalize them:
 shards install          # fetch dev dependencies (ameba)
 crystal spec            # full test suite
 crystal run src/altair.cr  # boot the framework (see examples/)
-crystal tool format --check src spec examples
-crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
+crystal tool format --check src spec examples bundle
+crystal run lib/ameba/bin/ameba.cr -- src spec examples bundle --format silent
 ```
 
 `examples/hello_world/` is a self-contained runnable app — the reference

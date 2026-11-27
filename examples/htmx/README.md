@@ -8,7 +8,7 @@ without a single page reload.
 
 ## Requirements
 
-- [Crystal](https://crystal-lang.org) `>= 1.21.0`
+- [Crystal](https://crystal-lang.org) `>= 1.22.3`
 
 No other dependencies. htmx is loaded from a pinned CDN
 (`https://unpkg.com/htmx.org@2.0.10/dist/htmx.min.js`) — the framework's

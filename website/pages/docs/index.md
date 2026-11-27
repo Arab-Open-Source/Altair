@@ -64,6 +64,27 @@ Everything lives here: install once, learn guide by guide, and keep the CLI refe
   </a>
 </div>
 
+## Production
+
+<div class="doc-cards">
+  <a class="doc-card" href="/docs/deployment.html">
+    <h3>Deployment</h3>
+    <p>Generated Dockerfile and Compose files, non-root runtime, health check and explicit migrations.</p>
+  </a>
+  <a class="doc-card" href="/docs/read_replicas.html">
+    <h3>Read replicas</h3>
+    <p>Route clean SELECTs to a replica while writes stay on the primary. Experimental.</p>
+  </a>
+  <a class="doc-card" href="/docs/observability.html">
+    <h3>Observability</h3>
+    <p><code>/health</code>, Prometheus <code>/metrics</code>, structured logs and request ids.</p>
+  </a>
+  <a class="doc-card" href="/docs/docs_and_examples.html">
+    <h3>Offline docs and examples</h3>
+    <p><code>altair docs</code>, <code>altair examples</code> and the curated offline bundle.</p>
+  </a>
+</div>
+
 ## Reference
 
 <div class="doc-cards">

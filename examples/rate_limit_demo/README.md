@@ -7,7 +7,7 @@ real HTTP.
 
 ## Requirements
 
-- [Crystal](https://crystal-lang.org) `>= 1.21.0`
+- [Crystal](https://crystal-lang.org) `>= 1.22.3`
 - Optional: [Redis](https://redis.io) for the shared store (`ALTAIR_REDIS_URL`)
 
 No other dependencies. The example uses Altair directly from the repository.

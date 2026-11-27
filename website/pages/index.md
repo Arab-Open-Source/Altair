@@ -4,7 +4,7 @@
     <h1>The batteries-included framework for <span class="accent">Crystal</span></h1>
     <p class="hero-lede">Routing, controllers, views, a real ORM, generators and a CLI — with sane defaults, so building a web app feels like the framework is working <em>for</em> you.</p>
     <ul class="hero-badges">
-      <li class="badge"><b>992</b>&nbsp;specs passing</li>
+      <li class="badge"><b>1114</b>&nbsp;specs passing</li>
       <li class="badge">SQLite + PostgreSQL</li>
       <li class="badge">Linux &middot; macOS &middot; Windows</li>
     </ul>
@@ -25,7 +25,7 @@
 <span class="line"><span class="prompt">$</span> <span class="cmd">curl -fsSL https://github.com/Arab-Open-Source/Altair/releases/latest/download/install.sh | sh</span></span>
 <span class="line"><span class="comment"># verifies SHA-256, installs to ~/.local/bin</span></span>
 <span class="line"><span class="prompt">$</span> <span class="cmd">altair --version</span></span>
-<span class="line"><span class="out">Altair 0.3.x</span></span>
+<span class="line"><span class="out">Altair 0.5.0</span></span>
     </div>
     <div class="terminal-body" role="tabpanel" hidden>
 <span class="line"><span class="prompt">$</span> <span class="cmd">altair new blog</span></span>
@@ -85,6 +85,11 @@ Everything a web app needs ships together and agrees on conventions — typed at
     <span class="bento-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></span>
     <h3><a href="/docs/cli.html">CLI + generators</a></h3>
     <p><code>new</code>, <code>g scaffold</code>, <code>server</code>, <code>routes</code> and database commands.</p>
+  </div>
+  <div class="bento-card span-2 accent-top">
+    <span class="bento-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><line x1="6" y1="7" x2="6.01" y2="7"/><line x1="6" y1="17" x2="6.01" y2="17"/></svg></span>
+    <h3><a href="/docs/deployment.html">Production ready</a></h3>
+    <p>Generated Docker and Compose files, a non-root runtime, a <code>/health</code> check and explicit migrations.</p>
   </div>
 </div>
 

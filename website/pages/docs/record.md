@@ -21,6 +21,50 @@ end
 DATABASE_URL="postgres://postgres:secret@localhost:5433/blog" altair server
 ```
 
+## Read replicas
+
+Experimental: point `config.db_replica_url` (also available as
+`config.replica_url`) at a second connection to route clean `SELECT` statements
+there. Writes, transactions and reads that must see your own writes stay on
+the primary:
+
+```crystal
+class Blog < Altair::Application
+  config.db_url = ENV["DATABASE_URL"]? || "postgres://primary/blog"
+  config.db_replica_url = ENV["REPLICA_URL"]? || "postgres://replica/blog"
+end
+
+Post.all.to_a                     # SELECT -> replica
+Post.all.on_primary.to_a          # forced primary read, including eager loaders
+Altair::Record.connection.with_primary do
+  Post.find!(1)                   # every read in the block -> primary (nested-safe)
+end
+```
+
+Routing details:
+
+- A fiber that writes (or opens a transaction) reads from the primary for the
+  rest of the request, so a handler never reads a stale copy of its own
+  write. The framework clears that per-fiber stickiness in the request
+  handler's `ensure` block, including keep-alive connections.
+- PostgreSQL `INSERT ... RETURNING` is pinned to the primary — the returning
+  row must be read from the same connection that wrote it.
+- A failed replica checkout or lost connection enters a 5-second cooldown
+  during which reads fall back to the primary; a warning log records the
+  failure and an info log records recovery (`altair.record.replica`).
+- Each `Altair::Record::QueryEvent` carries `target`, either `:primary` or
+  `:replica`, through `on_query` subscribers.
+- `/metrics` (with `config.observability = true`) exposes exactly
+  `altair_db_queries_total{target="primary"}`,
+  `altair_db_queries_total{target="replica"}` and
+  `altair_db_replica_failovers_total`.
+
+Replication lag means a replica read can return older data than the primary;
+use `on_primary` or `with_primary` whenever a read must be current. See the
+[Read replicas guide](/docs/read_replicas.html) and the
+`examples/read_replica_postgres` streaming-replica demo, which exposes
+`X-DB-Target` and `X-DB-Failovers` response headers.
+
 ## Models
 
 A model maps to a table and gets typed accessors for every column, generated

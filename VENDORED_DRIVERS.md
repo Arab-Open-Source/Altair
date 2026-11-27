@@ -56,4 +56,3 @@ When both upstream pull requests are merged and released:
 1. Update the pins to the official fixed releases.
 2. Re-run the PostgreSQL protocol contract and release smoke.
 3. Remove this document and its release-packaging entry.
-4. Close https://github.com/Arab-Open-Source/Altair/issues/21.
