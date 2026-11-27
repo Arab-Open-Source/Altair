@@ -1,7 +1,7 @@
 name: bench_altair
 version: 1.0.0
 
-crystal: ">= 1.21.0"
+crystal: ">= 1.22.3"
 
 dependencies:
   altair:
@@ -11,6 +11,7 @@ dependencies:
     commit: 09165422b8fcac84d4359340bd4c35f5ff541e31
   gcry:
     github: sdogruyol/gcry
+    version: 0.40.0
 
 targets:
   bench:

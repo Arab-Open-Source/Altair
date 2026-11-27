@@ -10,7 +10,7 @@ shards:
 
   gcry:
     git: https://github.com/sdogruyol/gcry.git
-    version: 0.38.0
+    version: 0.40.0
 
   pg:
     git: https://github.com/arab-open-source/crystal-pg.git
