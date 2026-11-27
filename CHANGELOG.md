@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Read-replica routing isolation** — a transaction in one fiber no longer forces unrelated fibers onto the primary, and replica routing remains active when checkout hooks or query instrumentation are registered.
+- **Request-scoped write stickiness** — read-routing state is cleared when an HTTP request finishes, preventing keep-alive fibers from pinning later requests to the primary.
 - **PostgreSQL release smoke coverage** — CI generates a fresh PostgreSQL
   project, installs the pinned drivers, and runs a concurrent single-connection
   workload before publishing.

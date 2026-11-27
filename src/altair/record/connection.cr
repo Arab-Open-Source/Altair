@@ -122,22 +122,32 @@ module Altair
       # pass.
       @sticky_writes = Support::LRUCache(Fiber, Bool).new(1024)
 
+      # Clears request-scoped read-routing state for the calling fiber.
+      # Request handlers call this in their ensure block so a keep-alive
+      # connection cannot retain write stickiness into its next request.
+      def clear_fiber_state : Nil
+        return unless @replica
+
+        @sticky_writes.delete(Fiber.current)
+      end
+
       # The pool plain SELECT statements run against: the replica when one
       # is configured and the calling fiber is neither inside a transaction
       # nor pinned by an earlier write; the primary otherwise.
       private def read_database : DB::Database
         replica = @replica
-        if replica && @active_transactions.get == 0 && !@sticky_writes.get(Fiber.current)
-          replica
-        else
-          @database
-        end
+        return @database unless replica
+        return @database if @sticky_writes.get(Fiber.current)
+
+        replica
       end
 
       # Whether plain SELECTs currently route to the replica. Exposed for
       # observability and spec assertions.
       def replica_routed? : Bool
-        !@replica.nil? && @active_transactions.get == 0 && !@sticky_writes.get(Fiber.current)
+        return false unless @replica
+
+        !@sticky_writes.get(Fiber.current)
       end
 
       # Returns the SQL template for `key`, building it with the block on
@@ -218,7 +228,7 @@ module Altair
           end
         elsif Altair::Record.checkout_hooks?
           run_checkout do
-            @database.query(sql, *args, args: values) do |rs|
+            read_database.query(sql, *args, args: values) do |rs|
               block.call(rs)
             end
           end
@@ -249,7 +259,7 @@ module Altair
           end
         elsif Altair::Record.checkout_hooks?
           run_checkout do
-            @database.query_one(sql, *args) { |rs| block.call(rs) }
+            read_database.query_one(sql, *args) { |rs| block.call(rs) }
           end
         else
           read_database.query_one(sql, *args) { |rs| block.call(rs) }

@@ -112,6 +112,28 @@ module Altair
         end
       end
 
+      # Removes *key* and returns whether it was present.
+      def delete(key : K) : Bool
+        @mutex.synchronize do
+          node = @map.delete(key)
+          return false unless node
+
+          if prev = node.prev
+            prev.next = node.next
+          else
+            @head = node.next
+          end
+
+          if nxt = node.next
+            nxt.prev = node.prev
+          else
+            @tail = node.prev
+          end
+
+          true
+        end
+      end
+
       private def insert_front(node : Node(K, V))
         node.prev = nil
         node.next = @head

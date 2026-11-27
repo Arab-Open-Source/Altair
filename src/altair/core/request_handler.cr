@@ -60,6 +60,7 @@ class Altair::Core::RequestHandler
       handle_error(context, request, exception)
     ensure
       Altair::Record::NDetector.end_request
+      Altair::Record.clear_fiber_state if @app.config.db_replica_url
       if @app.config.observability?
         Altair::Observability.metrics.record(context.response.status.value, Time.instant - started)
       end
