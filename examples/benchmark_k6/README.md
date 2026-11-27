@@ -57,8 +57,9 @@ database-path fixes described below:
    FIFO queue *outside* the pool so the tail stays bounded.
 4. **Prepared statements for the Go side (the one that reshuffled the result).**
 5. **Altair request-path hardening**: benchmark-only request logging was removed,
-   SQL/decode timing was separated, PostgreSQL statements are named and reused,
-   and the configured PostgreSQL statement timeout is sent at connection startup.
+   SQL/decode timing was separated, extended-query exchanges are serialized per
+   physical connection, and the configured PostgreSQL statement timeout is sent
+   at connection startup.
 6. **PostgreSQL wire-protocol fix** (issue #21): a reentrant per-connection
    lock keeps an extended-query exchange from interleaving under concurrency,
    and frame-unsynced connections are discarded instead of recycled dirty.

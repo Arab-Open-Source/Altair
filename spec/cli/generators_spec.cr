@@ -83,7 +83,8 @@ module Altair::CLI
           app.generate
           shard = File.read("pg_blog/shard.yml")
           shard.should contain "pg:"
-          shard.should contain "will/crystal-pg"
+          shard.should contain "HMH-3080/crystal-pg"
+          shard.should contain "6854d35d8a29a411436d95dbc9b58c12958bb10d"
           database = File.read("pg_blog/config/database.yml")
           database.should contain "postgres://postgres:postgres@localhost/pg_blog_development"
           database.should contain "postgres://postgres:postgres@localhost/pg_blog_test"

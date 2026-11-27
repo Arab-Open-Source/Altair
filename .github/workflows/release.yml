@@ -26,6 +26,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     strategy:
@@ -48,6 +52,7 @@ jobs:
             target: windows-amd64
             platform: windows
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Install Crystal
@@ -80,9 +85,40 @@ jobs:
           if-no-files-found: error
           path: dist/altair-*
 
-  release:
-    needs: build
+  smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: altair_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Crystal
+        uses: crystal-lang/install-crystal@v1
+      - name: Install shards
+        run: shards install
+      - name: Build the altair binary
+        run: shards build altair
+      - name: PostgreSQL generated-app smoke
+        run: scripts/postgres_release_smoke.sh
+        env:
+          ALTAIR_SKIP_BUILD: "1"
+          ALTAIR_TEST_PG_URL: postgres://postgres:postgres@localhost:5432/altair_test
+
+  release:
+    needs: [build, smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -117,7 +153,7 @@ jobs:
           # project's `path:` dependency needs to compile.
           src_dir="altair-src-${{ github.ref_name }}"
           mkdir -p "$src_dir"
-          cp shard.yml README.md LICENSE CONTRIBUTING.md "$src_dir/"
+          cp shard.yml README.md LICENSE CONTRIBUTING.md VENDORED_DRIVERS.md "$src_dir/"
           cp -r src "$src_dir/src"
           tar -czf "dist/${src_dir}.tar.gz" "$src_dir"
           zip -qr "dist/${src_dir}.zip" "$src_dir"

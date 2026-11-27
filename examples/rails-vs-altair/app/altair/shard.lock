@@ -5,14 +5,18 @@ shards:
     version: 0.1.0
 
   db:
-    git: https://github.com/crystal-lang/crystal-db.git
-    version: 0.14.0
+    git: https://github.com/hmh-3080/crystal-db.git
+    version: 0.15.0+git.commit.6adf6ffaa948999a93bc95fdddf300b8426eaf0e
+
+  gcry:
+    git: https://github.com/sdogruyol/gcry.git
+    version: 0.38.0
 
   pg:
-    git: https://github.com/will/crystal-pg.git
-    version: 0.30.0
+    git: https://github.com/hmh-3080/crystal-pg.git
+    version: 0.32.0+git.commit.6854d35d8a29a411436d95dbc9b58c12958bb10d
 
   sqlite3:
-    git: https://github.com/crystal-lang/crystal-sqlite3.git
-    version: 0.23.0
+    git: https://github.com/hmh-3080/crystal-sqlite3.git
+    version: 0.24.0+git.commit.9e3c4c60630b01c94f6aacbdfeccb8d0f0685943
 

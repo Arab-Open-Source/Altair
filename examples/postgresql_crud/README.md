@@ -2,7 +2,7 @@
 
 This is a complete MVC web application. `Product` is the model,
 `ProductsController` provides the seven REST actions, ECR files are the views,
-and PostgreSQL is the database through `will/crystal-pg`.
+and PostgreSQL is the database through `crystal-pg`.
 
 Create an empty database and provide its URL:
 

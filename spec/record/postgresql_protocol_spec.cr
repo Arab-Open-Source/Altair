@@ -1,12 +1,12 @@
 # PostgreSQL wire-protocol correctness contract (the issue #21 behaviours).
 #
 # These specs opt in via ALTAIR_TEST_PG_URL and run against a real server
-# using the patched crystal-pg / crystal-db sources in lib/. They pin the
-# properties the concurrent-desync fix relies on:
+# using the pinned crystal-pg / crystal-db forks. They pin the properties the
+# concurrent-desync fix relies on:
 #
 #   A - many fibers safely share one physical connection
 #   B - a connection left frame-unsynced is discarded, never recycled dirty
-#   C - named prepared statements cannot overwrite each other
+#   C - distinct SQL statements cannot overwrite each other
 #   D - interleaved ResultSet iteration never desyncs frames
 #   E - an oversubscribed pool (far more fibers than connections) succeeds
 #   F - retry exhaustion surfaces the original cause, never a bare error
@@ -16,20 +16,11 @@
 require "../spec_helper"
 require "pg"
 
-# Spec-local stand-ins for the patched crystal-pg types the gated contract
-# references. Stock crystal-pg has neither PQ::ProtocolError nor
-# Connection#prepared_name; both ship only with the patched lib/ sources.
+# Spec-local stand-in for the patched crystal-pg protocol error. Stock
+# crystal-pg raises a generic exception for the same frame mismatch.
 {% unless PQ.has_constant?("ProtocolError") %}
   module PQ
     class ProtocolError < Exception
-    end
-  end
-{% end %}
-
-{% unless PQ::Connection.has_method?("prepared_name") %}
-  class PQ::Connection
-    def prepared_name(sql : String) : String
-      raise "prepared_name requires the patched crystal-pg in lib/"
     end
   end
 {% end %}
@@ -147,7 +138,7 @@ describe "PostgreSQL wire protocol under concurrency" do
       proto_teardown(db)
     end
 
-    it "keeps distinct named prepared statements apart on one connection (C)" do
+    it "keeps distinct SQL statements apart on one connection (C)" do
       db = proto_pool(1)
       proto_setup(db)
       fibers = 64
@@ -155,7 +146,7 @@ describe "PostgreSQL wire protocol under concurrency" do
       results = Channel(Exception?).new(fibers)
       fibers.times do |i|
         spawn(name: "proto-C-#{i}") do
-          sql = "SELECT $1::bigint + #{i}" # distinct text => distinct prepared name
+          sql = "SELECT $1::bigint + #{i}"
           reps.times do
             got = db.scalar(sql, 1000).as(Int64)
             raise "statement bleed: sent #{i}, got #{got}" unless got == (1000 + i).to_i64
@@ -169,14 +160,6 @@ describe "PostgreSQL wire protocol under concurrency" do
         e = results.receive
         raise e.not_nil!.to_s if e
       end
-      conn = db.pool.checkout.as(PG::Connection)
-      pq = PG.proto_probe(conn)
-      a = pq.prepared_name("SELECT $1::int + 1")
-      b = pq.prepared_name("SELECT $1::int + 2")
-      a.should eq(pq.prepared_name("SELECT $1::int + 1"))
-      a.should_not eq(b)
-      a.should start_with("altair_")
-      db.pool.release(conn)
       proto_teardown(db)
     end
 
