@@ -1,10 +1,10 @@
 name: altair
-version: 0.4.4
+version: 0.5.0
 
 authors:
   - hmh <hasanmo3080vr@gmail.com>
 
-crystal: '>= 1.21.0'
+crystal: '>= 1.22.3'
 
 license: MIT
 
@@ -21,7 +21,7 @@ dependencies:
     commit: 219bc6f9d6552c79d018c7ba2eb086f603466104
   gcry:
     github: sdogruyol/gcry
-    version: 0.38.0
+    version: 0.40.0
 
 development_dependencies:
   ameba:

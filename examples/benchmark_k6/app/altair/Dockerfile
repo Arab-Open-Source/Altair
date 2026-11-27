@@ -1,6 +1,6 @@
 # Altair benchmark image. Build context is the Altair repo root so the
 # path dependency in shard.yml resolves; see docker-compose.yml.
-FROM crystal:1.21.0
+FROM crystal:1.22.3
 WORKDIR /repo
 COPY . .
 WORKDIR /repo/examples/benchmark_k6/app/altair

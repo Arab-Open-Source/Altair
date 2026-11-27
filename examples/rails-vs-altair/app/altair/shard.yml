@@ -1,7 +1,7 @@
 name: bench_altair
 version: 1.0.0
 
-crystal: ">= 1.21.0"
+crystal: ">= 1.22.3"
 
 dependencies:
   altair:

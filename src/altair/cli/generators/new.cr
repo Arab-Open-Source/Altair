@@ -245,7 +245,7 @@ module Altair
             io << "name: #{@name}\n"
             io << "version: 0.1.0\n"
             io << "\n"
-            io << "crystal: \">= 1.21.0\"\n"
+            io << "crystal: \">= 1.22.3\"\n"
             io << "\n"
             io << "dependencies:\n"
             io << "  altair:\n"
