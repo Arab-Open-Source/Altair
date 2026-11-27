@@ -55,6 +55,12 @@ module Altair
         end
       end
 
+      # The database target that served the statement.
+      enum Target
+        Primary
+        Replica
+      end
+
       getter sql : String
       getter adapter : String
       getter operation : Operation
@@ -62,6 +68,7 @@ module Altair
       getter sql_time : Time::Span
       getter decode_time : Time::Span
       getter? success : Bool
+      getter target : Target
 
       def initialize(
         @sql : String,
@@ -71,6 +78,7 @@ module Altair
         @sql_time : Time::Span,
         @decode_time : Time::Span,
         @success : Bool,
+        @target : Target = Target::Primary,
       )
       end
 
@@ -139,9 +147,10 @@ module Altair
       sql_time : Time::Span,
       decode_time : Time::Span,
       success : Bool,
+      target : QueryEvent::Target = QueryEvent::Target::Primary,
     ) : Nil
       @@query_event_handlers.each &.call(
-        QueryEvent.new(sql, adapter, operation, checkout_wait, sql_time, decode_time, success)
+        QueryEvent.new(sql, adapter, operation, checkout_wait, sql_time, decode_time, success, target)
       )
     end
 
@@ -238,6 +247,26 @@ module Altair
     # connection, for observability endpoints and spec assertions.
     def self.sql_template_metrics
       connection.sql_template_metrics
+    end
+
+    # Per-target statement counters, or nil when no connection is open.
+    def self.query_target_metrics
+      connection = @@connection_lock.synchronize { @@connection }
+      connection.try(&.query_target_metrics)
+    end
+
+    # Prometheus exposition for database target counters.
+    def self.prometheus_query_metrics : String
+      metrics = query_target_metrics
+      return "" unless metrics
+
+      String.build do |io|
+        io << "# TYPE altair_db_queries_total counter\n"
+        io << "altair_db_queries_total{target=\"primary\"} " << metrics[:primary] << '\n'
+        io << "altair_db_queries_total{target=\"replica\"} " << metrics[:replica] << '\n'
+        io << "# TYPE altair_db_replica_failovers_total counter\n"
+        io << "altair_db_replica_failovers_total " << metrics[:failovers] << '\n'
+      end
     end
 
     # Clears request-scoped state on the current connection without opening

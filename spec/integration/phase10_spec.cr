@@ -112,6 +112,9 @@ describe "Phase 10 integration" do
       metrics = Altair::Test.get(port, "/metrics")
       metrics.status_code.should eq(200)
       metrics.body.should contain("altair_http_requests_total")
+      metrics.body.should contain("altair_db_queries_total{target=\"primary\"}")
+      metrics.body.should contain("altair_db_queries_total{target=\"replica\"}")
+      metrics.body.should contain("altair_db_replica_failovers_total")
     end
   end
 

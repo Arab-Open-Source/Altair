@@ -12,6 +12,7 @@ Excluded:
   # upstream style; linting them produced noise unrelated to this codebase.
   - "examples/benchmark_k6/app/altair/lib"
   - "examples/read_replica/lib"
+  - "examples/read_replica_postgres/lib"
 
 Lint/WhitespaceAroundMacroExpression:
   Enabled: false

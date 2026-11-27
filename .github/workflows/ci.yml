@@ -107,7 +107,7 @@ jobs:
         run: crystal build src/altair_cli.cr -Dgc_none --no-codegen
       - name: Example builds
         run: |
-          for entry in hello_world:src/hello_world.cr htmx:src/htmx.cr sqlite_crud:src/app.cr postgresql_crud:src/app.cr showcase:src/showcase.cr; do
+          for entry in hello_world:src/hello_world.cr htmx:src/htmx.cr sqlite_crud:src/app.cr postgresql_crud:src/app.cr showcase:src/showcase.cr read_replica_postgres:src/read_replica_postgres.cr; do
             dir=${entry%%:*}
             file=${entry##*:}
             (cd examples/$dir && shards install && crystal build $file --no-codegen)

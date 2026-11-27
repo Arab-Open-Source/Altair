@@ -209,6 +209,127 @@ describe "read replicas" do
     end
   end
 
+  it "supports explicit primary reads through Relation#on_primary" do
+    with_replica_app do |connection|
+      primary_view = ReplicaSpec.setup_pool("sqlite3://./spec/record/replica-primary.db")
+      begin
+        primary_view.exec("INSERT INTO replica_notes (body) VALUES ('primary only')")
+      ensure
+        primary_view.close
+      end
+
+      relation = ReplicaNote.all
+      relation.to_a.size.should eq(0)
+      relation.on_primary.to_a.size.should eq(1)
+      connection.replica_routed?.should be_true
+    end
+  end
+
+  it "labels query events with their database target" do
+    with_replica_app do |connection|
+      events = [] of Altair::Record::QueryEvent
+      Altair::Record.on_query_event { |event| events << event }
+
+      ReplicaNote.all.to_a
+      events.last.target.should eq(Altair::Record::QueryEvent::Target::Replica)
+
+      connection.exec("INSERT INTO replica_notes (body) VALUES ('primary')")
+      events.last.target.should eq(Altair::Record::QueryEvent::Target::Primary)
+
+      ReplicaNote.all.on_primary.to_a
+      events.last.target.should eq(Altair::Record::QueryEvent::Target::Primary)
+    end
+  end
+
+  it "counts statements per target" do
+    with_replica_app do |connection|
+      before = connection.query_target_metrics
+
+      ReplicaNote.all.to_a
+      connection.query_one("SELECT count(*) FROM replica_notes") { |rs| rs.read(Int64) }
+      ReplicaNote.create(body: "primary")
+      ReplicaNote.all.on_primary.to_a
+
+      after = connection.query_target_metrics
+      (after[:replica] - before[:replica]).should eq(2)
+      (after[:primary] - before[:primary]).should be >= 2
+    end
+  end
+
+  it "falls back to the primary when the replica is unavailable and recovers" do
+    primary_url = "sqlite3://./spec/record/replica-failover-primary.db"
+    replica_url = "sqlite3://./spec/record/replica-failover-down/replica.db"
+    missing_dir = "spec/record/replica-failover-down"
+
+    [primary_url, replica_url].each do |url|
+      path = url.sub("sqlite3://", "")
+      File.delete?(path)
+      File.delete?("#{path}-wal")
+      File.delete?("#{path}-shm")
+    end
+    Dir.delete?(missing_dir)
+
+    primary_setup = ReplicaSpec.setup_pool(primary_url)
+    primary_setup.exec("INSERT INTO replica_notes (body) VALUES ('primary only')")
+    primary_setup.close
+
+    replica = DB.open("#{replica_url}?initial_pool_size=0&max_pool_size=1&checkout_timeout=0.1&retry_attempts=1&retry_delay=0")
+    connection = Altair::Record::Connection.new(
+      Altair::Record::Adapters::SQLite3.instance,
+      primary_url,
+      DB::Pool::Options.new,
+      5.seconds,
+      replica,
+      100.milliseconds
+    )
+
+    begin
+      connection.query_one("SELECT count(*) FROM replica_notes") { |rs| rs.read(Int64) }.should eq(1)
+      after_failure = connection.query_target_metrics
+      after_failure[:failovers].should eq(1)
+      after_failure[:primary].should eq(1)
+      after_failure[:replica].should eq(0)
+
+      # During the cooldown, reads stay on the primary without another attempt.
+      connection.query_one("SELECT count(*) FROM replica_notes") { |rs| rs.read(Int64) }.should eq(1)
+      after_cooldown = connection.query_target_metrics
+      after_cooldown[:failovers].should eq(1)
+      after_cooldown[:primary].should eq(2)
+
+      Dir.mkdir_p(missing_dir)
+      replica_setup = ReplicaSpec.setup_pool(replica_url)
+      replica_setup.close
+      sleep 150.milliseconds
+
+      connection.query_one("SELECT count(*) FROM replica_notes") { |rs| rs.read(Int64) }.should eq(0)
+      after_recovery = connection.query_target_metrics
+      after_recovery[:failovers].should eq(1)
+      after_recovery[:replica].should eq(1)
+    ensure
+      connection.close
+      File.delete?(primary_url.sub("sqlite3://", ""))
+      File.delete?(replica_url.sub("sqlite3://", ""))
+      File.delete?("#{replica_url.sub("sqlite3://", "")}-wal")
+      File.delete?("#{replica_url.sub("sqlite3://", "")}-shm")
+      Dir.delete?(missing_dir)
+    end
+  end
+
+  it "routes INSERT RETURNING through query_one to the primary" do
+    with_replica_app do |connection|
+      id = connection.query_one("INSERT INTO replica_notes (body) VALUES ('returning') RETURNING id") do |rs|
+        rs.read(Int64)
+      end
+      id.should be > 0
+      connection.replica_routed?.should be_false
+
+      connection.query_one("SELECT count(*) FROM replica_notes") { |rs| rs.read(Int64) }.should eq(1)
+      metrics = connection.query_target_metrics
+      metrics[:primary].should be >= 2
+      metrics[:replica].should eq(0)
+    end
+  end
+
   it "clears write stickiness when request-scoped state is cleared" do
     with_replica_app do |connection|
       ReplicaNote.create(body: "mine")

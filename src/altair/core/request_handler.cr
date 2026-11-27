@@ -87,6 +87,7 @@ class Altair::Core::RequestHandler
     elsif @app.config.observability? && request.path == @app.config.metrics_path
       response.headers["Content-Type"] = "text/plain; version=0.0.4; charset=utf-8"
       response.print(Altair::Observability.metrics.to_prometheus)
+      response.print(Altair::Record.prometheus_query_metrics)
     elsif @router.empty? && request.path == "/"
       render_welcome(response)
     else
