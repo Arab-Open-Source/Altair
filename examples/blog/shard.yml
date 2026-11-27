@@ -7,5 +7,5 @@ dependencies:
   altair:
     path: ../..
   pg:
-    github: HMH-3080/crystal-pg
-    commit: 6854d35d8a29a411436d95dbc9b58c12958bb10d
+    github: Arab-Open-Source/crystal-pg
+    commit: 09165422b8fcac84d4359340bd4c35f5ff541e31

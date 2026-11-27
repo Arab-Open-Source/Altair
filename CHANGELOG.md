@@ -10,11 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **PostgreSQL concurrency fixes now ship through pinned dependencies.**
-  Generated PostgreSQL projects use maintained `crystal-pg` and `crystal-db`
-  forks pinned to exact commits, so the wire-protocol and retry-cause fixes no
-  longer require a repository-local patch script. A transitive `sqlite3` pin
-  keeps both adapters on the same patched `db` source. Provenance and upstream
-  pull requests are documented in `VENDORED_DRIVERS.md`.
+  Generated PostgreSQL projects use organization-owned `crystal-pg` and
+  `crystal-db` forks pinned to exact commits, so the wire-protocol and retry-cause
+  fixes no longer require a repository-local patch script. A transitive `sqlite3`
+  pin keeps both adapters on the same patched `db` source. Each fork has audited
+  tags and compatibility CI. Provenance and upstream pull requests are documented
+  in `VENDORED_DRIVERS.md`.
 - The PostgreSQL protocol contract now verifies distinct concurrent statements
   without relying on named prepared-statement caching, which was rejected after
   it produced stale plans across DDL changes.
