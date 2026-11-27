@@ -17,8 +17,8 @@ targets:
 
 dependencies:
   sqlite3:
-    github: HMH-3080/crystal-sqlite3
-    commit: 9e3c4c60630b01c94f6aacbdfeccb8d0f0685943
+    github: Arab-Open-Source/crystal-sqlite3
+    commit: 219bc6f9d6552c79d018c7ba2eb086f603466104
   gcry:
     github: sdogruyol/gcry
     version: 0.38.0
@@ -28,5 +28,5 @@ development_dependencies:
     github: crystal-ameba/ameba
     commit: f53fcd3382553121239c8f144aec5e27aeadbed8
   pg:
-    github: HMH-3080/crystal-pg
-    commit: 6854d35d8a29a411436d95dbc9b58c12958bb10d
+    github: Arab-Open-Source/crystal-pg
+    commit: 09165422b8fcac84d4359340bd4c35f5ff541e31

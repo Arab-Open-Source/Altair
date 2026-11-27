@@ -4,13 +4,22 @@ Altair temporarily pins maintained forks of `crystal-pg` and `crystal-db`, plus 
 
 ## Current pins
 
-| Dependency | Repository | Commit | Upstream pull request |
-|------------|------------|--------|-----------------------|
-| `pg` | `HMH-3080/crystal-pg` | `6854d35d8a29a411436d95dbc9b58c12958bb10d` | https://github.com/will/crystal-pg/pull/319 |
-| `db` | `HMH-3080/crystal-db` | `6adf6ffaa948999a93bc95fdddf300b8426eaf0e` | https://github.com/crystal-lang/crystal-db/pull/235 |
-| `sqlite3` | `HMH-3080/crystal-sqlite3` | `9e3c4c60630b01c94f6aacbdfeccb8d0f0685943` | Transitive pin only |
+| Dependency | Repository | Commit | Tag | Upstream pull request |
+|------------|------------|--------|-----|-----------------------|
+| `pg` | `Arab-Open-Source/crystal-pg` | `09165422b8fcac84d4359340bd4c35f5ff541e31` | `v0.32.0-altair.3` | https://github.com/will/crystal-pg/pull/319 |
+| `db` | `Arab-Open-Source/crystal-db` | `161794a6c9c3ead9b7799b0cdd5d385fae3bb9c4` | `v0.15.0-altair.3` | https://github.com/crystal-lang/crystal-db/pull/235 |
+| `sqlite3` | `Arab-Open-Source/crystal-sqlite3` | `219bc6f9d6552c79d018c7ba2eb086f603466104` | `v0.24.0-altair.3` | Transitive pin only |
 
 The `pg` and `sqlite3` distribution commits both pin the same `db` fork internally, so Shards resolves one unambiguous source for every adapter. Both upstream PRs are ready for review and awaiting a maintainer merge.
+
+## Ownership and maintenance policy
+
+- All distribution forks are owned by the `Arab-Open-Source` organization.
+- Production manifests pin exact commits; branches are never used as release inputs.
+- Annotated `*-altair.3` tags mark the current audited pins.
+- Each fork runs an `Altair compatibility` workflow on pushes, pull requests, manual dispatch, and a weekly schedule.
+- Fork branches should be rebased onto the corresponding upstream release only when the full driver suite and Altair release smoke pass.
+- Personal forks are temporary and are not referenced by Altair.
 
 ## Fixes included
 

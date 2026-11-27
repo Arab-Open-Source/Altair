@@ -252,8 +252,8 @@ module Altair
             io << framework << "\n"
             if @database == :postgresql
               io << "  pg:\n"
-              io << "    github: HMH-3080/crystal-pg\n"
-              io << "    commit: 6854d35d8a29a411436d95dbc9b58c12958bb10d\n"
+              io << "    github: Arab-Open-Source/crystal-pg\n"
+              io << "    commit: 09165422b8fcac84d4359340bd4c35f5ff541e31\n"
             end
           end
         end
