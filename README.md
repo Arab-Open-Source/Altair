@@ -19,15 +19,18 @@ Its goal is to provide an exceptional developer experience while taking
 advantage of Crystal's native performance, low memory usage and single-binary
 deployment.
 
-> **Status:** early development — Phases 0–7 complete, 992 specs (15 pending without Redis)
+> **Status:** Altair 0.5.0 (released 2026-11-27) plus the unreleased
+> production-readiness Step 5/5.5 work. Phases 0–8 and 10 complete, Phase 9
+> in progress; 1114 specs, 0 failures, 5 pending with Redis and PostgreSQL.
+> Requires Crystal 1.22.3; the release ships with gcry 0.40.0.
 
 > **Website:** <https://arab-open-source.github.io/Altair/> — install, usage and
 > what is implemented, generated from markdown in [`website/`](website/).
 
-## Under development
+## Where things stand
 
 Altair is built in phases, each ending with something working and visible.
-Phases 0–5 are complete: the application core, router, controllers, the
+The foundation phases are complete: the application core, router, controllers, the
 view stack, the ORM (`Altair::Record`) and the CLI with generators all ship
 with passing specs. The ORM supports SQLite3 and PostgreSQL, with migration
 runner, schema generation, CRUD, validations, associations, callbacks, and
@@ -37,9 +40,16 @@ a contract test suite that runs against both backends. The CLI can scaffold
  (`bin/altair server`), print the route table (`bin/altair routes`) and run migrations
  (`bin/altair db:migrate` / `bin/altair db:rollback` / `bin/altair db:seed`). Phase 6 hardening
 shipped sessions, flash, CSRF, auth helpers, JWT, `.env` / `database.yml`,
-multipart uploads and a security middleware set. Phase 7 adds background
+multipart uploads and a security middleware set. Phase 7 added background
 jobs, full authentication (`altair g auth`), the asset pipeline and
-first-class testing utilities.
+first-class testing utilities. Phases 8 (database ergonomics) and 10 (router
+and future features) are complete, including read replicas, cache, storage,
+Cable, API mode, observability and the admin generator. Phase 9 (CLI
+ergonomics) is in progress: hot reload shipped; the remaining items are in
+[ROADMAP.md](ROADMAP.md). The current development branch adds the
+production-readiness Step 5 work: generated Docker/Compose deployment,
+offline docs and examples, and a clean-machine deployment smoke test; it is
+unreleased.
 
 What is already in place:
 
@@ -61,14 +71,19 @@ What is already in place:
 | Asset pipeline | `altair assets:precompile` fingerprints `assets/` into `public/assets/` with a manifest; `stylesheet_link_tag` / `javascript_asset_tag` / `asset_url`; immutable caching |
 | Background jobs | typed `params` jobs, compile-checked `enqueue`/`enqueue_in`/`enqueue_at`, lazy `altair_jobs` table, atomic claiming, backoff retries, `altair jobs:work` / `jobs:stats`, in-memory test mode |
 | ORM (`Altair::Record`) | adapter interface + SQLite3 and PostgreSQL adapters, connection pooling (warm defaults 2/2/10), migrations DSL + runner, `db/schema.cr` generation, CRUD + finders, validations (`valid?` + errors), timestamps + callbacks, associations (`belongs_to` / `has_many` / `has_one`) with batched eager loading, `dependent:` handling, `validates_uniqueness_of` and the list/range/format/confirmation rules, multi-database support via `ALTAIR_DB_URL`, `find_each` batching that keeps filters and preloaders, `COUNT(*)` relation counting, parallel execution on boot, and a development N+1 detector |
-| CLI | builds a standalone `altair` binary; inside a project `bin/altair server`, `bin/altair routes`, `bin/altair db:migrate` / `bin/altair db:rollback` / `bin/altair db:seed` / `bin/altair assets:precompile` / `bin/altair jobs:work` / `bin/altair jobs:stats`; releases ship checksummed framework source archives and the installers take a `--framework` switch for offline installs |
-| Generators | `altair new <name>` scaffolds the standard layout; `altair g model` / `g migration` / `g controller` / `g scaffold Post title:string body:text` write ready-to-edit files (model, migration, controller, views, routes, schema) |
+| Read replicas | `config.db_replica_url` routes plain SELECTs to a replica; writes, transactions and `Relation#on_primary` stay on the primary, with per-fiber read stickiness after a write, request cleanup, failover cooldown and per-target query metrics — experimental (`examples/read_replica_postgres` is the streaming-replica demo) |
+| Deployment | `altair new` generates a multi-stage Dockerfile (Crystal 1.22.3, static image), `.dockerignore` and Compose for SQLite, PostgreSQL and `--api`; non-root runtime, `/health` HEALTHCHECK, asset precompile, named data volumes, explicit migrations via `docker compose run --rm web ./bin/altair db:migrate`, secrets from the environment |
+| Offline docs & examples | curated `bundle/` guides and starters ship in the repo and release source archive; `altair docs [<topic>]`, `altair docs --refresh`, `altair examples [--copy NAME]`, and `altair new --with-examples`; nothing is written into `lib/` |
+| CLI | builds a standalone `altair` binary; inside a project `bin/altair server`, `bin/altair routes`, `bin/altair db:migrate` / `bin/altair db:rollback` / `bin/altair db:seed` / `bin/altair assets:precompile` / `bin/altair jobs:work` / `bin/altair jobs:stats`; `altair docs` / `altair examples` work offline; releases ship checksummed framework source archives and the installers take a `--framework` switch for offline installs |
+| Generators | `altair new <name> [-d sqlite|postgresql] [--api] [--with-examples]` scaffolds the standard layout; `altair g model` / `g migration` / `g controller` / `g scaffold Post title:string body:text` write ready-to-edit files (model, migration, controller, views, routes, schema) |
 
-What is still missing (in rough order): the remaining rich-query DSL
-(`group`/`having`), a development console, and multi-tenancy
-(candidate for the next phase — see
+What is still missing (in rough order): the remaining Phase 9 CLI ergonomics
+(`destroy`, job generator, `db:status`, assets/jobs helpers), the remaining
+rich-query DSL (`group`/`having`) and a development console; multi-tenancy is
+a Phase 12 candidate (see
 `docs/architecture/orm-audit-and-tenancy-plan.md`). `examples/rate_limit_demo`
-now shows the limiter live.
+shows the limiter live, and `examples/read_replica_postgres` demonstrates
+streaming replication with the experimental replica routing.
 
 ---
 
@@ -125,7 +140,7 @@ now shows the limiter live.
   (configurable, and disablable per environment), so oversized payloads
   get a `413 Payload Too Large` before they are ever read, and the
   response never echoes the rejected body.
-- **Example applications** — `examples/hello_world`, a working demo with a RESTful resource, static assets and verified behavior over real HTTP; `examples/htmx`, showing the view stack and the htmx layer in the browser; `examples/blog`, the persistence demo with posts and comments surviving restarts (SQLite3 by default, PostgreSQL via `ALTAIR_DB_URL`); `examples/sqlite_crud` and `examples/postgresql_crud`, full MVC CRUD examples for the ORM on each backend.
+- **Example applications** — `examples/hello_world`, a working demo with a RESTful resource, static assets and verified behavior over real HTTP; `examples/htmx`, showing the view stack and the htmx layer in the browser; `examples/blog`, the persistence demo with posts and comments surviving restarts (SQLite3 by default, PostgreSQL via `ALTAIR_DB_URL`); `examples/sqlite_crud` and `examples/postgresql_crud`, full MVC CRUD examples for the ORM on each backend; `examples/rate_limit_demo`, the live sliding-window limiter; `examples/read_replica` and `examples/read_replica_postgres`, replica routing demos (the latter with a real PostgreSQL streaming standby); and `examples/showcase`, a broad feature demo.
 - **Sessions & authentication** — HMAC-signed cookie sessions with flash
   and CSRF protection on state-changing forms, `require_login` /
   `authenticate!` filters, `Altair::Auth::JWT` for API tokens, multipart
@@ -152,7 +167,36 @@ now shows the limiter live.
   one-off requests, `Altair::Test::Client` keeping cookies across requests
   with browser-like redirects, `Altair::Test.migrate!` to prepare the test
   database, and `Altair::Test.transactional` for rolled-back examples.
- - **CLI** — a standalone `altair` binary (`shards build altair`): `altair new <name>` scaffolds a runnable project (Windows and Linux aware, with `bin/altair`, `bin/altair.cr` and `bin/altair.cmd` launchers), `altair g` generates model/migration/controller/scaffold/auth files with a typed column DSL (`Post title:string body:text`), and inside a generated project `bin/altair server`, `bin/altair routes`, `bin/altair db:migrate`, `bin/altair db:rollback`, `bin/altair db:seed`, `bin/altair assets:precompile`, `bin/altair jobs:work` and `bin/altair jobs:stats` drive the app. Generated scaffold files ship with RESTful CRUD, views, a migration, and a seeded `db/schema.cr` so the model compiles before the first migration runs.
+- **Read replicas (experimental)** — `config.db_replica_url` sends plain
+  SELECTs to a replica while writes and transactions stay on the primary;
+  reads stick to the primary for the rest of a request after a write, and
+  that state is cleared when the request ends. `Relation#on_primary` and
+  `Altair::Record.connection.with_primary` force primary routing;
+  `QueryEvent#target` is `:primary` or `:replica`, with
+  `altair_db_queries_total{target="primary"}`,
+  `altair_db_queries_total{target="replica"}` and
+  `altair_db_replica_failovers_total` on `/metrics`. Failed replicas enter a
+  five-second failover cooldown and log recovery; PostgreSQL
+  `INSERT ... RETURNING` is pinned to the primary. See
+  `examples/read_replica_postgres` for a real streaming-standby demo.
+- **Deployment** — `altair new` writes a multi-stage Dockerfile (Crystal
+  1.22.3, static build on Alpine), `.dockerignore` and `compose.yml` for
+  SQLite, PostgreSQL and `--api` projects. The runtime image holds only the
+  compiled server and launcher, public assets/config and `db/migrations`;
+  database files live in named volumes (`sqlite_data` at `/app/db/data`,
+  `pg_data` for PostgreSQL). It runs as a non-root `app` user with a
+  `/health` HEALTHCHECK. Migrations are never automatic: build with
+  `docker compose build`, run `docker compose run --rm web ./bin/altair db:migrate`,
+  then `docker compose up -d` and check `/health`. Secrets come from the
+  environment (`${VAR:?...}` in Compose), never from image layers.
+- **Offline docs and examples** — the curated `bundle/` ships with the repo
+  and the release source archive; `altair docs [<topic>]` prints guides
+  without network access, `altair examples` lists and reads starter
+  programs, and `altair new --with-examples` copies a curated set into
+  `examples/altair/`. Generated projects record provenance in
+  `.altair/bundle.yml` and cache copies under `.altair/cache/`; nothing is
+  written into `lib/`.
+- **CLI** — a standalone `altair` binary (`shards build altair`): `altair new <name>` scaffolds a runnable project (Windows and Linux aware, with `bin/altair`, `bin/altair.cr` and `bin/altair.cmd` launchers), `altair g` generates model/migration/controller/scaffold/auth files with a typed column DSL (`Post title:string body:text`), and inside a generated project `bin/altair server`, `bin/altair routes`, `bin/altair db:migrate`, `bin/altair db:rollback`, `bin/altair db:seed`, `bin/altair assets:precompile`, `bin/altair jobs:work` and `bin/altair jobs:stats` drive the app. Generated scaffold files ship with RESTful CRUD, views, a migration, and a seeded `db/schema.cr` so the model compiles before the first migration runs.
 
 ### Planned
 
@@ -170,7 +214,10 @@ Altair ships a public load-test harness —
 on identical PostgreSQL-backed CRUD endpoints, driven by k6 over real HTTP.
 Every framework gets the same **20-connection / 6-worker budget** at the
 realistic profile (**100 VUs, 60 seconds**); a discarded warm-up run precedes
-each measured phase. The committed results:
+each measured phase. The committed results below are **historical**: they were
+measured with gcry **0.38.0** (the Crystal version for that session was not
+recorded). The current release uses gcry **0.40.0** and Crystal **1.22.3**;
+no new benchmark session was run for it, and these numbers are unchanged.
 
 | Workload | Framework | req/s | avg | p95 | p99 | p99.9 | max |
 |---|---|---:|---:|---:|---:|---:|---:|
@@ -206,7 +253,9 @@ crystal build --release -Dgc_none src/app.cr
 ```
 
 Measured in an interleaved A/B (medians of three rounds per arm, unique
-server processes), gcry 0.38.0 eliminates the dirty window entirely:
+server processes), gcry 0.38.0 eliminates the dirty window entirely. These
+are the historical 0.38.0 figures; the current release ships gcry 0.40.0 on
+Crystal 1.22.3 and has not been re-benchmarked:
 
 | Read metric | Boehm (median) | Boehm (worst round) | gcry (median) | gcry (worst round) |
 |---|---:|---:|---:|---:|
@@ -314,7 +363,10 @@ Two standalone MVC CRUD examples are available — one for each backend:
 | `examples/postgresql_crud` | PostgreSQL | `ALTAIR_DB_URL="postgresql://postgres:postgres@localhost:5434/crud_development" crystal run examples/postgresql_crud/src/postgresql_crud.cr` |
 
 Each exposes full CRUD for a `Product` resource at <http://localhost:4100>
-(SQLite) or <http://localhost:4200> (PostgreSQL).
+(SQLite) or <http://localhost:4200> (PostgreSQL). For replica routing,
+`examples/read_replica` uses two SQLite files and
+`examples/read_replica_postgres` brings up a PostgreSQL primary with a real
+streaming standby (replica routing is experimental).
 
 ---
 
@@ -407,6 +459,41 @@ altair g controller Posts
 altair help
 ```
 
+`altair new` also accepts `-d sqlite|postgresql` (SQLite is the default),
+`--api` for a JSON-only project without views or assets, and
+`--with-examples` to copy a curated starter set into `examples/altair/`.
+
+### Deploying a generated app
+
+Every generated project ships a multi-stage Dockerfile, `.dockerignore` and
+`compose.yml` for SQLite, PostgreSQL and `--api`. Build a static image, apply
+migrations explicitly, then start the non-root container and check `/health`:
+
+```bash
+docker compose build
+docker compose run --rm web ./bin/altair db:migrate
+docker compose up -d
+curl -fsS http://localhost:3000/health
+```
+
+Migrations never run at container boot. The runtime image keeps only the
+compiled server and launcher, public assets/config and `db/migrations`;
+database files live in named volumes (`sqlite_data` at `/app/db/data`,
+`pg_data` for PostgreSQL). Secrets such as `SECRET_KEY_BASE` and
+`POSTGRES_PASSWORD` are required environment variables — inject them from
+your secret manager. `scripts/deployment_smoke.sh sqlite|postgresql|api`
+exercises this exact path end to end.
+
+Curated guides and starter programs are available offline from the release
+bundle or a local framework checkout:
+
+```bash
+altair docs --list                 # available topics
+altair docs record associations    # a single guide (or section)
+altair examples                    # list starter programs
+altair examples --copy hello       # inside a project: copy into examples/altair/
+```
+
 ### Updating
 
 `altair update` checks GitHub for the latest release, downloads the binary
@@ -429,16 +516,25 @@ published shard.
 
 By default a generated project depends on the published `Altair` shard. To
 point it at this development checkout instead, pass `--framework-path` (or
-set `ALTAIR_PATH`) when scaffolding.
+set `ALTAIR_PATH`) when scaffolding. A generated project records the curated
+docs/examples provenance in `.altair/bundle.yml` and caches copies under
+`.altair/cache/`; after upgrading Altair, run `altair docs --refresh` inside
+the project to update them. The release source archive carries the same
+`bundle/` directory, so `altair docs` and `altair examples` work offline from
+a fresh install. Nothing is written into `lib/`.
 
 ---
 
 ## Documentation
 
-Documentation is under development. The architecture is described in
-[ARCHITECTURE.md](ARCHITECTURE.md), the CLI in [docs/cli.md](docs/cli.md),
-and phase-by-phase implementation plans
-live in [docs/architecture](docs/architecture).
+The published guides, install instructions and API references are on the
+[Altair website](https://arab-open-source.github.io/Altair/). The same
+curated guides are available offline through `altair docs --list` and
+`altair docs <topic>` (use `--open` for the online version), including
+`deployment`, `observability`, `read_replicas` and `docs_and_examples`.
+Repository-level references: [ARCHITECTURE.md](ARCHITECTURE.md), the
+[CLI reference](docs/cli.md), and phase-by-phase implementation plans in
+[docs/architecture](docs/architecture).
 
 ---
 

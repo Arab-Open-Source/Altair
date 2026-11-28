@@ -9,7 +9,7 @@ default middleware pipeline (request logging plus static files from
 
 ## Requirements
 
-- [Crystal](https://crystal-lang.org) `>= 1.21.0`
+- [Crystal](https://crystal-lang.org) `>= 1.22.3`
 
 No other dependencies. The example uses Altair directly from the repository.
 

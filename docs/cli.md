@@ -66,11 +66,13 @@ matches its source. The install is deliberately cautious:
 
 | Command | Purpose |
 |---------|---------|
-| `altair new <name> [--framework-path DIR]` | Scaffold a runnable project. By default it depends on the published shard; pass `--framework-path` (or set `ALTAIR_PATH`) to use a local checkout. |
+| `altair new <name> [--framework-path DIR] [-d sqlite\|postgresql] [--api] [--with-examples]` | Scaffold a runnable project. By default it depends on the published shard; pass `--framework-path` (or set `ALTAIR_PATH`) to use a local checkout. `-d postgresql` wires the `pg` shard, PostgreSQL URLs and the adapter require; `--api` omits views/assets and enables CORS; `--with-examples` copies curated starters into `examples/altair/`. Every mode generates `Dockerfile`, `.dockerignore` and `compose.yml`. |
 | `altair g scaffold <Name> [column:type ...]` | Model + migration + RESTful controller + ECR views + `resources` route + seeded `db/schema.cr`. |
 | `altair g model <Name> [column:type ...]` | A model file and its table. |
 | `altair g migration Create<Table> [column:type ...]` | A timestamped migration. |
 | `altair g controller <Name>` | A controller and its views. |
+| `altair docs [topic ...] [--list] [--open] [--refresh]` | List or print curated guides offline; extra words narrow to a heading; `--open` opens the published page; `--refresh` updates `.altair/cache/` and `.altair/bundle.yml` inside a project. |
+| `altair examples [name ...] [--copy[=name]]` | List or read curated starter examples offline; `--copy` / `--copy=all` copies into `examples/altair/` inside a project. |
 | `altair install [--dir DIR] [--force]` | Install the binary onto `PATH`. |
 | `altair update [--check] [--force]` | Update to the latest release. |
 | `altair version` | Print `Altair <version>`. |
@@ -92,7 +94,12 @@ to type `bin/`:
 | `altair routes` | Print the compiled route table. |
 | `altair db:migrate` | Run pending migrations. |
 | `altair db:rollback` | Undo the latest migration. |
+| `altair db:create` | Create every environment database from `config/database.yml`. |
+| `altair db:drop` | Drop those databases (refuses in production without `--force`). |
 | `altair db:seed` | Run the blocks registered in `db/seeds.cr`. |
+| `altair assets:precompile` | Fingerprint `assets/` into `public/assets/` and write the manifest. |
+| `altair jobs:work` | Run the background-jobs worker until interrupted. |
+| `altair jobs:stats` | Print background-job status counts. |
 
 `altair g scaffold ...` and the other generators write into the current
 project the same way. The project launcher itself (`bin/altair`, or
@@ -105,6 +112,47 @@ use `--` before the argument so `crystal run` does not consume it:
 ```bash
 crystal run bin/altair.cr -- db:migrate
 ```
+
+## Generated deployment files
+
+`altair new` writes a multi-stage `Dockerfile`, `.dockerignore` and
+`compose.yml` for SQLite, PostgreSQL and `--api` projects. The image uses
+Crystal 1.22.3 with a static binary, runs as non-root `app`, precompiles
+assets and health-checks `/health`. Migrations are explicit:
+
+```bash
+docker compose build
+docker compose run --rm web ./bin/altair db:migrate
+docker compose up -d
+curl -fsS http://localhost:3000/health
+```
+
+The runtime image keeps the compiled server and launcher, public assets and
+configuration, and `db/migrations` (the runner matches those filenames to the
+compiled registry). PostgreSQL data lives in `pg_data`; SQLite data lives in
+`sqlite_data` at `/app/db/data`. Secrets such as `SECRET_KEY_BASE` and
+`POSTGRES_PASSWORD` are required environment variables; inject them from your
+secret manager.
+
+## Offline docs and examples
+
+`altair docs` and `altair examples` read the curated `bundle/` shipped with
+the framework source and the release source archive. Nothing requires a
+network connection:
+
+```bash
+altair docs --list
+altair docs record associations
+altair docs --open deployment
+altair examples hello
+altair examples --copy hello
+```
+
+Copied examples live in `examples/altair/` and have no `shard.yml` of their
+own; they compile against the project's dependencies. Generated projects
+record provenance in `.altair/bundle.yml` and cache guides/examples under
+`.altair/cache/`. `altair docs --refresh` updates both after an upgrade.
+Nothing is written into `lib/`, which stays managed by Shards.
 
 ## Updating
 
@@ -132,4 +180,6 @@ You can also update manually:
 Updating the `altair` binary is separate from updating a project's copy of
 the framework: inside a project, `shards update altair` (then `shards
 install`) pulls the latest framework shard, and a fresh `shards install`
-after removing `shard.lock` and `lib/` re-resolves from scratch.
+after removing `shard.lock` and `lib/` re-resolves from scratch. After
+upgrading the CLI, run `altair docs --refresh` inside a project to refresh
+the offline `bundle/` cache and `.altair/bundle.yml`.

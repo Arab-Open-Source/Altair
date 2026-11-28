@@ -6,13 +6,12 @@ before touching the codebase.
 
 ## The short version
 
-- **Status:** Phases 0–7 done (Foundation, Router, Controllers, Views, ORM,
-  CLI, Hardening, post-release features). **v0.4.0 shipped** the ORM
-  completion wave: query DSL (where_not/or_where/:like/:in, finders,
-  update_all/delete_all), after_commit/after_rollback hooks, touch and
-  atomic counters, counter caches, batched dependent destroy and
-  conditional validations. 957 specs passing (6 pending: the PostgreSQL
-  contract suite on `ALTAIR_TEST_PG_URL`).
+- **Status:** Altair 0.5.0 (2026-11-27), Crystal 1.22.3, gcry 0.40.0. The
+  current unreleased branch adds production-readiness Step 5 and the Step 5.5
+  documentation reconciliation. Phases 0–8 and 10 are complete; Phase 9 (CLI
+  ergonomics) is in progress (hot reload shipped). Full suite with Redis and
+  PostgreSQL: 1114 examples, 0 failures, 5 pending; randomized record suite:
+  376 examples, 0 failures, 5 pending.
 - **Contract:** specs from day one, never skip a phase's exit criterion,
   never mention "Rails" in the repo, no emojis, no obvious comments.
 - **Plan:** `ROADMAP.md` holds the phase table + exit criteria; detailed
@@ -22,8 +21,11 @@ before touching the codebase.
 
 ```bash
 crystal spec                              # full test suite
-crystal tool format --check src spec examples
-crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
+crystal spec spec/record -- --order random  # CI randomized record job
+crystal tool format --check src spec examples bundle
+crystal run lib/ameba/bin/ameba.cr -- src spec examples bundle --format silent
+scripts/check_examples.sh                 # bundled starters vs generated project
+scripts/deployment_smoke.sh sqlite        # also postgresql and api
 shards install                            # fetch dev deps (ameba)
 ```
 
@@ -46,9 +48,12 @@ Acceptance bar: formatter clean, Ameba silent, specs green, CHANGELOG
 `src/altair.cr` requires components **in dependency order** — register new
 files there or they never load. `core/ http/ routing/ controller/
 middleware/ config/ session/ auth/ view/ record/ cli/ server/ support/
-exceptions/ concurrency/` under `src/altair/`. `spec/` mirrors it.
+exceptions/ concurrency/ cache/ storage/ cable/ redis/ jobs/ assets/
+observability/ testing/` under `src/altair/`. `spec/` mirrors it.
 `examples/hello_world/` is the runnable demo; `examples/blog` is the
-persistence demo.
+persistence demo; `examples/read_replica_postgres` is the streaming-standby
+demo. `bundle/` holds the curated offline guides and starter examples; it
+must never be copied into `lib/`.
 
 ## Costly gotchas
 

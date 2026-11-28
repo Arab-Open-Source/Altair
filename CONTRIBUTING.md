@@ -30,7 +30,7 @@ issue or a pull request.
 
 Requirements:
 
-- [Crystal](https://crystal-lang.org) `>= 1.21.0`
+- [Crystal](https://crystal-lang.org) `>= 1.22.3`
 - [Git](https://git-scm.com)
 
 Clone the repository and install the development dependencies (Ameba, the
@@ -68,7 +68,9 @@ The source lives under `src/altair/`:
 | `src/altair/exceptions/` | The exception hierarchy |
 
 Specs live in `spec/`, mirroring the same structure. The example application
-in `examples/hello_world/` is the always-running demo.
+in `examples/hello_world/` is the always-running demo. The curated offline
+guides and starter programs live in `bundle/`; they ship in release source
+archives and are never copied into `lib/`.
 
 ## Reporting bugs
 
@@ -173,7 +175,7 @@ If the commit resolves an issue, reference it in the body with
 - Follow Crystal's official style; the authoritative check is the formatter:
 
   ```bash
-  crystal tool format --check src spec examples
+  crystal tool format --check src spec examples bundle
   ```
 
 - Keep public API documented with a short comment above each public method
@@ -181,7 +183,7 @@ If the commit resolves an issue, reference it in the body with
 - Run Ameba (the linter used in CI) and keep it silent:
 
   ```bash
-  crystal run lib/ameba/bin/ameba.cr -- src spec examples --format silent
+  crystal run lib/ameba/bin/ameba.cr -- src spec examples bundle --format silent
   ```
 
 ## Testing
@@ -198,6 +200,47 @@ that reproduces it before fixing, then watch it pass. Look at the existing
 specs in `spec/` — especially `spec/routing/` for the routing layer — for
 the established patterns.
 
+With Redis and PostgreSQL available, run the full suite and the randomized
+record job separately:
+
+```bash
+ALTAIR_REDIS_URL=redis://localhost:6379 \
+ALTAIR_TEST_PG_URL=postgres://postgres:postgres@localhost:5433/altair_test \
+  crystal spec
+
+ALTAIR_TEST_PG_URL=postgres://postgres:postgres@localhost:5433/altair_test \
+  crystal spec spec/record -- --order random
+```
+
+Do not run the full suite and the randomized record suite in parallel
+against the same PostgreSQL instance; they contend for the same database and
+produce misleading failures.
+
+The deployment and offline-bundle gates are also part of CI:
+
+```bash
+scripts/check_examples.sh
+scripts/deployment_smoke.sh sqlite
+scripts/deployment_smoke.sh postgresql
+scripts/deployment_smoke.sh api
+```
+
+The deployment smoke requires Docker. `ALTAIR_SKIP_BUILD=1` reuses the
+`bin/altair` binary after `shards build altair`.
+
+Documentation is generated from markdown under `website/pages/`. Rebuild it
+after changing a guide:
+
+```bash
+cd website
+npm install
+node build.mjs
+```
+
+Do not change committed benchmark numbers without an explicit benchmark
+review. Mark older sessions with their gcry/Crystal versions and add current
+runtime versions without implying a new result.
+
 ## Opening a pull request
 
 1. Make sure your branch is up to date with `main`.
@@ -212,11 +255,14 @@ Before opening the pull request, double-check that:
 
 - The branch is named after the change or its issue (see
   [Branch naming](#branch-naming)).
-- `crystal tool format --check src spec examples` passes.
-- Ameba is silent.
-- `crystal spec` passes, including any new specs.
+- `crystal tool format --check src spec examples bundle` passes.
+- Ameba is silent, including `bundle/`.
+- `crystal spec` passes, including any new specs; the randomized record job
+  passes when PostgreSQL is available.
 - The [CHANGELOG.md](CHANGELOG.md) `[Unreleased]` section documents
   user-facing changes.
+- Generated-project docs, `altair docs`, `altair examples`, and the website
+  still match the behavior you changed.
 
 ## Code of conduct
 

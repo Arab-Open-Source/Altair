@@ -27,6 +27,10 @@ module Altair
         Install.run(args[1..])
       when "update"
         Update.run(args[1..])
+      when "docs"
+        Docs.run(args[1..])
+      when "examples"
+        Examples.run(args[1..])
       when "version", "-v", "--version"
         puts "Altair #{Altair::VERSION}"
         0
@@ -60,7 +64,7 @@ module Altair
 
     # Returns up to three close matches for `input` among known commands.
     def self.did_you_mean(input : String) : Array(String)
-      known = %w[new generate g install update version help server routes db:migrate db:rollback db:create db:drop db:seed assets:precompile jobs:work jobs:stats]
+      known = %w[new generate g docs examples install update version help server routes db:migrate db:rollback db:create db:drop db:seed assets:precompile jobs:work jobs:stats]
       scored = known.map { |command| {command, levenshtein(input, command)} }
         .select { |_, dist| dist <= 3 && dist > 0 }
         .sort_by! { |_, dist| dist }
@@ -137,8 +141,10 @@ module Altair
         Altair #{Altair::VERSION} — the batteries-included web framework for Crystal.
 
         Usage:
-          altair new <name> [--framework-path DIR]  create a new application
+          altair new <name> [-d DB] [--api]         create a new application
           altair generate <type> <args> ...         scaffold files (alias: g)
+          altair docs [<topic> ...] [--open]        read offline framework guides
+          altair examples [<name>] [--copy NAME]    list or copy starter examples
           altair g scaffold Post title:string       model, migration, controller and views
           altair g model Post title:string          a model + table
           altair g migration CreatePosts ...        a timestamped migration
@@ -163,16 +169,37 @@ module Altair
       case command
       when "new"
         <<-TXT
-          Usage: altair new <name> [--framework-path DIR]
+          Usage: altair new <name> [-d sqlite|postgresql] [--api] [--with-examples]
+                                [--framework-path DIR]
 
-            Creates a new Altair application in <name>. <name> may include a
-            path (e.g. a/b or /tmp/my_app); only its basename becomes the
+            Creates a new Altair application in <name> with a Dockerfile,
+            .dockerignore and compose.yml. <name> may include a path
+            (e.g. a/b or /tmp/my_app); only its basename becomes the
             application name, which must be lowercase letters, digits and
             underscores starting with a letter.
 
             Options:
-              --framework-path DIR   use a local framework checkout instead of GitHub
+              -d, --database DB      sqlite (default) or postgresql
+                  --api              JSON-only project without views or assets
+                  --with-examples    copy curated examples into examples/altair/
+                  --framework-path DIR   use a local framework checkout instead of GitHub
               (also: --framework-path=DIR or ALTAIR_PATH env var)
+          TXT
+      when "docs"
+        <<-TXT
+          Usage: altair docs [<topic> ...] [--list] [--open] [--refresh]
+
+            Lists or prints curated guides from the installed framework
+            bundle, offline. Topic lookup accepts several words, e.g.
+            `altair docs record associations`. --open opens the matching
+            online page; --refresh updates the project-local bundle cache.
+          TXT
+      when "examples"
+        <<-TXT
+          Usage: altair examples [<name>] [--copy [name|all]]
+
+            Lists or prints the curated starter examples. --copy copies
+            their sources into examples/altair/ of the current project.
           TXT
       when "server"
         Watcher::Options.help

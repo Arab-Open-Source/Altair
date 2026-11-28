@@ -8,14 +8,14 @@ On `altair server` the console shows:
 
 ```
 ╭──────────────────────────────────────────────╮
-│                Altair v0.2.2                 │
+│                Altair v0.5.0                 │
 ├──────────────────────────────────────────────┤
 │ Environment   Development                    │
 │ Address       http://localhost:3000          │
 │ PID           15244                          │
 │ Routes        5                              │
 │ Middleware    6                              │
-│ Crystal       1.21.0                         │
+│ Crystal       1.22.3                         │
 │ Started in    12.3ms                         │
 ╰──────────────────────────────────────────────╯
 ```

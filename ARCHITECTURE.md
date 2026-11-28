@@ -1,8 +1,9 @@
 # Altair Architecture
 
-> **Status:** early development (pre-alpha) — Phases 0–4 complete.
-> This document describes the architecture as it exists in the code today,
-> not as a specification of future intent.
+> **Status:** Altair 0.5.0 plus the unreleased production-readiness Step 5/5.5
+> work. Phases 0–8 and 10 are complete; Phase 9 (CLI ergonomics) is in
+> progress. This document describes the architecture as it exists in the
+> code today, not as a specification of future intent.
 
 Altair is a batteries-included web framework for [Crystal](https://crystal-lang.org).
 Its design is guided by three principles:
@@ -113,6 +114,18 @@ src/altair/
 │   └── payload_too_large.cr # → 413
 ├── support/
 │   └── inflector.cr         # singularize/pluralize/camelcase tables
+├── auth/                    # password_auth, PBKDF2 hasher, JWT
+├── assets/                  # fingerprint assets/ -> public/assets/ + manifest
+├── cache/                   # MemoryStore / RedisStore + Altair.cache
+├── storage/                 # Disk/S3 stores + has_one_attached
+├── cable/                   # WebSocket broadcaster, channels, auth hook
+├── redis/                   # pure-Crystal RESP2 client, pool and pub/sub
+├── jobs/                    # typed jobs, lazy queue, worker
+├── observability/           # request metrics for /metrics
+├── concurrency/             # FIFO semaphore / admission control
+├── testing/                 # Test.boot, transactional, cookie-jar client
+├── cli/                     # dispatcher, project commands, generators, watcher,
+│                            # offline docs/examples and bundle resolution
 └── record/                  # Altair::Record — the ORM (see §6)
     ├── record.cr            # public entry: connection, on_query hook
     ├── adapter.cr           # Adapter interface
@@ -128,6 +141,12 @@ src/altair/
         ├── runner.cr        # db:migrate / db:rollback
         └── schema_generator.cr # regenerates db/schema.cr
 ```
+
+The repository also carries `bundle/` — curated offline guides and starter
+programs shipped in release source archives. Generated projects receive
+`Dockerfile`, `.dockerignore`, `compose.yml`, `AGENTS.md`,
+`.opencode/skills/altair/`, `.altair/bundle.yml` and `.altair/cache/`.
+Nothing is written into `lib/`, which stays managed by Shards.
 
 ---
 
@@ -377,6 +396,10 @@ for the framework:
 | `blog` | persistence: posts + comments survive restarts (SQLite by default, PostgreSQL via `ALTAIR_DB_URL`) |
 | `sqlite_crud` | full MVC CRUD on SQLite3 at `localhost:4100` |
 | `postgresql_crud` | full MVC CRUD on PostgreSQL at `localhost:4200` |
+| `rate_limit_demo` | sliding-window rate limiting with memory and Redis stores |
+| `read_replica` | replica routing across two SQLite files |
+| `read_replica_postgres` | PostgreSQL primary + physical streaming standby, failover and recovery |
+| `showcase` | broad feature demo across the framework |
 
 ---
 
@@ -386,12 +409,18 @@ Implemented: application core, HTTP layer, routing, controllers, views,
 middleware, smart errors, request hardening, the `Altair::Record` ORM
 (SQLite + PostgreSQL, migrations, schema generation, CRUD/finders,
 validations, callbacks, associations with batched eager loading, scopes,
-nested includes, insert_all, dirty tracking, enum attributes, multi-db),
-the CLI (`altair new` / `server` / `routes` / `db:*`), generators and
-scaffolding, sessions/flash/CSRF/auth helpers, multipart parsing,
-`.env`/`database.yml` config, security middleware, and testing utilities.
+nested includes, joins, `has_many :through`, polymorphic associations,
+`insert_all`, upsert, dirty tracking, enum attributes, multi-db), read
+replicas (`db_replica_url`, `on_primary`, failover/recovery, target metrics),
+the CLI (`altair new` / `server` / `routes` / `db:*` / `docs` / `examples`),
+generators and scaffolding, sessions/flash/CSRF/auth helpers, multipart
+parsing, `.env`/`database.yml` config, security middleware, background jobs,
+the asset pipeline, cache, storage, Cable, Redis, observability and testing
+utilities. Generated projects ship Docker/Compose deployment and an offline
+docs/examples bundle.
 
-Not yet built (see `ROADMAP.md`): background jobs, authentication
-(`altair g auth`), asset pipeline, a richer query DSL (joins,
-`has_many :through`, polymorphic), prepared-statement caching, and
-migration linting.
+Remaining (see `ROADMAP.md`): Phase 9 CLI ergonomics (`destroy`, job
+generator, `db:status`, assets/jobs helpers, project-command help), the
+remaining rich-query DSL (`group`/`having`), a development console,
+prepared-statement caching, `explain`, a migration linter, and multi-tenancy
+as a Phase 12 candidate.

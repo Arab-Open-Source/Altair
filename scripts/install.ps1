@@ -167,6 +167,9 @@ try {
         Write-Host "Framework source installed at $frameworkDir"
         Write-Host "Offline projects can reference it:"
         Write-Host "  altair new myapp --framework-path $frameworkDir"
+        Write-Host "Offline guides and starter examples are installed in its bundle/:"
+        Write-Host "  altair docs deployment"
+        Write-Host "  altair examples --copy hello"
     }
 
     Write-Host "Run 'altair' from any directory."

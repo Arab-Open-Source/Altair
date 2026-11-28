@@ -4,12 +4,16 @@
 > vertical slices, not horizontal scaffolding. Each phase has a clear exit
 > criterion.
 
-This roadmap tracks the build in phases. **Phases 0–5 are complete and ship
-with passing specs**; the remaining phases are planned. The ORM (`Altair::Record`)
+This roadmap tracks the build in phases. **Phases 0–8 and 10 are complete and
+ship with passing specs; Phase 9 is in progress.** The ORM (`Altair::Record`)
 — originally a single large "Phase 5" — landed across three waves inside the
 Phase 4 milestone, so the router/controller/view/ORM stack is now usable end to
 end against both SQLite and PostgreSQL. Phase 5 delivered the CLI and the
-generators on top of that stack.
+generators on top of that stack. Version **v0.5.0** (2026-11-27) shipped the
+pinned drivers, bounded CI and read-replica correctness work. The current
+unreleased branch completes production-readiness Step 5 (generated
+Docker/Compose deployment, offline docs and examples, deployment smoke) and
+the Step 5.5 documentation reconciliation.
 
 ## Current status
 
@@ -24,9 +28,11 @@ generators on top of that stack.
 | 6 | Hardening (sessions, flash, CSRF, config, security) | Completed |
 | 7 | Post-release features | Completed — jobs, auth, assets, testing utilities, joins, has_many :through/polymorphic, and Wave 0 ORM hardening (IN chunking, custom PK + UUID, atomic writes, order/reload) all shipped; only console (deferred) remains |
 | 8 | Database ergonomics | Completed — `altair new -d postgresql`, `bin/altair db:create` / `db:drop`, `ENV["DATABASE_URL"]` applied at boot, PG contract suite in CI |
-| 9 | CLI ergonomics | In progress — hot reload shipped; remaining: destroy, job generator, db:status, assets/jobs helpers |
+| 9 | CLI ergonomics | In progress — hot reload shipped; remaining: destroy, job generator, db:status, assets/jobs helpers, project-command help |
 | 10 | Router & future features | Completed — dynamic redirect, Cable, cache, storage, API mode, admin generator, observability |
 | v0.4.0 | ORM completion wave | Completed — query DSL (negation, alternatives, finders, bulk writes), after_commit hooks, touch/increment!, counter caches, batched dependent destroy, conditional validations |
+| v0.5.0 | Pinned drivers and replica correctness | Completed — organization-owned driver pins, bounded CI, read-replica routing fixes and PostgreSQL release smoke |
+| Unreleased | Production readiness, Step 5 + 5.5 | Completed on this branch — generated deployment, offline docs/examples bundle, deployment smoke, and documentation reconciliation |
 
 > **Note on the CLI:** the original Phase 4 plan listed `altair new` /
 > `altair server` / `altair routes`. That CLI landed in Phase 5, together
@@ -159,7 +165,7 @@ pushing a `v*` tag, which triggers `release.yml`.
 | Rich query DSL (joins, preload, scopes, nested `includes`) | Complex data access is natural | Completed — scopes, `merge`, nested `includes`, plus `joins`/`left_joins` with table-qualified `where` and automatic `DISTINCT`/`COUNT(DISTINCT)` |
 | `has_many :through` + polymorphic associations | Advanced model relationships | Completed — `has_many :tags, through: :post_tags` (source inferred, ambiguous requires explicit `source:`), `belongs_to :commentable, polymorphic: true`, `has_many :comments, as: :commentable` with batched-per-type eager loading and `dependent: :destroy/:nullify`; `t.references ..., polymorphic: true` migration helper |
 
-## Phase 8: Database ergonomics (completed — shipped after v0.4.0, unreleased)
+## Phase 8: Database ergonomics (completed — shipped in v0.5.0)
 
 Mirrors the `new -d` / `db:create` ergonomics of the reference framework,
 without mentioning it in code — flag is `-d` / `--database`.
@@ -170,10 +176,7 @@ without mentioning it in code — flag is `-d` / `--database`.
 | `bin/altair db:create` | Reads `config/database.yml` and creates the `development`/`test`/`production` databases (idempotent `CREATE DATABASE IF NOT EXISTS` semantics) | Complements `db:migrate`/`db:rollback`; uses `Connection.for` per env with `CREATE DATABASE` outside a transaction |
 | `bin/altair db:drop` (optional) | Drops the same databases | Guarded by confirmation in `production` |
 
-Deferred by request — no code changes in this commit. Implementation will
-follow `docs/architecture/phase-7-status.md` → Phase 8 plan when scheduled.
-
-## Phase 9: CLI ergonomics (planned — deferred)
+## Phase 9: CLI ergonomics (in progress)
 
 Batteries-included polish for the command line — no new subsystems, just
 less friction for daily use.
@@ -189,13 +192,46 @@ less friction for daily use.
 | Medium | `altair help` for project commands | `help_for` covers `server/routes/db:*/assets:*/jobs:*` instead of falling back to generic `help` |
 | Low | `altair about` / `doctor` | Prints Crystal version, adapter, env, root, middleware/route counts without booting the server |
 
-Deferred by request — no code changes in this commit. Waves: A (job + destroy), B (db:status + server flags), C (assets/jobs helpers + help).
+Hot reload (`Altair::CLI::Watcher`, `--no-watch`, `-p`/`-b`/`-e` and
+`--delay`) has shipped. Remaining work, in waves: A (job generator + destroy),
+B (`db:status` / `db:version` and project-command help), C (assets/jobs helpers).
 
 ## Phase 10: Router & future features (completed)
 
 Collected from review — each row shipped as its own wave. Multi-tenancy
 remains the next big candidate (Phase 12): see
 `docs/architecture/orm-audit-and-tenancy-plan.md`.
+
+## Unreleased — Production readiness, Step 5 (completed)
+
+The production-readiness work is tracked in the local working document
+`docs/architecture/production-readiness-roadmap.md`. In scope for the current
+unreleased cycle:
+
+- **Generated deployment** — `altair new` writes a multi-stage Dockerfile
+  (Crystal 1.22.3, static build), `.dockerignore` and `compose.yml` for
+  SQLite, PostgreSQL and `--api`; the runtime is non-root, has a `/health`
+  HEALTHCHECK, keeps `db/migrations` with the compiled launcher and stores
+  database files in named volumes. Migrations are explicit, never automatic.
+- **Offline docs and examples** — a curated `bundle/` ships in the repo and
+  release source archive; `altair docs [<topic>]`, `altair docs --refresh`,
+  `altair examples [--copy NAME]` and `altair new --with-examples` read it
+  without touching `lib/`.
+- **Clean-machine smoke** — `scripts/deployment_smoke.sh sqlite|postgresql|api`
+  builds the generated image, migrates, checks health/endpoints, verifies a
+  non-root uid and runtime image contents, and tests restart and volume
+  persistence. CI and release workflows run the same smoke;
+  `scripts/check_examples.sh` compiles the bundled starters.
+- **Correctness and delivery** — organization-owned driver pins with an
+  upstream removal plan in `VENDORED_DRIVERS.md`, bounded CI with targeted
+  retries and a randomized record job, and read-replica routing fixes
+  (experimental, documented with per-target metrics).
+
+Step 5.5 is a documentation reconciliation pass across the root docs,
+generated-project docs, CLI reference and website. It is complete: the
+website was rebuilt and the search index regenerated. Current verified state:
+1114 examples, 0 failures, 0 errors, 5 pending with Redis and PostgreSQL; the
+randomized record suite is 376 examples with the same result.
 
 ## v0.4.0 — ORM completion wave (completed)
 

@@ -52,6 +52,11 @@ module Altair
         check = args.includes?("--check")
         force = args.includes?("--force")
 
+        # A project-local docs/examples bundle records the framework version
+        # it came from; surface drift before touching the network so the
+        # warning is visible even in `--check` mode.
+        Bundle.warn_if_drift
+
         asset_name = platform_asset_name
         if asset_name.nil?
           abort "Unsupported platform — please install from source (`shards build altair && ./bin/altair install --force`)."
@@ -81,6 +86,12 @@ module Altair
         end
 
         install_new(latest, asset_name)
+        if project = Altair::CLI.find_project_dir
+          manifest = Bundle.read_manifest(project)
+          if manifest && !manifest.version.empty? && compare_versions(latest, "v#{manifest.version}") > 0
+            puts "Refresh the project docs bundle with: altair docs --refresh"
+          end
+        end
         0
       end
 

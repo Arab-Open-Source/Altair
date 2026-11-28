@@ -55,7 +55,7 @@ It prints the installed binary's SHA-256 digest so you can verify the copy match
 
 | Command | Purpose |
 |---------|---------|
-| `altair new <name> [--framework-path DIR] [-d sqlite\|postgresql] [--api]` | Scaffold a runnable project. `<name>` may include a path (`a/b`, `/tmp/my_app`); only its basename becomes the application name. Names must be lowercase letters, digits and underscores starting with a letter — `my-app` is rejected with a suggestion `my_app`. By default it depends on the published shard; pass `--framework-path` (or set `ALTAIR_PATH`) to use a local checkout. `-d postgresql` wires the `pg` shard, postgres URLs in `config/database.yml` and the adapter require; `-d sqlite` is the default (`ALTAIR_DATABASE` env fallback). `--api` generates a JSON-only project (no views/assets) with CORS enabled. |
+| `altair new <name> [--framework-path DIR] [-d sqlite\|postgresql] [--api] [--with-examples]` | Scaffold a runnable project. `<name>` may include a path (`a/b`, `/tmp/my_app`); only its basename becomes the application name. Names must be lowercase letters, digits and underscores starting with a letter — `my-app` is rejected with a suggestion `my_app`. By default it depends on the published shard; pass `--framework-path` (or set `ALTAIR_PATH`) to use a local checkout. `-d postgresql` wires the `pg` shard, postgres URLs in `config/database.yml` and the adapter require; `-d sqlite` is the default (`ALTAIR_DATABASE` env fallback). `--api` generates a JSON-only project (no views/assets) with CORS enabled. `--with-examples` copies a curated starter set into `examples/altair/`. Every mode also generates `Dockerfile`, `.dockerignore` and `compose.yml`. |
 | `altair g scaffold <Name> [column:type ...]` | Model + migration + RESTful controller + ECR views + `resources` route + seeded `db/schema.cr`. |
 | `altair g model <Name> [column:type ...]` | A model file and its table. |
 | `altair g admin <Name>` | Namespaced admin controller with `require_login` + `namespace :admin` routes. |
@@ -65,6 +65,8 @@ It prints the installed binary's SHA-256 digest so you can verify the copy match
 | `altair g controller <Name>` | A controller and its views. |
 | `altair install [--dir DIR] [--force]` | Install the binary onto `PATH`. |
 | `altair update [--check] [--force]` | Update the binary to the latest release. |
+| `altair docs [--list] [--open] [--refresh] [topic ...]` | Read the bundled guides offline; `record associations` prints that section, `--open` opens the published page, `--refresh` updates `.altair/cache` (inside a project). |
+| `altair examples [name ...] [--copy[=name]]` | List and read the curated starter examples offline; `--copy` / `--copy=all` copies them into `examples/altair/` (inside a project). |
 | `altair version` | Print `Altair <version>`. |
 | `altair help` | Print usage. |
 
@@ -109,6 +111,46 @@ When running the launcher with `crystal run` instead of the built binary, use `-
 ```bash
 crystal run bin/altair.cr -- db:migrate
 ```
+
+## Generated deployment files
+
+`altair new` writes a multi-stage `Dockerfile`, a `.dockerignore` and a
+`compose.yml` for SQLite, PostgreSQL and `--api` projects. The build uses
+Crystal 1.22.3 and a static binary; the runtime runs as non-root `app`,
+precompiles assets and health-checks `/health`. There are no automatic
+migrations:
+
+```bash
+docker compose build
+docker compose run --rm web ./bin/altair db:migrate
+docker compose up -d
+curl -fsS http://localhost:3000/health
+```
+
+Secrets are required from the environment (`SECRET_KEY_BASE`, and
+`POSTGRES_PASSWORD` on PostgreSQL) rather than defaulted in Compose. See the
+[Deployment guide](/docs/deployment.html).
+
+## Offline docs and examples
+
+`altair docs` and `altair examples` read a curated bundle shipped with the
+framework source and the release source archive — no network access needed.
+Topic lookup takes extra words:
+
+```bash
+altair docs --list
+altair docs record associations
+altair examples hello
+altair examples --copy hello
+```
+
+`--open` opens the matching published HTML guide in a browser. Copying
+examples and refreshing require a generated project; `altair docs --refresh`
+rewrites `.altair/cache/` and the `.altair/bundle.yml` provenance manifest
+after a framework upgrade. The cache and manifest live under `.altair/`, and
+copied examples live under `examples/altair/` — nothing is ever written into
+`lib/`, which Shards owns. See the
+[Offline docs and examples guide](/docs/docs_and_examples.html).
 
 ## Updating
 

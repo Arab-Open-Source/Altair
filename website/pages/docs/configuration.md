@@ -28,6 +28,24 @@ file on `postgres://` URLs and wires the `pg` shard; `ENV["DATABASE_URL"]`
 overrides whatever the file says, and the same override drives
 `bin/altair db:create` / `db:drop`.
 
+## Deployment environment variables
+
+The generated Dockerfile, `.dockerignore` and `compose.yml` read these from
+the environment. `.env.example` lists every one without real secrets; copy it
+to `.env`, or inject values from your secret manager in production.
+
+| Variable | Used for |
+|----------|----------|
+| `DATABASE_URL` | Overrides `config/database.yml`; a `postgres://` URL on PostgreSQL, `sqlite3://./db/data/...` inside the SQLite container |
+| `SECRET_KEY_BASE` | Signs session cookies, CSRF tokens and JWTs; required by generated Compose (`${SECRET_KEY_BASE:?...}`), generate with `openssl rand -hex 64` |
+| `ALTAIR_ENV` | Selects the environment (`production` in the generated images) |
+| `PORT` | Port the server binds inside the container (`3000` by default) |
+| `HOST_PORT` | Host-side port published by Compose (`${HOST_PORT:-3000}:3000`) |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | PostgreSQL service credentials; `POSTGRES_PASSWORD` is required with no default |
+
+See the [Deployment guide](/docs/deployment.html) for the build → migrate →
+up → health sequence and volume details.
+
 ## `.env`
 
 `KEY=VALUE` pairs loaded into the process environment. Handles `export`,
@@ -153,8 +171,13 @@ A selection of the settings available:
 | `session_cookie_secure` | on in production | The cookie's `Secure` attribute |
 | `login_path` | `/login` | Where `require_login` redirects |
 | `max_body_size` | `2 MB` | Request body limit (raise it for uploads) |
-| `db_url` | `nil` | The database connection URL |
+| `db_url` | `nil` | The database connection URL (`ENV["DATABASE_URL"]` wins) |
+| `db_replica_url` / `replica_url` | `nil` | Optional read-replica connection URL; clean SELECTs route there (experimental, see [Read replicas](/docs/read_replicas.html)) |
 | `db_*_pool_size` | warm defaults | Connection pool tuning |
+| `observability` | `false` (`true` in generated projects) | Serve `/health` and `/metrics` before route dispatch |
+| `health_path` | `/health` | Liveness endpoint path |
+| `metrics_path` | `/metrics` | Prometheus metrics endpoint path |
+| `structured_logs` | `false` | Emit one JSON object per request instead of an aligned console line |
 | `router_cache_size` | `1024` | Memoized route lookups (`0` disables) |
 | `security_headers` | `nosniff` / `SAMEORIGIN` / referrer policy | Headers stamped by `SecurityHeaders` |
 | `request_id_header` | `X-Request-Id` | Header carrying the request id |

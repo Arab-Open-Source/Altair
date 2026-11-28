@@ -1,0 +1,23 @@
+# Manifest for the curated offline documentation and starter-example bundle.
+# Copied into generated projects as `.altair/bundle.yml` so `altair docs`,
+# `altair examples` and `altair update` can detect version drift.
+revision: 1
+framework: 0.5.0
+topics:
+  - getting_started
+  - cli
+  - configuration
+  - routing
+  - record
+  - auth
+  - jobs
+  - testing
+  - deployment
+  - observability
+  - read_replicas
+  - docs_and_examples
+  - troubleshooting
+examples:
+  - hello
+  - json_api
+  - cache

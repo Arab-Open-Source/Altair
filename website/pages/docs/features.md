@@ -1,6 +1,6 @@
 # What is implemented
 
-Altair is built in phases, each ending with something working and visible. Everything below is implemented, tested and shipped. Each area has a guide: [Routing](/docs/routing.html), [Controllers](/docs/controllers.html), [Views](/docs/views.html), [Record](/docs/record.html), [Sessions and auth](/docs/sessions.html), [Configuration](/docs/configuration.html), [Security](/docs/security.html) and [Uploads](/docs/uploads.html).
+Altair is built in phases, each ending with something working and visible. Everything below is implemented, tested and shipped. Each area has a guide: [Routing](/docs/routing.html), [Controllers](/docs/controllers.html), [Views](/docs/views.html), [Record](/docs/record.html), [Sessions and auth](/docs/sessions.html), [Configuration](/docs/configuration.html), [Security](/docs/security.html), [Uploads](/docs/uploads.html), [Deployment](/docs/deployment.html), [Read replicas](/docs/read_replicas.html), [Observability](/docs/observability.html) and [Offline docs and examples](/docs/docs_and_examples.html).
 
 ## Phase 0 — Foundation
 
@@ -80,7 +80,7 @@ security middleware set, shipped in waves:
 
 ## Phase 7 — Post-release
 
-Four features shipped, demonstrated end to end in `examples/blog`:
+Shipped, demonstrated end to end in `examples/blog` (the closing wave added joins, `has_many :through` and polymorphic associations, detailed below):
 
 - **Testing utilities** — `Altair::Test.boot(App)` binds an ephemeral port
   (with a `configure:` hook for per-spec settings such as
@@ -131,8 +131,9 @@ Four features shipped, demonstrated end to end in `examples/blog`:
 
 ## Testing and quality
 
-- 992 specs passing (15 pending: 7 Redis rate-limit + 1 Redis middleware + 6 PostgreSQL concurrency contract; the full PostgreSQL contract suite runs when `ALTAIR_TEST_PG_URL` is set)
+- Full suite with Redis and PostgreSQL: 1114 examples, 0 failures, 0 errors, 5 pending; randomized record suite: 376 examples, 0 failures, 0 errors, 5 pending
 - Formatter clean, linter silent on framework sources
+- Toolchain: Crystal 1.22.3 and gcry 0.40.0 for the current release; organization-owned driver pins are documented in `VENDORED_DRIVERS.md`
 - Smart error pages: 404 with route suggestions, 405 with `_method` explanation, detailed 500 diagnostics in debug mode only
 
 ### Rich query DSL completion + advanced associations (closing Phase 7 wave)
@@ -164,9 +165,9 @@ Four features shipped, demonstrated end to end in `examples/blog`:
 - **Atomic writes** — `db/schema.cr` written via tmp+rename;
   `db:migrate` acquires PG advisory lock against concurrent races
 
-### Phase 8 — Database ergonomics
+### Phase 8 — Database ergonomics (complete)
 
-Completed — `altair new -d postgresql` wires the `pg` shard, `postgres://` URLs and the adapter require; `bin/altair db:create` / `db:drop` manage every env in `config/database.yml`; `ENV["DATABASE_URL"]` overrides at boot and in those commands.
+`altair new -d postgresql` wires the `pg` shard, `postgres://` URLs and the adapter require; `bin/altair db:create` / `db:drop` manage every env in `config/database.yml`; `ENV["DATABASE_URL"]` overrides at boot and in those commands.
 
 ### v0.4.0 — ORM completion wave
 
@@ -174,7 +175,7 @@ Completed — `altair new -d postgresql` wires the `pg` shard, `postgres://` URL
 - **Lifecycle**: `after_commit` / `after_rollback` hooks; direct-write `touch` / `increment!` / `decrement!`
 - **Associations & validations**: `counter_cache`, batched `dependent: :destroy`, conditional validations (`if:` / `unless:` / `allow_nil:`) and `case_sensitive: false` uniqueness
 
-### Phase 10 — Router & future features
+### Phase 10 — Router & future features (complete)
 
 - **Dynamic redirect**: `redirect "/t/:id", to: "/tweets/:id"` interpolates route params into Location headers
 - **Cache layer**: MemoryStore (dev) + RedisStore (production); `Altair.cache.fetch` with TTL expiry
@@ -186,9 +187,15 @@ Completed — `altair new -d postgresql` wires the `pg` shard, `postgres://` URL
 - **Structured logs**: `config.structured_logs = true` emits one JSON object per request
 - **Redis client**: Pure-Crystal `Altair::Redis::Client` built from scratch — RESP2, connection pool, pub/sub, pipeline, transactions. No external Redis shard needed.
 
-### Phase 9 — CLI ergonomics
+### Phase 9 — CLI ergonomics (in progress)
 
-Planned — `altair g job` and `destroy` generators, per-environment database helpers, server flags, and project diagnostics.
+Shipped: development hot reload through the CLI watcher (restart the server when source files change). Still planned: `destroy` and job generators, `db:status`, assets/jobs helpers and project-command help.
+
+### Production readiness (Step 5)
+
+- **Generated deployment** — `altair new` writes a multi-stage Dockerfile, `.dockerignore` and `compose.yml` for SQLite, PostgreSQL and `--api`; Crystal 1.22.3 static build, non-root `app` user, asset precompile and a `/health` HEALTHCHECK. Migrations are explicit (`docker compose run --rm web ./bin/altair db:migrate`), never automatic. See [Deployment](/docs/deployment.html).
+- **Read replicas** — experimental `config.db_replica_url` routing: clean SELECTs go to the replica, writes/transactions and `Relation#on_primary` / `Altair::Record.connection.with_primary` stay on the primary, with a 5-second failover cooldown, recovery logging and per-target Prometheus counters. See [Read replicas](/docs/read_replicas.html) and `examples/read_replica_postgres`.
+- **Offline docs and examples** — `altair docs`, `altair examples`, `altair docs --refresh`, `altair docs --open` and `altair new --with-examples`; a curated `bundle/` ships in the repository and release source archive, with project provenance in `.altair/bundle.yml` and cache in `.altair/cache/`. Nothing is written into `lib/`. See [Offline docs and examples](/docs/docs_and_examples.html).
 
 ## What is planned next
 
